@@ -59,6 +59,64 @@ func TestPythonPlan(t *testing.T) {
 	})
 }
 
+func TestPythonPlan_Pipfile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	err := os.WriteFile(filepath.Join(tempDir, "Pipfile"), []byte("[packages]\nflask = \"*\"\n"), 0644)
+	require.NoError(t, err)
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := generate.NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+
+	provider := &PythonProvider{}
+	err = provider.Plan(ctx)
+	require.NoError(t, err)
+
+	require.Len(t, ctx.Steps, 1)
+	require.Equal(t, "install", ctx.Steps[0].Name())
+
+	// Build the plan to verify it produces valid commands
+	buildPlan, _, err := ctx.Generate()
+	require.NoError(t, err)
+	require.NotEmpty(t, buildPlan.Steps)
+	require.NotEmpty(t, buildPlan.Steps[0].Commands,
+		"Pipfile plan should generate install commands")
+}
+
+func TestPythonPlan_SetupPy(t *testing.T) {
+	tempDir := t.TempDir()
+
+	err := os.WriteFile(filepath.Join(tempDir, "setup.py"), []byte("from setuptools import setup\nsetup(name='test')"), 0644)
+	require.NoError(t, err)
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := generate.NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+
+	provider := &PythonProvider{}
+	err = provider.Plan(ctx)
+	require.NoError(t, err)
+
+	require.Len(t, ctx.Steps, 1)
+
+	buildPlan, _, err := ctx.Generate()
+	require.NoError(t, err)
+	require.NotEmpty(t, buildPlan.Steps)
+	require.NotEmpty(t, buildPlan.Steps[0].Commands,
+		"setup.py plan should generate install commands")
+}
+
 func TestPythonStartCommandHelp(t *testing.T) {
 	provider := &PythonProvider{}
 	help := provider.StartCommandHelp()

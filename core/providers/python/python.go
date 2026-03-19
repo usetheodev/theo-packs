@@ -31,6 +31,10 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 		installStep.AddCommand(plan.NewExecShellCommand("pip install -r requirements.txt"))
 	} else if ctx.App.HasFile("pyproject.toml") {
 		installStep.AddCommand(plan.NewExecShellCommand("pip install ."))
+	} else if ctx.App.HasFile("Pipfile") {
+		installStep.AddCommand(plan.NewExecShellCommand("pip install pipenv && pipenv install --deploy --system"))
+	} else if ctx.App.HasFile("setup.py") {
+		installStep.AddCommand(plan.NewExecShellCommand("pip install ."))
 	}
 
 	ctx.Deploy.AddInputs([]plan.Layer{

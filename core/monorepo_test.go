@@ -5,10 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theopacks/core/plan"
 )
 
 // Tests against real example projects in ../examples/.
@@ -485,4 +487,527 @@ func TestRealExample_ProviderMetadata(t *testing.T) {
 	require.True(t, result.Success)
 	require.NotNil(t, result.Metadata)
 	require.Equal(t, "node", result.Metadata["providers"])
+}
+
+// =============================================================================
+// Deep build plan validation — verify steps, commands, and layers
+// =============================================================================
+
+func findStepByName(result *BuildResult, name string) *plan.Step {
+	for i := range result.Plan.Steps {
+		if result.Plan.Steps[i].Name == name {
+			return &result.Plan.Steps[i]
+		}
+	}
+	return nil
+}
+
+func hasExecCommand(step *plan.Step, substr string) bool {
+	for _, cmd := range step.Commands {
+		if exec, ok := cmd.(plan.ExecCommand); ok {
+			if strings.Contains(exec.Cmd, substr) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func TestRealExample_NodeNpm_PlanSteps(t *testing.T) {
+	result := planFromExample(t, "node-npm", nil)
+	assertValidPlan(t, result)
+
+	// Node provider creates "install" and "build" steps
+	installStep := findStepByName(result, "install")
+	require.NotNil(t, installStep, "should have an install step")
+	require.True(t, hasExecCommand(installStep, "npm install"),
+		"install step should run npm install")
+
+	buildStep := findStepByName(result, "build")
+	require.NotNil(t, buildStep, "should have a build step")
+
+	// Build step should reference install step as input
+	hasInstallInput := false
+	for _, input := range buildStep.Inputs {
+		if input.Step == "install" {
+			hasInstallInput = true
+			break
+		}
+	}
+	require.True(t, hasInstallInput, "build step should depend on install step")
+}
+
+func TestRealExample_GoSimple_PlanSteps(t *testing.T) {
+	result := planFromExample(t, "go-simple", nil)
+	assertValidPlan(t, result)
+
+	// Go provider creates single "build" step
+	buildStep := findStepByName(result, "build")
+	require.NotNil(t, buildStep, "should have a build step")
+	require.True(t, hasExecCommand(buildStep, "go build"),
+		"build step should run go build")
+
+	// Deploy should reference the binary from build step
+	hasBuildInput := false
+	for _, input := range result.Plan.Deploy.Inputs {
+		if input.Step == "build" {
+			hasBuildInput = true
+			break
+		}
+	}
+	require.True(t, hasBuildInput, "deploy should reference build step output")
+}
+
+func TestRealExample_PythonFlask_PlanSteps(t *testing.T) {
+	result := planFromExampleWithEnv(t, "python-flask", map[string]string{
+		"THEOPACKS_START_CMD": "gunicorn app:app",
+	}, nil)
+	assertValidPlan(t, result)
+
+	installStep := findStepByName(result, "install")
+	require.NotNil(t, installStep, "should have an install step")
+	require.True(t, hasExecCommand(installStep, "pip install -r requirements.txt"),
+		"install step should run pip install for requirements.txt")
+}
+
+func TestRealExample_PythonPipfile_PlanSteps(t *testing.T) {
+	result := planFromExampleWithEnv(t, "python-pipfile", map[string]string{
+		"THEOPACKS_START_CMD": "python app.py",
+	}, nil)
+	assertValidPlan(t, result)
+
+	installStep := findStepByName(result, "install")
+	require.NotNil(t, installStep, "should have an install step")
+	require.True(t, hasExecCommand(installStep, "pipenv install"),
+		"install step should run pipenv install for Pipfile projects")
+}
+
+func TestRealExample_PythonPoetry_PlanSteps(t *testing.T) {
+	result := planFromExampleWithEnv(t, "python-poetry", map[string]string{
+		"THEOPACKS_START_CMD": "flask run",
+	}, nil)
+	assertValidPlan(t, result)
+
+	installStep := findStepByName(result, "install")
+	require.NotNil(t, installStep, "should have an install step")
+	require.True(t, hasExecCommand(installStep, "pip install ."),
+		"install step should run pip install . for pyproject.toml projects")
+}
+
+func TestRealExample_PythonDjango_PlanSteps(t *testing.T) {
+	result := planFromExampleWithEnv(t, "python-django", map[string]string{
+		"THEOPACKS_START_CMD": "gunicorn myproject.wsgi:application",
+	}, nil)
+	assertValidPlan(t, result)
+
+	installStep := findStepByName(result, "install")
+	require.NotNil(t, installStep, "should have an install step")
+	require.True(t, hasExecCommand(installStep, "pip install -r requirements.txt"),
+		"Django with requirements.txt should use pip install -r")
+}
+
+func TestRealExample_ShellScript_PlanSteps(t *testing.T) {
+	result := planFromExample(t, "shell-script", &GenerateBuildPlanOptions{
+		StartCommand: "bash start.sh",
+	})
+	assertValidPlan(t, result)
+
+	buildStep := findStepByName(result, "build")
+	require.NotNil(t, buildStep, "should have a build step")
+
+	// Shell provider copies files
+	hasCopyCmd := false
+	for _, cmd := range buildStep.Commands {
+		if cmd.CommandType() == "copy" {
+			hasCopyCmd = true
+			break
+		}
+	}
+	require.True(t, hasCopyCmd, "shell build step should copy files")
+}
+
+func TestRealExample_Staticfile_PlanSteps(t *testing.T) {
+	result := planFromExample(t, "staticfile", &GenerateBuildPlanOptions{
+		StartCommand: "python -m http.server 8080",
+	})
+	assertValidPlan(t, result)
+
+	buildStep := findStepByName(result, "build")
+	require.NotNil(t, buildStep, "should have a build step")
+
+	hasCopyCmd := false
+	for _, cmd := range buildStep.Commands {
+		if cmd.CommandType() == "copy" {
+			hasCopyCmd = true
+			break
+		}
+	}
+	require.True(t, hasCopyCmd, "staticfile build step should copy files")
+}
+
+// =============================================================================
+// Deploy layer chain integrity — verify no broken step references
+// =============================================================================
+
+func TestRealExample_DeployLayerChainIntegrity(t *testing.T) {
+	examples := []struct {
+		name string
+		env  map[string]string
+		opts *GenerateBuildPlanOptions
+	}{
+		{"node-npm", nil, nil},
+		{"node-npm-workspaces", nil, nil},
+		{"node-turborepo", nil, nil},
+		{"go-simple", nil, nil},
+		{"go-cmd-dirs", nil, nil},
+		{"python-flask", map[string]string{"THEOPACKS_START_CMD": "gunicorn app:app"}, nil},
+		{"python-django", map[string]string{"THEOPACKS_START_CMD": "gunicorn wsgi:app"}, nil},
+		{"python-uv-workspace", map[string]string{"THEOPACKS_START_CMD": "python main.py"}, nil},
+		{"python-pipfile", map[string]string{"THEOPACKS_START_CMD": "python app.py"}, nil},
+		{"python-poetry", map[string]string{"THEOPACKS_START_CMD": "flask run"}, nil},
+		{"shell-script", nil, &GenerateBuildPlanOptions{StartCommand: "bash start.sh"}},
+		{"staticfile", nil, &GenerateBuildPlanOptions{StartCommand: "python -m http.server"}},
+	}
+
+	for _, ex := range examples {
+		t.Run(ex.name, func(t *testing.T) {
+			var result *BuildResult
+			if ex.env != nil {
+				result = planFromExampleWithEnv(t, ex.name, ex.env, ex.opts)
+			} else {
+				result = planFromExample(t, ex.name, ex.opts)
+			}
+
+			assertValidPlan(t, result)
+
+			// Build step name index
+			stepNames := make(map[string]bool)
+			for _, step := range result.Plan.Steps {
+				stepNames[step.Name] = true
+			}
+
+			// Every deploy input that references a step must reference an existing step
+			for _, input := range result.Plan.Deploy.Inputs {
+				if input.Step != "" {
+					require.True(t, stepNames[input.Step],
+						"deploy input references step %q which doesn't exist in plan steps: %v",
+						input.Step, stepNames)
+				}
+			}
+
+			// Every step input that references another step must reference an existing step
+			for _, step := range result.Plan.Steps {
+				for _, input := range step.Inputs {
+					if input.Step != "" {
+						require.True(t, stepNames[input.Step],
+							"step %q input references step %q which doesn't exist",
+							step.Name, input.Step)
+					}
+				}
+			}
+		})
+	}
+}
+
+// =============================================================================
+// Monorepo subdirectory isolation — services don't leak into each other
+// =============================================================================
+
+func TestRealExample_FullstackMixed_ServiceIsolation(t *testing.T) {
+	// Each service in fullstack-mixed should produce a plan
+	// independent of sibling services.
+
+	t.Run("api_does_not_detect_node", func(t *testing.T) {
+		dir := filepath.Join(examplePath(t, "fullstack-mixed"), "services", "api")
+		result := planFromDir(t, dir, nil)
+
+		assertValidPlan(t, result)
+		require.Equal(t, "go", result.DetectedProviders[0],
+			"Go API should not be confused by Node.js sibling")
+	})
+
+	t.Run("web_does_not_detect_go", func(t *testing.T) {
+		dir := filepath.Join(examplePath(t, "fullstack-mixed"), "services", "web")
+		result := planFromDir(t, dir, nil)
+
+		assertValidPlan(t, result)
+		require.Equal(t, "node", result.DetectedProviders[0],
+			"Node web should not be confused by Go sibling")
+	})
+
+	t.Run("worker_does_not_detect_node_or_go", func(t *testing.T) {
+		dir := filepath.Join(examplePath(t, "fullstack-mixed"), "services", "worker")
+		result := planFromDirWithEnv(t, dir, map[string]string{
+			"THEOPACKS_START_CMD": "celery worker",
+		}, nil)
+
+		assertValidPlan(t, result)
+		require.Equal(t, "python", result.DetectedProviders[0],
+			"Python worker should not be confused by Go/Node siblings")
+	})
+}
+
+// =============================================================================
+// Workspace subdirectory deploys — verify individual packages work
+// =============================================================================
+
+func TestRealExample_NodeNpmWorkspaces_EachPackage(t *testing.T) {
+	base := examplePath(t, "node-npm-workspaces")
+
+	t.Run("root", func(t *testing.T) {
+		result := planFromDir(t, base, nil)
+		assertValidPlan(t, result)
+		require.Equal(t, "node", result.DetectedProviders[0])
+	})
+
+	t.Run("packages/api", func(t *testing.T) {
+		dir := filepath.Join(base, "packages", "api")
+		result := planFromDir(t, dir, nil)
+		assertValidPlan(t, result)
+		require.Equal(t, "node", result.DetectedProviders[0])
+	})
+
+	t.Run("packages/shared", func(t *testing.T) {
+		dir := filepath.Join(base, "packages", "shared")
+		result := planFromDir(t, dir, nil)
+		assertValidPlan(t, result)
+		require.Equal(t, "node", result.DetectedProviders[0])
+	})
+}
+
+func TestRealExample_GoWorkspaces_EachModule(t *testing.T) {
+	base := examplePath(t, "go-workspaces")
+
+	t.Run("root_no_gomod_fails", func(t *testing.T) {
+		result := planFromDir(t, base, nil)
+		require.False(t, result.Success)
+	})
+
+	t.Run("api", func(t *testing.T) {
+		dir := filepath.Join(base, "api")
+		result := planFromDir(t, dir, nil)
+		assertValidPlan(t, result)
+		require.Equal(t, "go", result.DetectedProviders[0])
+	})
+
+	t.Run("shared", func(t *testing.T) {
+		dir := filepath.Join(base, "shared")
+		result := planFromDir(t, dir, nil)
+		require.True(t, result.Success)
+		require.Equal(t, "go", result.DetectedProviders[0])
+	})
+}
+
+func TestRealExample_PythonUvWorkspace_EachMember(t *testing.T) {
+	base := examplePath(t, "python-uv-workspace")
+
+	t.Run("root", func(t *testing.T) {
+		result := planFromDirWithEnv(t, base, map[string]string{
+			"THEOPACKS_START_CMD": "python main.py",
+		}, nil)
+		assertValidPlan(t, result)
+		require.Equal(t, "python", result.DetectedProviders[0])
+	})
+
+	t.Run("workspace-package", func(t *testing.T) {
+		dir := filepath.Join(base, "workspace-package")
+		result := planFromDirWithEnv(t, dir, map[string]string{
+			"THEOPACKS_START_CMD": "python -m workspace_package",
+		}, nil)
+		assertValidPlan(t, result)
+		require.Equal(t, "python", result.DetectedProviders[0])
+	})
+}
+
+func TestRealExample_NodeTurborepo_EachApp(t *testing.T) {
+	base := examplePath(t, "node-turborepo")
+
+	t.Run("root", func(t *testing.T) {
+		result := planFromDir(t, base, nil)
+		assertValidPlan(t, result)
+	})
+
+	t.Run("apps/api", func(t *testing.T) {
+		dir := filepath.Join(base, "apps", "api")
+		result := planFromDir(t, dir, nil)
+		assertValidPlan(t, result)
+	})
+
+	t.Run("apps/web", func(t *testing.T) {
+		dir := filepath.Join(base, "apps", "web")
+		result := planFromDir(t, dir, nil)
+		assertValidPlan(t, result)
+	})
+
+	// packages/ui and packages/utils have package.json, so node detects them
+	t.Run("packages/ui", func(t *testing.T) {
+		dir := filepath.Join(base, "packages", "ui")
+		result := planFromDir(t, dir, nil)
+		assertValidPlan(t, result)
+		require.Equal(t, "node", result.DetectedProviders[0])
+	})
+}
+
+// =============================================================================
+// Config precedence with real examples
+// =============================================================================
+
+func TestRealExample_NodeNpm_EnvOverridesProvider(t *testing.T) {
+	// Provider sets "npm start", env should override
+	result := planFromExampleWithEnv(t, "node-npm", map[string]string{
+		"THEOPACKS_START_CMD": "node custom-entry.js",
+	}, nil)
+
+	assertValidPlan(t, result)
+	require.Equal(t, "node custom-entry.js", result.Plan.Deploy.StartCmd)
+}
+
+func TestRealExample_NodeNpm_OptionsOverrideEnv(t *testing.T) {
+	result := planFromExampleWithEnv(t, "node-npm", map[string]string{
+		"THEOPACKS_START_CMD": "from-env",
+	}, &GenerateBuildPlanOptions{
+		StartCommand: "from-options",
+	})
+
+	assertValidPlan(t, result)
+	require.Equal(t, "from-options", result.Plan.Deploy.StartCmd,
+		"options should take highest precedence over env")
+}
+
+func TestRealExample_GoSimple_OptionsOverrideProvider(t *testing.T) {
+	result := planFromExample(t, "go-simple", &GenerateBuildPlanOptions{
+		StartCommand: "/app/custom",
+	})
+
+	assertValidPlan(t, result)
+	require.Equal(t, "/app/custom", result.Plan.Deploy.StartCmd,
+		"options should override Go provider's default /app/server")
+}
+
+// =============================================================================
+// Build and install commands via env on real workspaces
+// =============================================================================
+
+func TestRealExample_NodeTurborepo_FullEnvConfig(t *testing.T) {
+	result := planFromExampleWithEnv(t, "node-turborepo", map[string]string{
+		"THEOPACKS_INSTALL_CMD":         "npm ci",
+		"THEOPACKS_BUILD_CMD":           "turbo build --filter=web",
+		"THEOPACKS_START_CMD":           "cd apps/web && next start",
+		"THEOPACKS_BUILD_APT_PACKAGES":  "build-essential",
+		"THEOPACKS_DEPLOY_APT_PACKAGES": "libssl-dev",
+	}, nil)
+
+	require.True(t, result.Success, "logs: %v", result.Logs)
+	require.NotNil(t, result.Plan)
+	require.Equal(t, "cd apps/web && next start", result.Plan.Deploy.StartCmd)
+	require.NotEmpty(t, result.Plan.Steps, "should have build steps with apt packages")
+}
+
+func TestRealExample_PythonFlask_AptPackagesViaEnv(t *testing.T) {
+	result := planFromExampleWithEnv(t, "python-flask", map[string]string{
+		"THEOPACKS_START_CMD":           "gunicorn app:app",
+		"THEOPACKS_DEPLOY_APT_PACKAGES": "libpq-dev libssl-dev",
+	}, nil)
+
+	require.True(t, result.Success, "logs: %v", result.Logs)
+	require.NotNil(t, result.Plan)
+	require.Equal(t, "gunicorn app:app", result.Plan.Deploy.StartCmd)
+	require.NotEmpty(t, result.Plan.Steps, "should have build steps with apt packages")
+}
+
+// =============================================================================
+// theopacks.json config file with real examples
+// =============================================================================
+
+func TestRealExample_NodeWithConfig(t *testing.T) {
+	result := planFromExample(t, "node-npm-with-config", nil)
+
+	require.True(t, result.Success, "logs: %v", result.Logs)
+	require.NotNil(t, result.Plan)
+	require.Equal(t, "node server.js", result.Plan.Deploy.StartCmd,
+		"theopacks.json startCommand should override provider default")
+}
+
+func TestRealExample_NodeWithConfig_EnvOverridesConfigFile(t *testing.T) {
+	result := planFromExampleWithEnv(t, "node-npm-with-config", map[string]string{
+		"THEOPACKS_START_CMD": "from-env",
+	}, nil)
+
+	require.True(t, result.Success, "logs: %v", result.Logs)
+	// Env should override config file but not options
+	require.Equal(t, "from-env", result.Plan.Deploy.StartCmd)
+}
+
+func TestRealExample_NodeWithConfig_OptionsOverrideAll(t *testing.T) {
+	result := planFromExampleWithEnv(t, "node-npm-with-config", map[string]string{
+		"THEOPACKS_START_CMD": "from-env",
+	}, &GenerateBuildPlanOptions{
+		StartCommand: "from-options",
+	})
+
+	require.True(t, result.Success, "logs: %v", result.Logs)
+	require.Equal(t, "from-options", result.Plan.Deploy.StartCmd,
+		"options > env > config file > provider default")
+}
+
+// =============================================================================
+// .dockerignore with real examples
+// =============================================================================
+
+func TestRealExample_NodeWithDockerignore(t *testing.T) {
+	result := planFromExample(t, "node-npm-with-dockerignore", nil)
+
+	assertValidPlan(t, result)
+	require.Equal(t, "node", result.DetectedProviders[0])
+	require.Equal(t, "true", result.Metadata["dockerIgnore"],
+		"should detect .dockerignore file")
+}
+
+func TestRealExample_NodeWithDockerignore_PlanSteps(t *testing.T) {
+	result := planFromExample(t, "node-npm-with-dockerignore", nil)
+
+	assertValidPlan(t, result)
+
+	// Install step should have local layer with dockerignore excludes
+	installStep := findStepByName(result, "install")
+	require.NotNil(t, installStep)
+
+	hasLocalInput := false
+	for _, input := range installStep.Inputs {
+		if input.Local {
+			hasLocalInput = true
+			// Dockerignore should add excludes to the local layer
+			require.NotEmpty(t, input.Exclude,
+				"local layer should have dockerignore excludes applied")
+			break
+		}
+	}
+	require.True(t, hasLocalInput, "install step should have a local input")
+}
+
+// =============================================================================
+// Python setup.py (legacy) with real example
+// =============================================================================
+
+func TestRealExample_PythonSetupPy(t *testing.T) {
+	result := planFromExampleWithEnv(t, "python-setuppy", map[string]string{
+		"THEOPACKS_START_CMD": "gunicorn myapp.app:app --bind 0.0.0.0:8000",
+	}, nil)
+
+	assertValidPlan(t, result)
+	require.Equal(t, "python", result.DetectedProviders[0])
+	require.Equal(t, "gunicorn myapp.app:app --bind 0.0.0.0:8000", result.Plan.Deploy.StartCmd)
+}
+
+func TestRealExample_PythonSetupPy_PlanSteps(t *testing.T) {
+	result := planFromExampleWithEnv(t, "python-setuppy", map[string]string{
+		"THEOPACKS_START_CMD": "myapp",
+	}, nil)
+
+	assertValidPlan(t, result)
+
+	installStep := findStepByName(result, "install")
+	require.NotNil(t, installStep, "should have an install step")
+	require.True(t, hasExecCommand(installStep, "pip install ."),
+		"setup.py project should use pip install .")
 }
