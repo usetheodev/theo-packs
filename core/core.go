@@ -131,7 +131,7 @@ func GetConfig(app *app.App, env *app.Environment, options *GenerateBuildPlanOpt
 		return nil, err
 	}
 
-	mergedConfig := c.Merge(optionsConfig, envConfig, fileConfig)
+	mergedConfig := c.Merge(fileConfig, envConfig, optionsConfig)
 	return mergedConfig, nil
 }
 

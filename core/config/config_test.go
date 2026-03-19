@@ -22,6 +22,21 @@ func TestEmptyConfig(t *testing.T) {
 	require.Nil(t, config.Deploy.Paths)
 }
 
+func TestGetOrCreateStep(t *testing.T) {
+	cfg := EmptyConfig()
+
+	step1 := cfg.GetOrCreateStep("install")
+	require.NotNil(t, step1)
+	require.Equal(t, "install", step1.Name)
+
+	step2 := cfg.GetOrCreateStep("install")
+	require.Equal(t, step1, step2, "should return same step")
+
+	step3 := cfg.GetOrCreateStep("build")
+	require.NotEqual(t, step1, step3, "different name should create new step")
+	require.Len(t, cfg.Steps, 2)
+}
+
 func TestMergeConfigSmall(t *testing.T) {
 	config1JSON := `{
 		"baseImage": "ubuntu:20.04",
@@ -100,6 +115,159 @@ func TestMergeConfigSmall(t *testing.T) {
 			}
 		},
 		"caches": {}
+	}`
+
+	var config1, config2, expected Config
+	require.NoError(t, json.Unmarshal([]byte(config1JSON), &config1))
+	require.NoError(t, json.Unmarshal([]byte(config2JSON), &config2))
+	require.NoError(t, json.Unmarshal([]byte(expectedJSON), &expected))
+
+	result := Merge(&config1, &config2)
+
+	if diff := cmp.Diff(expected, *result); diff != "" {
+		t.Errorf("configs mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestMergeConfig(t *testing.T) {
+	config1JSON := `{
+		"baseImage": "ubuntu:20.04",
+		"packages": {
+			"python": "latest",
+			"node": "22"
+		},
+		"aptPackages": ["git"],
+		"caches": {
+			"npm": {
+				"directory": "/root/.npm",
+				"type": "locked"
+			},
+			"pip": {
+				"directory": "/root/.cache/pip"
+			}
+		},
+		"secrets": ["SECRET_1", "API_KEY"],
+		"steps": {
+			"install": {
+				"name": "install",
+				"secrets": ["*"],
+				"assets": {
+					"package.json": "content1",
+					"requirements.txt": "content2"
+				},
+				"commands": [
+					{"type": "exec", "cmd": "npm install", "caches": ["npm"], "customName": "Install NPM deps"},
+					{"type": "path", "path": "/usr/local/bin"},
+					{"type": "variable", "name": "NODE_ENV", "value": "production"},
+					{"type": "copy", "src": "/src", "dest": "/app", "image": "alpine:latest"},
+					{"type": "file", "path": "/app", "name": "config.json", "mode": 384, "customName": "Write config"}
+				]
+			},
+			"build": {
+				"name": "build",
+				"commands": [
+					{"type": "exec", "cmd": "config 1 a"},
+					{"type": "exec", "cmd": "config 1 b"}
+				]
+			}
+		},
+		"deploy": {
+			"startCommand": "python app.py"
+		}
+	}`
+
+	config2JSON := `{
+		"providers": ["node"],
+		"baseImage": "ubuntu:22.04",
+		"packages": {
+			"node": "23"
+		},
+		"aptPackages": ["curl"],
+		"caches": {
+			"npm": {
+				"directory": "/root/.npm-new",
+				"type": "shared"
+			},
+			"go": {
+				"directory": "/root/.cache/go-build"
+			}
+		},
+		"secrets": ["SECRET_2"],
+		"steps": {
+			"install": {
+				"name": "install",
+				"secrets": ["*"],
+				"assets": {
+					"package.json": "content3"
+				}
+			},
+			"build": {
+				"name": "build",
+				"secrets": [],
+				"commands": [
+					{"type": "exec", "cmd": "config 2 a"},
+					{"type": "exec", "cmd": "config 2 b"}
+				]
+			}
+		},
+		"deploy": {
+			"aptPackages": ["curl"],
+			"startCommand": "node server.js",
+			"paths": ["/usr/local/bin", "/app/bin"]
+		}
+	}`
+
+	expectedJSON := `{
+		"providers": ["node"],
+		"baseImage": "ubuntu:22.04",
+		"packages": {
+			"python": "latest",
+			"node": "23"
+		},
+		"aptPackages": ["curl"],
+		"caches": {
+			"npm": {
+				"directory": "/root/.npm-new",
+				"type": "shared"
+			},
+			"go": {
+				"directory": "/root/.cache/go-build"
+			},
+			"pip": {
+				"directory": "/root/.cache/pip"
+			}
+		},
+		"secrets": ["SECRET_2"],
+		"steps": {
+			"install": {
+				"name": "install",
+				"secrets": ["*"],
+				"assets": {
+					"package.json": "content3",
+					"requirements.txt": "content2"
+				},
+				"commands": [
+					{"type": "exec", "cmd": "npm install", "caches": ["npm"], "customName": "Install NPM deps"},
+					{"type": "path", "path": "/usr/local/bin"},
+					{"type": "variable", "name": "NODE_ENV", "value": "production"},
+					{"type": "copy", "src": "/src", "dest": "/app", "image": "alpine:latest"},
+					{"type": "file", "path": "/app", "name": "config.json", "mode": 384, "customName": "Write config"}
+				]
+			},
+			"build": {
+				"name": "build",
+				"secrets": [],
+				"commands": [
+					{"type": "exec", "cmd": "config 2 a"},
+					{"type": "exec", "cmd": "config 2 b"}
+				]
+			}
+		},
+		"deploy": {
+			"aptPackages": ["curl"],
+			"startCommand": "node server.js",
+			"paths": ["/usr/local/bin", "/app/bin"]
+		}
 	}`
 
 	var config1, config2, expected Config

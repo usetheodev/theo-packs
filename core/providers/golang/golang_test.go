@@ -12,6 +12,39 @@ import (
 	"github.com/usetheo/theopacks/core/logger"
 )
 
+func TestGoPlan(t *testing.T) {
+	tempDir := t.TempDir()
+
+	err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module test\ngo 1.22"), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "main.go"), []byte("package main\nfunc main() {}"), 0644)
+	require.NoError(t, err)
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := generate.NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+
+	provider := &GoProvider{}
+	err = provider.Plan(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, "/app/server", ctx.Deploy.StartCmd)
+	require.Len(t, ctx.Steps, 1)
+	require.Equal(t, "build", ctx.Steps[0].Name())
+}
+
+func TestGoStartCommandHelp(t *testing.T) {
+	provider := &GoProvider{}
+	help := provider.StartCommandHelp()
+	require.NotEmpty(t, help)
+	require.Contains(t, help, "main package")
+}
+
 func TestGoDetect(t *testing.T) {
 	tests := []struct {
 		name     string

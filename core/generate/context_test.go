@@ -76,6 +76,134 @@ func TestGenerateContextSubContext(t *testing.T) {
 	require.Equal(t, "build", ctx.GetStepName("build"))
 }
 
+func TestGenerateContextWithoutDockerignore(t *testing.T) {
+	tempDir := t.TempDir()
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+	require.Empty(t, ctx.Metadata.Get("dockerIgnore"))
+}
+
+func TestGenerateContextNewLocalLayer(t *testing.T) {
+	t.Run("without dockerignore", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		testApp, err := app.NewApp(tempDir)
+		require.NoError(t, err)
+		env := app.NewEnvironment(nil)
+		cfg := config.EmptyConfig()
+		log := logger.NewLogger()
+
+		ctx, err := NewGenerateContext(testApp, env, cfg, log)
+		require.NoError(t, err)
+
+		layer := ctx.NewLocalLayer()
+		require.True(t, layer.Local)
+		require.Empty(t, layer.Exclude)
+	})
+
+	t.Run("with dockerignore", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		err := os.WriteFile(filepath.Join(tempDir, ".dockerignore"), []byte("node_modules\n.git\n"), 0644)
+		require.NoError(t, err)
+
+		testApp, err := app.NewApp(tempDir)
+		require.NoError(t, err)
+		env := app.NewEnvironment(nil)
+		cfg := config.EmptyConfig()
+		log := logger.NewLogger()
+
+		ctx, err := NewGenerateContext(testApp, env, cfg, log)
+		require.NoError(t, err)
+
+		layer := ctx.NewLocalLayer()
+		require.True(t, layer.Local)
+		require.Contains(t, layer.Exclude, "node_modules")
+		require.Contains(t, layer.Exclude, ".git")
+	})
+}
+
+func TestGenerateContextGetStepByName(t *testing.T) {
+	tempDir := t.TempDir()
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+
+	require.Nil(t, ctx.GetStepByName("build"))
+
+	ctx.NewCommandStep("build")
+	require.NotNil(t, ctx.GetStepByName("build"))
+	require.Nil(t, ctx.GetStepByName("install"))
+}
+
+func TestExitSubContextOnEmpty(t *testing.T) {
+	tempDir := t.TempDir()
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+
+	require.NotPanics(t, func() {
+		ctx.ExitSubContext()
+	})
+	require.Empty(t, ctx.SubContexts)
+}
+
+func TestGenerateContextGetAppSource(t *testing.T) {
+	tempDir := t.TempDir()
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+	require.Equal(t, tempDir, ctx.GetAppSource())
+}
+
+func TestGenerateContextGetLogger(t *testing.T) {
+	tempDir := t.TempDir()
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+	require.Equal(t, log, ctx.GetLogger())
+}
+
+func TestNewAptInstallCommand(t *testing.T) {
+	options := &BuildStepOptions{
+		Caches: NewCacheContext(),
+	}
+
+	cmd := options.NewAptInstallCommand([]string{"curl", "wget", "curl"})
+	require.NotNil(t, cmd)
+}
+
 func TestGenerateContextGenerate(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "context-test")
 	require.NoError(t, err)

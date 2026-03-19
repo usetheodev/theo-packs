@@ -107,9 +107,13 @@ func (r *Resolver) SetPreviousVersion(name, version string) {
 }
 
 func (r *Resolver) SetVersionAvailable(ref PackageRef, isVersionAvailable func(version string) bool) {
-	r.packages[ref.Name].IsVersionAvailable = isVersionAvailable
+	if pkg, exists := r.packages[ref.Name]; exists {
+		pkg.IsVersionAvailable = isVersionAvailable
+	}
 }
 
 func (r *Resolver) SetSkipInstall(ref PackageRef, skip bool) {
-	r.packages[ref.Name].SkipInstall = skip
+	if pkg, exists := r.packages[ref.Name]; exists {
+		pkg.SkipInstall = skip
+	}
 }

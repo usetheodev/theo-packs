@@ -71,7 +71,7 @@ func (e *Environment) GetConfigVariableList(name string) ([]string, string) {
 	if val == "" {
 		return nil, ""
 	}
-	return strings.Split(val, " "), configVar
+	return strings.Fields(val), configVar
 }
 
 func (e *Environment) IsConfigVariableTruthy(name string) bool {

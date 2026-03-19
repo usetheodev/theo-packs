@@ -4,7 +4,189 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestRemoveDuplicates(t *testing.T) {
+	require.Equal(t, []string{"a", "b", "c"}, RemoveDuplicates([]string{"a", "b", "a", "c", "b"}))
+	require.Equal(t, []int{1, 2, 3}, RemoveDuplicates([]int{1, 2, 1, 3, 2}))
+	require.Empty(t, RemoveDuplicates([]string{}))
+	require.Equal(t, []string{"a"}, RemoveDuplicates([]string{"a", "a", "a"}))
+}
+
+func TestMergeStringSlicePointers(t *testing.T) {
+	t.Run("empty input", func(t *testing.T) {
+		result := MergeStringSlicePointers()
+		require.Nil(t, result)
+	})
+
+	t.Run("nil slices", func(t *testing.T) {
+		result := MergeStringSlicePointers(nil, nil)
+		require.Nil(t, result)
+	})
+
+	t.Run("merge and deduplicate", func(t *testing.T) {
+		a := []string{"c", "a"}
+		b := []string{"b", "a"}
+		result := MergeStringSlicePointers(&a, &b)
+		require.NotNil(t, result)
+		require.Equal(t, []string{"a", "b", "c"}, *result)
+	})
+
+	t.Run("mixed nil and non-nil", func(t *testing.T) {
+		a := []string{"x"}
+		result := MergeStringSlicePointers(nil, &a, nil)
+		require.NotNil(t, result)
+		require.Equal(t, []string{"x"}, *result)
+	})
+}
+
+func TestCapitalizeFirst(t *testing.T) {
+	require.Equal(t, "Hello", CapitalizeFirst("hello"))
+	require.Equal(t, "Go", CapitalizeFirst("go"))
+	require.Equal(t, "", CapitalizeFirst(""))
+	require.Equal(t, "A", CapitalizeFirst("a"))
+	require.Equal(t, "Already", CapitalizeFirst("Already"))
+}
+
+func TestParsePackageWithVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected map[string]string
+	}{
+		{
+			name:     "versioned packages",
+			input:    []string{"node@18", "python@3.9"},
+			expected: map[string]string{"node": "18", "python": "3.9"},
+		},
+		{
+			name:     "unversioned packages",
+			input:    []string{"jq", "curl"},
+			expected: map[string]string{"jq": "latest", "curl": "latest"},
+		},
+		{
+			name:     "mixed",
+			input:    []string{"node@20", "jq"},
+			expected: map[string]string{"node": "20", "jq": "latest"},
+		},
+		{
+			name:     "namespaced package",
+			input:    []string{"pipx:httpie@3.2.4"},
+			expected: map[string]string{"pipx:httpie": "3.2.4"},
+		},
+		{
+			name:     "empty input",
+			input:    []string{},
+			expected: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParsePackageWithVersion(tt.input)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestExtractSemverVersion(t *testing.T) {
+	require.Equal(t, "1.2.3", ExtractSemverVersion("v1.2.3"))
+	require.Equal(t, "22", ExtractSemverVersion("node 22"))
+	require.Equal(t, "3.9", ExtractSemverVersion("python 3.9"))
+	require.Equal(t, "", ExtractSemverVersion("no version here"))
+	require.Equal(t, "1.2.3", ExtractSemverVersion("  1.2.3  "))
+}
+
+func TestStandardizeJSON(t *testing.T) {
+	t.Run("standard json", func(t *testing.T) {
+		input := []byte(`{"key": "value"}`)
+		result, err := StandardizeJSON(input)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"key": "value"}`, string(result))
+	})
+
+	t.Run("json with comments", func(t *testing.T) {
+		input := []byte(`{
+			// comment
+			"key": "value"
+		}`)
+		result, err := StandardizeJSON(input)
+		require.NoError(t, err)
+		require.Contains(t, string(result), `"key"`)
+	})
+
+	t.Run("json with trailing comma", func(t *testing.T) {
+		input := []byte(`{"key": "value",}`)
+		result, err := StandardizeJSON(input)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"key": "value"}`, string(result))
+	})
+
+	t.Run("invalid json", func(t *testing.T) {
+		input := []byte(`{invalid`)
+		_, err := StandardizeJSON(input)
+		require.Error(t, err)
+	})
+}
+
+func TestMergeStructs(t *testing.T) {
+	type Inner struct {
+		Value string
+	}
+	type TestStruct struct {
+		Name    string
+		Count   int
+		Tags    []string
+		Data    map[string]string
+		Inner   *Inner
+	}
+
+	t.Run("merge basic fields", func(t *testing.T) {
+		dst := &TestStruct{Name: "original", Count: 1}
+		src := &TestStruct{Name: "updated", Count: 0}
+		MergeStructs(dst, src)
+		require.Equal(t, "updated", dst.Name)
+		require.Equal(t, 1, dst.Count, "zero values should not override")
+	})
+
+	t.Run("merge slices", func(t *testing.T) {
+		dst := &TestStruct{Tags: []string{"a"}}
+		src := &TestStruct{Tags: []string{"b", "c"}}
+		MergeStructs(dst, src)
+		require.Equal(t, []string{"b", "c"}, dst.Tags, "slices should be replaced entirely")
+	})
+
+	t.Run("merge maps", func(t *testing.T) {
+		dst := &TestStruct{Data: map[string]string{"a": "1", "b": "2"}}
+		src := &TestStruct{Data: map[string]string{"b": "3", "c": "4"}}
+		MergeStructs(dst, src)
+		require.Equal(t, "1", dst.Data["a"])
+		require.Equal(t, "3", dst.Data["b"], "later values win")
+		require.Equal(t, "4", dst.Data["c"])
+	})
+
+	t.Run("merge pointer fields", func(t *testing.T) {
+		dst := &TestStruct{Inner: &Inner{Value: "old"}}
+		src := &TestStruct{Inner: &Inner{Value: "new"}}
+		MergeStructs(dst, src)
+		require.Equal(t, "new", dst.Inner.Value)
+	})
+
+	t.Run("nil src pointer does not override", func(t *testing.T) {
+		dst := &TestStruct{Inner: &Inner{Value: "keep"}}
+		src := &TestStruct{}
+		MergeStructs(dst, src)
+		require.Equal(t, "keep", dst.Inner.Value)
+	})
+
+	t.Run("nil src skipped", func(t *testing.T) {
+		dst := &TestStruct{Name: "keep"}
+		MergeStructs(dst, nil)
+		require.Equal(t, "keep", dst.Name)
+	})
+}
 
 func TestParseSemver(t *testing.T) {
 	tests := []struct {

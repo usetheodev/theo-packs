@@ -89,6 +89,24 @@ func TestPackageResolverWithPreviousVersions(t *testing.T) {
 	assert.Equal(t, DefaultSource, pkg.Source)
 }
 
+func TestSetVersionAvailableOnUnregisteredPackage(t *testing.T) {
+	resolver := NewResolver()
+
+	require.NotPanics(t, func() {
+		resolver.SetVersionAvailable(PackageRef{Name: "nonexistent"}, func(version string) bool {
+			return true
+		})
+	})
+}
+
+func TestSetSkipInstallOnUnregisteredPackage(t *testing.T) {
+	resolver := NewResolver()
+
+	require.NotPanics(t, func() {
+		resolver.SetSkipInstall(PackageRef{Name: "nonexistent"}, true)
+	})
+}
+
 func TestResolvingPackagesNotAvailable(t *testing.T) {
 	resolver := NewResolver()
 

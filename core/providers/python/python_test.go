@@ -12,6 +12,60 @@ import (
 	"github.com/usetheo/theopacks/core/logger"
 )
 
+func TestPythonPlan(t *testing.T) {
+	t.Run("with requirements.txt", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		err := os.WriteFile(filepath.Join(tempDir, "requirements.txt"), []byte("flask==2.0\n"), 0644)
+		require.NoError(t, err)
+
+		testApp, err := app.NewApp(tempDir)
+		require.NoError(t, err)
+		env := app.NewEnvironment(nil)
+		cfg := config.EmptyConfig()
+		log := logger.NewLogger()
+
+		ctx, err := generate.NewGenerateContext(testApp, env, cfg, log)
+		require.NoError(t, err)
+
+		provider := &PythonProvider{}
+		err = provider.Plan(ctx)
+		require.NoError(t, err)
+
+		require.Len(t, ctx.Steps, 1)
+		require.Equal(t, "install", ctx.Steps[0].Name())
+	})
+
+	t.Run("with pyproject.toml", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		err := os.WriteFile(filepath.Join(tempDir, "pyproject.toml"), []byte("[project]\nname = \"test\""), 0644)
+		require.NoError(t, err)
+
+		testApp, err := app.NewApp(tempDir)
+		require.NoError(t, err)
+		env := app.NewEnvironment(nil)
+		cfg := config.EmptyConfig()
+		log := logger.NewLogger()
+
+		ctx, err := generate.NewGenerateContext(testApp, env, cfg, log)
+		require.NoError(t, err)
+
+		provider := &PythonProvider{}
+		err = provider.Plan(ctx)
+		require.NoError(t, err)
+
+		require.Len(t, ctx.Steps, 1)
+	})
+}
+
+func TestPythonStartCommandHelp(t *testing.T) {
+	provider := &PythonProvider{}
+	help := provider.StartCommandHelp()
+	require.NotEmpty(t, help)
+	require.Contains(t, help, "THEOPACKS_START_CMD")
+}
+
 func TestPythonDetect(t *testing.T) {
 	tests := []struct {
 		name     string

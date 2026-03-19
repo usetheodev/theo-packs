@@ -83,6 +83,9 @@ func (c *GenerateContext) EnterSubContext(subContext string) *GenerateContext {
 }
 
 func (c *GenerateContext) ExitSubContext() *GenerateContext {
+	if len(c.SubContexts) == 0 {
+		return c
+	}
 	c.SubContexts = c.SubContexts[:len(c.SubContexts)-1]
 	return c
 }

@@ -12,6 +12,37 @@ import (
 	"github.com/usetheo/theopacks/core/logger"
 )
 
+func TestShellPlan(t *testing.T) {
+	tempDir := t.TempDir()
+
+	err := os.WriteFile(filepath.Join(tempDir, "run.sh"), []byte("#!/bin/bash\necho hello"), 0644)
+	require.NoError(t, err)
+
+	testApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+
+	ctx, err := generate.NewGenerateContext(testApp, env, cfg, log)
+	require.NoError(t, err)
+
+	provider := &ShellProvider{}
+	err = provider.Plan(ctx)
+	require.NoError(t, err)
+
+	require.Len(t, ctx.Steps, 1)
+	require.Equal(t, "build", ctx.Steps[0].Name())
+	require.Len(t, ctx.Deploy.DeployInputs, 1)
+}
+
+func TestShellStartCommandHelp(t *testing.T) {
+	provider := &ShellProvider{}
+	help := provider.StartCommandHelp()
+	require.NotEmpty(t, help)
+	require.Contains(t, help, "THEOPACKS_START_CMD")
+}
+
 func TestShellDetect(t *testing.T) {
 	tests := []struct {
 		name     string
