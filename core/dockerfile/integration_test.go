@@ -55,6 +55,7 @@ func TestIntegration_AllExamples(t *testing.T) {
 		// Go
 		{"go-simple", nil},
 		{"go-cmd-dirs", nil},
+		{"go-workspaces", nil},
 		// Node
 		{"node-npm", nil},
 		{"node-npm-workspaces", nil},
@@ -65,6 +66,12 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"node-turborepo", nil},
 		{"node-next", nil},
 		{"node-vite-react", nil},
+		{"node-vite-vue", nil},
+		{"node-vite-svelte", nil},
+		{"node-remix", nil},
+		{"node-astro", nil},
+		{"node-express", nil},
+		{"node-nuxt", nil},
 		// Python
 		{"python-flask", map[string]string{"THEOPACKS_START_CMD": "gunicorn -w 4 main:app"}},
 		{"python-fastapi", map[string]string{"THEOPACKS_START_CMD": "uvicorn main:app --host 0.0.0.0"}},
@@ -73,6 +80,8 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"python-poetry", map[string]string{"THEOPACKS_START_CMD": "flask run"}},
 		{"python-setuppy", map[string]string{"THEOPACKS_START_CMD": "python main.py"}},
 		{"python-uv-workspace", map[string]string{"THEOPACKS_START_CMD": "python main.py"}},
+		{"python-streamlit", map[string]string{"THEOPACKS_START_CMD": "streamlit run app.py --server.port 8501 --server.address 0.0.0.0"}},
+		{"python-gradio", map[string]string{"THEOPACKS_START_CMD": "python app.py"}},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static

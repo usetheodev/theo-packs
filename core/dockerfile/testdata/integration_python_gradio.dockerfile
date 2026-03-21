@@ -11,4 +11,4 @@ COPY . .
 FROM python:3.12-slim-bookworm
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "gunicorn -w 4 main:app"]
+CMD ["/bin/bash", "-c", "python app.py"]

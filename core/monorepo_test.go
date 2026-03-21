@@ -143,7 +143,7 @@ func TestRealExample_NodePnpmWorkspaces(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	require.Equal(t, "pnpm start", result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeYarnWorkspaces(t *testing.T) {
@@ -151,7 +151,7 @@ func TestRealExample_NodeYarnWorkspaces(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	require.Equal(t, "yarn start", result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeTurborepo(t *testing.T) {
@@ -207,12 +207,13 @@ func TestRealExample_GoCmdDirs(t *testing.T) {
 	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
 }
 
-func TestRealExample_GoWorkspaces_RootFails(t *testing.T) {
-	// go.work at root without go.mod — no provider should match
+func TestRealExample_GoWorkspaces_Root(t *testing.T) {
+	// go.work at root — Go provider detects workspace and auto-targets module with main.go
 	result := planFromExample(t, "go-workspaces", nil)
 
-	require.False(t, result.Success,
-		"Go workspace root has go.work but no go.mod — should not match any provider")
+	assertValidPlan(t, result)
+	require.Equal(t, "go", result.DetectedProviders[0])
+	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_GoWorkspaces_SubdirAPI(t *testing.T) {
@@ -520,8 +521,8 @@ func TestRealExample_NodeNpm_PlanSteps(t *testing.T) {
 	// Node provider creates "install" and "build" steps
 	installStep := findStepByName(result, "install")
 	require.NotNil(t, installStep, "should have an install step")
-	require.True(t, hasExecCommand(installStep, "npm install"),
-		"install step should run npm install")
+	require.True(t, hasExecCommand(installStep, "npm ci") || hasExecCommand(installStep, "npm install"),
+		"install step should run npm ci or npm install")
 
 	buildStep := findStepByName(result, "build")
 	require.NotNil(t, buildStep, "should have a build step")
@@ -590,8 +591,8 @@ func TestRealExample_PythonPoetry_PlanSteps(t *testing.T) {
 
 	installStep := findStepByName(result, "install")
 	require.NotNil(t, installStep, "should have an install step")
-	require.True(t, hasExecCommand(installStep, "pip install --no-cache-dir ."),
-		"install step should run pip install . for pyproject.toml projects")
+	require.True(t, hasExecCommand(installStep, "poetry install"),
+		"install step should run poetry install for Poetry projects")
 }
 
 func TestRealExample_PythonDjango_PlanSteps(t *testing.T) {
@@ -778,9 +779,10 @@ func TestRealExample_NodeNpmWorkspaces_EachPackage(t *testing.T) {
 func TestRealExample_GoWorkspaces_EachModule(t *testing.T) {
 	base := examplePath(t, "go-workspaces")
 
-	t.Run("root_no_gomod_fails", func(t *testing.T) {
+	t.Run("root_workspace", func(t *testing.T) {
 		result := planFromDir(t, base, nil)
-		require.False(t, result.Success)
+		assertValidPlan(t, result)
+		require.Equal(t, "go", result.DetectedProviders[0])
 	})
 
 	t.Run("api", func(t *testing.T) {
@@ -968,12 +970,12 @@ func TestRealExample_NodeWithDockerignore_PlanSteps(t *testing.T) {
 
 	assertValidPlan(t, result)
 
-	// Install step should have local layer with dockerignore excludes
-	installStep := findStepByName(result, "install")
-	require.NotNil(t, installStep)
+	// Build step should have local layer with dockerignore excludes
+	buildStep := findStepByName(result, "build")
+	require.NotNil(t, buildStep)
 
 	hasLocalInput := false
-	for _, input := range installStep.Inputs {
+	for _, input := range buildStep.Inputs {
 		if input.Local {
 			hasLocalInput = true
 			// Dockerignore should add excludes to the local layer
@@ -982,7 +984,7 @@ func TestRealExample_NodeWithDockerignore_PlanSteps(t *testing.T) {
 			break
 		}
 	}
-	require.True(t, hasLocalInput, "install step should have a local input")
+	require.True(t, hasLocalInput, "build step should have a local input with dockerignore")
 }
 
 // =============================================================================

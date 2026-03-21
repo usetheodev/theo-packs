@@ -1,8 +1,7 @@
 FROM node:20-bookworm AS install
 WORKDIR /app
 COPY package.json ./
-COPY package-lock.json ./
-RUN sh -c 'npm ci'
+RUN sh -c 'npm install'
 
 FROM install AS build
 WORKDIR /app

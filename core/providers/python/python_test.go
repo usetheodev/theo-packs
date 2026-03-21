@@ -32,8 +32,9 @@ func TestPythonPlan(t *testing.T) {
 		err = provider.Plan(ctx)
 		require.NoError(t, err)
 
-		require.Len(t, ctx.Steps, 1)
+		require.Len(t, ctx.Steps, 2)
 		require.Equal(t, "install", ctx.Steps[0].Name())
+		require.Equal(t, "build", ctx.Steps[1].Name())
 	})
 
 	t.Run("with pyproject.toml", func(t *testing.T) {
@@ -78,8 +79,9 @@ func TestPythonPlan_Pipfile(t *testing.T) {
 	err = provider.Plan(ctx)
 	require.NoError(t, err)
 
-	require.Len(t, ctx.Steps, 1)
+	require.Len(t, ctx.Steps, 2)
 	require.Equal(t, "install", ctx.Steps[0].Name())
+	require.Equal(t, "build", ctx.Steps[1].Name())
 
 	// Build the plan to verify it produces valid commands
 	buildPlan, _, err := ctx.Generate()

@@ -1,11 +1,18 @@
 FROM node:20-bookworm AS install
 WORKDIR /app
-COPY . .
-RUN sh -c 'npm install'
+COPY package.json ./
+COPY package-lock.json ./
+COPY turbo.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY packages/ui/package.json packages/ui/
+COPY packages/utils/package.json packages/utils/
+RUN sh -c 'npm ci'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
+RUN sh -c 'npm run build'
 
 FROM node:20-bookworm-slim
 WORKDIR /app
