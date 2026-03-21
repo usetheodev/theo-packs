@@ -75,7 +75,7 @@ func (p *PythonProvider) planPoetry(ctx *generate.GenerateContext) error {
 		installStep.AddCommand(plan.NewCopyCommand("poetry.lock", "./"))
 	}
 
-	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir poetry && poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi"))
+	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir poetry && poetry config virtualenvs.create false && poetry install --no-root --no-interaction --no-ansi"))
 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
