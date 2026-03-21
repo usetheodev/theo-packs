@@ -21,10 +21,11 @@ func (p *GoProvider) Initialize(ctx *generate.GenerateContext) error {
 
 func (p *GoProvider) Plan(ctx *generate.GenerateContext) error {
 	buildStep := ctx.NewCommandStep("build")
-	buildStep.AddInput(plan.NewImageLayer(generate.DefaultRuntimeImage))
+	buildStep.AddInput(plan.NewImageLayer(generate.GoBuildImage))
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCommand(plan.NewExecShellCommand("go build -o /app/server ."))
 
+	ctx.Deploy.Base = plan.NewImageLayer(generate.GoRuntimeImage)
 	ctx.Deploy.StartCmd = "/app/server"
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"/app/server"}}),

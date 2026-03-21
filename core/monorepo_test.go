@@ -566,7 +566,7 @@ func TestRealExample_PythonFlask_PlanSteps(t *testing.T) {
 
 	installStep := findStepByName(result, "install")
 	require.NotNil(t, installStep, "should have an install step")
-	require.True(t, hasExecCommand(installStep, "pip install -r requirements.txt"),
+	require.True(t, hasExecCommand(installStep, "pip install --no-cache-dir -r requirements.txt"),
 		"install step should run pip install for requirements.txt")
 }
 
@@ -590,7 +590,7 @@ func TestRealExample_PythonPoetry_PlanSteps(t *testing.T) {
 
 	installStep := findStepByName(result, "install")
 	require.NotNil(t, installStep, "should have an install step")
-	require.True(t, hasExecCommand(installStep, "pip install ."),
+	require.True(t, hasExecCommand(installStep, "pip install --no-cache-dir ."),
 		"install step should run pip install . for pyproject.toml projects")
 }
 
@@ -602,7 +602,7 @@ func TestRealExample_PythonDjango_PlanSteps(t *testing.T) {
 
 	installStep := findStepByName(result, "install")
 	require.NotNil(t, installStep, "should have an install step")
-	require.True(t, hasExecCommand(installStep, "pip install -r requirements.txt"),
+	require.True(t, hasExecCommand(installStep, "pip install --no-cache-dir -r requirements.txt"),
 		"Django with requirements.txt should use pip install -r")
 }
 
@@ -1008,6 +1008,6 @@ func TestRealExample_PythonSetupPy_PlanSteps(t *testing.T) {
 
 	installStep := findStepByName(result, "install")
 	require.NotNil(t, installStep, "should have an install step")
-	require.True(t, hasExecCommand(installStep, "pip install ."),
+	require.True(t, hasExecCommand(installStep, "pip install --no-cache-dir ."),
 		"setup.py project should use pip install .")
 }

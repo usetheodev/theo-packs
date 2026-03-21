@@ -21,7 +21,7 @@ func (p *NodeProvider) Initialize(ctx *generate.GenerateContext) error {
 
 func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.DefaultRuntimeImage))
+	installStep.AddInput(plan.NewImageLayer(generate.NodeBuildImage))
 	installStep.AddInput(ctx.NewLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("npm install"))
 
@@ -29,6 +29,7 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddCommand(plan.NewCopyCommand("."))
 
+	ctx.Deploy.Base = plan.NewImageLayer(generate.NodeRuntimeImage)
 	ctx.Deploy.StartCmd = "npm start"
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"."}}),

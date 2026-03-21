@@ -24,19 +24,20 @@ func (p *PythonProvider) Initialize(ctx *generate.GenerateContext) error {
 
 func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.DefaultRuntimeImage))
+	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImage))
 	installStep.AddInput(ctx.NewLocalLayer())
 
 	if ctx.App.HasFile("requirements.txt") {
-		installStep.AddCommand(plan.NewExecShellCommand("pip install -r requirements.txt"))
+		installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir -r requirements.txt"))
 	} else if ctx.App.HasFile("pyproject.toml") {
-		installStep.AddCommand(plan.NewExecShellCommand("pip install ."))
+		installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir ."))
 	} else if ctx.App.HasFile("Pipfile") {
-		installStep.AddCommand(plan.NewExecShellCommand("pip install pipenv && pipenv install --deploy --system"))
+		installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir pipenv && pipenv install --deploy --system"))
 	} else if ctx.App.HasFile("setup.py") {
-		installStep.AddCommand(plan.NewExecShellCommand("pip install ."))
+		installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir ."))
 	}
 
+	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("install", plan.Filter{Include: []string{"."}}),
 	})
