@@ -143,7 +143,7 @@ func TestRealExample_NodePnpmWorkspaces(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "pnpm start", result.Plan.Deploy.StartCmd)
+	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeYarnWorkspaces(t *testing.T) {
@@ -151,7 +151,7 @@ func TestRealExample_NodeYarnWorkspaces(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "yarn start", result.Plan.Deploy.StartCmd)
+	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeTurborepo(t *testing.T) {
@@ -579,8 +579,8 @@ func TestRealExample_PythonPipfile_PlanSteps(t *testing.T) {
 
 	installStep := findStepByName(result, "install")
 	require.NotNil(t, installStep, "should have an install step")
-	require.True(t, hasExecCommand(installStep, "pipenv install"),
-		"install step should run pipenv install for Pipfile projects")
+	require.True(t, hasExecCommand(installStep, "pipenv requirements"),
+		"install step should convert Pipfile to requirements via pipenv requirements")
 }
 
 func TestRealExample_PythonPoetry_PlanSteps(t *testing.T) {

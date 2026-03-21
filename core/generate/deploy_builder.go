@@ -13,9 +13,10 @@ const (
 	PythonBuildImage = "python:3.12-bookworm"
 
 	// Runtime images — slim images for the final deploy stage
-	GoRuntimeImage     = DefaultRuntimeImage // Go compiles to static binary
-	NodeRuntimeImage   = "node:20-bookworm-slim"
-	PythonRuntimeImage = "python:3.12-slim-bookworm"
+	GoRuntimeImage         = DefaultRuntimeImage // Go compiles to static binary
+	NodeRuntimeImage       = "node:20-bookworm-slim"
+	PythonRuntimeImage     = "python:3.12-slim-bookworm"
+	StaticfileRuntimeImage = PythonRuntimeImage // provides python for http.server
 )
 
 type DeployBuilder struct {

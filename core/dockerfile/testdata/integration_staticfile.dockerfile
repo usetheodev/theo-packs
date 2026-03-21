@@ -1,9 +1,8 @@
 FROM debian:bookworm-slim AS build
 WORKDIR /app
-COPY . .
-COPY . .
+COPY . ./
 
-FROM debian:bookworm-slim
+FROM python:3.12-slim-bookworm
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "python -m http.server 80"]
+CMD ["/bin/bash", "-c", "python -m http.server 8080"]

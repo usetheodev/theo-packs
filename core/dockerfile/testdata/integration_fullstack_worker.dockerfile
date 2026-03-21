@@ -11,4 +11,6 @@ COPY . .
 FROM python:3.12-slim-bookworm
 WORKDIR /app
 COPY --from=build /app /app
+COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=build /usr/local/bin /usr/local/bin
 CMD ["/bin/bash", "-c", "python worker.py"]

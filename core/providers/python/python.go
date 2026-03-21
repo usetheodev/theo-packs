@@ -5,6 +5,15 @@ import (
 	"github.com/usetheo/theopacks/core/plan"
 )
 
+// pythonDeployIncludes lists paths that must be copied from the build stage
+// to the deploy stage for Python apps. Site-packages and bin contain installed
+// packages and their CLI entrypoints (gunicorn, uvicorn, flask, etc.).
+var pythonDeployIncludes = []string{
+	".",
+	"/usr/local/lib/python3.12/site-packages",
+	"/usr/local/bin",
+}
+
 type PythonProvider struct{}
 
 func (p *PythonProvider) Name() string {
@@ -57,7 +66,7 @@ func (p *PythonProvider) planRequirements(ctx *generate.GenerateContext) error {
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("build", plan.Filter{Include: []string{"."}}),
+		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes}),
 	})
 
 	return nil
@@ -83,7 +92,7 @@ func (p *PythonProvider) planPoetry(ctx *generate.GenerateContext) error {
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("build", plan.Filter{Include: []string{"."}}),
+		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes}),
 	})
 
 	return nil
@@ -100,7 +109,7 @@ func (p *PythonProvider) planPipfile(ctx *generate.GenerateContext) error {
 		installStep.AddCommand(plan.NewCopyCommand("Pipfile.lock", "./"))
 	}
 
-	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir pipenv && pipenv install --deploy --system"))
+	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir pipenv && pipenv requirements > requirements-pipfile.txt && pip install --no-cache-dir -r requirements-pipfile.txt"))
 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
@@ -108,7 +117,7 @@ func (p *PythonProvider) planPipfile(ctx *generate.GenerateContext) error {
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("build", plan.Filter{Include: []string{"."}}),
+		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes}),
 	})
 
 	return nil
@@ -123,7 +132,7 @@ func (p *PythonProvider) planPyproject(ctx *generate.GenerateContext) error {
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("install", plan.Filter{Include: []string{"."}}),
+		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes}),
 	})
 
 	return nil
@@ -138,7 +147,7 @@ func (p *PythonProvider) planSetupPy(ctx *generate.GenerateContext) error {
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("install", plan.Filter{Include: []string{"."}}),
+		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes}),
 	})
 
 	return nil
@@ -154,7 +163,7 @@ func (p *PythonProvider) planUvWorkspace(ctx *generate.GenerateContext) error {
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("install", plan.Filter{Include: []string{"."}}),
+		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes}),
 	})
 
 	return nil

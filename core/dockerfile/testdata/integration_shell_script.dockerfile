@@ -1,7 +1,6 @@
 FROM debian:bookworm-slim AS build
 WORKDIR /app
-COPY . .
-COPY . .
+COPY . ./
 
 FROM debian:bookworm-slim
 WORKDIR /app

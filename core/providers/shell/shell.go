@@ -26,8 +26,7 @@ func (p *ShellProvider) Initialize(ctx *generate.GenerateContext) error {
 func (p *ShellProvider) Plan(ctx *generate.GenerateContext) error {
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewImageLayer(generate.DefaultRuntimeImage))
-	buildStep.AddInput(ctx.NewLocalLayer())
-	buildStep.AddCommand(plan.NewCopyCommand("."))
+	buildStep.AddCommand(plan.NewCopyCommand(".", "./"))
 
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"."}}),

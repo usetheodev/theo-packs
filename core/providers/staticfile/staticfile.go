@@ -22,9 +22,10 @@ func (p *StaticfileProvider) Initialize(ctx *generate.GenerateContext) error {
 func (p *StaticfileProvider) Plan(ctx *generate.GenerateContext) error {
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewImageLayer(generate.DefaultRuntimeImage))
-	buildStep.AddInput(ctx.NewLocalLayer())
-	buildStep.AddCommand(plan.NewCopyCommand("."))
+	buildStep.AddCommand(plan.NewCopyCommand(".", "./"))
 
+	ctx.Deploy.Base = plan.NewImageLayer(generate.StaticfileRuntimeImage)
+	ctx.Deploy.StartCmd = "python -m http.server 8080"
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"."}}),
 	})

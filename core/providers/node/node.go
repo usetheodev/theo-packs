@@ -136,17 +136,10 @@ func runCommand(pm PackageManager, script string) string {
 	}
 }
 
-// startCommand returns the idiomatic start command for the package manager.
-// Uses the built-in lifecycle command (npm start, yarn start) instead of run.
+// startCommand returns the start command for the deploy stage.
+// Always uses npm start because npm is guaranteed to be available in the
+// node runtime image. pnpm/yarn/bun are only installed in the build stage.
+// npm start reads scripts.start from package.json, which is package-manager agnostic.
 func startCommand(pm PackageManager) string {
-	switch pm {
-	case PackageManagerPnpm:
-		return "pnpm start"
-	case PackageManagerYarn:
-		return "yarn start"
-	case PackageManagerBun:
-		return "bun start"
-	default:
-		return "npm start"
-	}
+	return "npm start"
 }

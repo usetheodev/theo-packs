@@ -73,19 +73,19 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"node-express", nil},
 		{"node-nuxt", nil},
 		// Python
-		{"python-flask", map[string]string{"THEOPACKS_START_CMD": "gunicorn -w 4 main:app"}},
-		{"python-fastapi", map[string]string{"THEOPACKS_START_CMD": "uvicorn main:app --host 0.0.0.0"}},
-		{"python-django", map[string]string{"THEOPACKS_START_CMD": "gunicorn mysite.wsgi:application"}},
-		{"python-pipfile", map[string]string{"THEOPACKS_START_CMD": "python main.py"}},
-		{"python-poetry", map[string]string{"THEOPACKS_START_CMD": "flask run"}},
-		{"python-setuppy", map[string]string{"THEOPACKS_START_CMD": "python main.py"}},
+		{"python-flask", map[string]string{"THEOPACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
+		{"python-fastapi", map[string]string{"THEOPACKS_START_CMD": "uvicorn main:app --host 0.0.0.0 --port 8000"}},
+		{"python-django", map[string]string{"THEOPACKS_START_CMD": "gunicorn myproject.wsgi:application --bind 0.0.0.0:8000"}},
+		{"python-pipfile", map[string]string{"THEOPACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
+		{"python-poetry", map[string]string{"THEOPACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
+		{"python-setuppy", map[string]string{"THEOPACKS_START_CMD": "myapp"}},
 		{"python-uv-workspace", map[string]string{"THEOPACKS_START_CMD": "python main.py"}},
 		{"python-streamlit", map[string]string{"THEOPACKS_START_CMD": "streamlit run app.py --server.port 8501 --server.address 0.0.0.0"}},
 		{"python-gradio", map[string]string{"THEOPACKS_START_CMD": "python app.py"}},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static
-		{"staticfile", map[string]string{"THEOPACKS_START_CMD": "python -m http.server 80"}},
+		{"staticfile", nil},
 	}
 
 	for _, tc := range cases {

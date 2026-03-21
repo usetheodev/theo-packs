@@ -11,4 +11,6 @@ COPY . .
 FROM python:3.12-slim-bookworm
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "gunicorn mysite.wsgi:application"]
+COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=build /usr/local/bin /usr/local/bin
+CMD ["/bin/bash", "-c", "gunicorn myproject.wsgi:application --bind 0.0.0.0:8000"]

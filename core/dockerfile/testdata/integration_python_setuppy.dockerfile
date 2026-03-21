@@ -7,4 +7,6 @@ RUN --mount=type=secret,id=THEOPACKS_START_CMD \
 FROM python:3.12-slim-bookworm
 WORKDIR /app
 COPY --from=install /app /app
-CMD ["/bin/bash", "-c", "python main.py"]
+COPY --from=install /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=install /usr/local/bin /usr/local/bin
+CMD ["/bin/bash", "-c", "myapp"]
