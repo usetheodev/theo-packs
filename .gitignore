@@ -1,5 +1,5 @@
-# Dependencies
-node_modules/
+# Compiled binary
+theopacks
 
 # Build output
 dist/
@@ -11,7 +11,7 @@ bin/
 *.so
 *.dylib
 
-# Go build artifacts
+# Go build & test artifacts
 *.o
 *.a
 *.test
@@ -22,8 +22,15 @@ bin/
 cover.html
 coverage.txt
 
-# Go module/test cache (local)
+# Go module/test cache
 vendor/
+
+# Test temp directories
+tmp-tmp-*/
+monorepo-go-test/
+
+# Dependencies
+node_modules/
 
 # IDE
 .idea/

@@ -54,9 +54,9 @@ func (c *Config) GetOrCreateStep(name string) *StepConfig {
 }
 
 // Merge combines multiple configs by merging their values with later configs taking precedence
-func Merge(configs ...*Config) *Config {
+func Merge(configs ...*Config) (*Config, error) {
 	if len(configs) == 0 {
-		return EmptyConfig()
+		return EmptyConfig(), nil
 	}
 
 	result := EmptyConfig()
@@ -65,10 +65,12 @@ func Merge(configs ...*Config) *Config {
 			continue
 		}
 
-		utils.MergeStructs(result, config)
+		if err := utils.MergeStructs(result, config); err != nil {
+			return nil, err
+		}
 	}
 
-	return result
+	return result, nil
 }
 
 func (s *StepConfig) UnmarshalJSON(data []byte) error {

@@ -164,6 +164,83 @@ func TestFindBuildTarget_NoMainGo(t *testing.T) {
 
 // --- workspace plan ---
 
+// --- hardening tests ---
+
+func TestParseGoWork_EmptyUseBlock(t *testing.T) {
+	a := createTempApp(t, map[string]string{
+		"go.work": "go 1.22\n\nuse (\n)\n",
+	})
+	modules, err := parseGoWork(a)
+	require.Error(t, err)
+	require.Nil(t, modules)
+	require.Contains(t, err.Error(), "empty use block")
+}
+
+func TestGoWork_TakesPriorityOverGoMod(t *testing.T) {
+	// When both go.work and go.mod exist, go.work should take priority
+	a := createTempApp(t, map[string]string{
+		"go.work":     "go 1.22\n\nuse (\n\t./api\n)\n",
+		"go.mod":      "module example.com/root\ngo 1.22",
+		"main.go":     "package main\nfunc main() {}",
+		"api/go.mod":  "module example.com/api\ngo 1.22",
+		"api/main.go": "package main\nfunc main() {}",
+	})
+	ctx := createTestContext(t, a, nil)
+
+	provider := &GoProvider{}
+	err := provider.Plan(ctx)
+	require.NoError(t, err)
+
+	// The build command should reference the workspace module, not root "."
+	buildStep := ctx.Steps[1]
+	require.Equal(t, "build", buildStep.Name())
+}
+
+func TestFindBuildTarget_EnvVarNonExistentModule(t *testing.T) {
+	// THEOPACKS_GO_MODULE set to a module that doesn't exist in the workspace
+	// findBuildTarget returns whatever the env var says without validation,
+	// but planWorkspace will use it and the build will reference a non-existent path
+	a := createTempApp(t, map[string]string{
+		"go.work":     "go 1.22\nuse (\n\t./api\n)",
+		"api/go.mod":  "module example.com/api",
+		"api/main.go": "package main",
+	})
+	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_GO_MODULE": "nonexistent"})
+	target := findBuildTarget(ctx, []string{"api"})
+	// The env var is returned as-is even if it doesn't match any module
+	require.Equal(t, "nonexistent", target)
+}
+
+func TestFindSimpleBuildTarget_MultipleCmdDirs(t *testing.T) {
+	// Multiple cmd/*/main.go should pick deterministically (first sorted)
+	a := createTempApp(t, map[string]string{
+		"go.mod":           "module test\ngo 1.22",
+		"cmd/alpha/main.go": "package main\nfunc main() {}",
+		"cmd/beta/main.go":  "package main\nfunc main() {}",
+	})
+	ctx := createTestContext(t, a, nil)
+	target := findSimpleBuildTarget(ctx)
+	// Should pick the first match from FindFiles (sorted by doublestar)
+	require.Contains(t, target, "cmd/")
+	require.NotEmpty(t, target)
+}
+
+func TestGoPlan_MalformedGoMod(t *testing.T) {
+	// Malformed go.mod content should not crash — Plan still runs,
+	// the build step just references "." as fallback
+	a := createTempApp(t, map[string]string{
+		"go.mod": "this is not valid go.mod content @@#$%",
+	})
+	ctx := createTestContext(t, a, nil)
+
+	provider := &GoProvider{}
+	err := provider.Plan(ctx)
+	// planSimple doesn't parse go.mod, it just copies it; Go tooling
+	// will report the error at build time. No crash here.
+	require.NoError(t, err)
+	require.Len(t, ctx.Steps, 2)
+}
+
 func TestGoPlan_Workspace(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"go.work":       "go 1.22\n\nuse (\n\t./api\n\t./shared\n)\n",

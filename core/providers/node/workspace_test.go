@@ -186,6 +186,30 @@ func TestManifestFiles_Workspace(t *testing.T) {
 	require.Contains(t, files, "packages/shared/package.json")
 }
 
+func TestDetectWorkspace_UnresolvableGlob(t *testing.T) {
+	// Workspace glob pattern that matches nothing should return empty members
+	a := createTempApp(t, map[string]string{
+		"package.json": `{"name":"root","workspaces":["nonexistent/*"]}`,
+	})
+	ws := DetectWorkspace(a)
+	// Patterns are present so workspace is detected, but members are empty
+	require.NotNil(t, ws)
+	require.Empty(t, ws.MemberPaths)
+}
+
+func TestDetectWorkspace_NestedPatterns(t *testing.T) {
+	// Nested workspace pattern packages/** should find deeply nested packages
+	a := createTempApp(t, map[string]string{
+		"package.json":                            `{"name":"root","workspaces":["packages/**"]}`,
+		"packages/api/package.json":               `{"name":"api"}`,
+		"packages/shared/utils/package.json":      `{"name":"utils"}`,
+	})
+	ws := DetectWorkspace(a)
+	require.NotNil(t, ws)
+	require.Contains(t, ws.MemberPaths, "packages/api")
+	require.Contains(t, ws.MemberPaths, "packages/shared/utils")
+}
+
 func TestManifestFiles_Pnpm(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"package.json":                `{"name":"root"}`,

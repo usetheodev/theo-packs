@@ -99,9 +99,9 @@ func (c *GenerateContext) GetStepName(name string) string {
 }
 
 func (c *GenerateContext) GetStepByName(name string) *StepBuilder {
-	for _, step := range c.Steps {
-		if step.Name() == name {
-			return &step
+	for i := range c.Steps {
+		if c.Steps[i].Name() == name {
+			return &c.Steps[i]
 		}
 	}
 	return nil
@@ -147,9 +147,25 @@ func (o *BuildStepOptions) NewAptInstallCommand(pkgs []string) plan.Command {
 	pkgs = utils.RemoveDuplicates(pkgs)
 	sort.Strings(pkgs)
 
+	// Validate package names to prevent shell injection.
+	// Apt package names only contain alphanumeric, dash, plus, dot, and colon.
+	for i, pkg := range pkgs {
+		pkgs[i] = sanitizeAptPackage(pkg)
+	}
+
 	return plan.NewExecCommand("sh -c 'apt-get update && apt-get install -y "+strings.Join(pkgs, " ")+"'", plan.ExecOptions{
 		CustomName: "install apt packages: " + strings.Join(pkgs, " "),
 	})
+}
+
+func sanitizeAptPackage(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '+' || r == '.' || r == ':' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func (c *GenerateContext) applyPackagesFromConfig() {

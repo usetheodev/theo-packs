@@ -4,14 +4,6 @@ type Spreadable interface {
 	IsSpread() bool
 }
 
-type StringWrapper struct {
-	Value string
-}
-
-func (s StringWrapper) IsSpread() bool {
-	return s.Value == "..."
-}
-
 func Spread[T Spreadable](left []T, right []T) []T {
 	if left == nil {
 		return right

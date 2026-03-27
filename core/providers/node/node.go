@@ -6,6 +6,7 @@ import (
 
 	"github.com/usetheo/theopacks/core/app"
 	"github.com/usetheo/theopacks/core/generate"
+	"github.com/usetheo/theopacks/core/logger"
 	"github.com/usetheo/theopacks/core/plan"
 )
 
@@ -25,7 +26,7 @@ func (p *NodeProvider) Initialize(ctx *generate.GenerateContext) error {
 
 func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	pm := DetectPackageManager(ctx.App)
-	ws := DetectWorkspace(ctx.App)
+	ws := DetectWorkspace(ctx.App, ctx.Logger)
 
 	// Workspace detection may override package manager
 	if ws != nil {
@@ -39,7 +40,7 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	}
 
 	installCmd := InstallCommand(pm, hasLock)
-	pkg := readPackageJSON(ctx.App)
+	pkg := readPackageJSON(ctx.App, ctx.Logger)
 
 	// Install step — copy manifests first for layer caching
 	installStep := ctx.NewCommandStep("install")
@@ -82,7 +83,7 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	// Deploy — use start script from package.json if available
 	ctx.Deploy.Base = plan.NewImageLayer(generate.NodeRuntimeImage)
 	if pkg.hasStartScript() {
-		ctx.Deploy.StartCmd = startCommand(pm)
+		ctx.Deploy.StartCmd = startCommand()
 	} else {
 		ctx.Deploy.StartCmd = "npm start"
 	}
@@ -104,9 +105,10 @@ type packageJSON struct {
 	Scripts map[string]string `json:"scripts"`
 }
 
-func readPackageJSON(a *app.App) *packageJSON {
+func readPackageJSON(a *app.App, log *logger.Logger) *packageJSON {
 	var pkg packageJSON
 	if err := a.ReadJSON("package.json", &pkg); err != nil {
+		log.LogWarn("Failed to parse package.json, falling back to defaults: %s", err)
 		return &packageJSON{}
 	}
 	return &pkg
@@ -140,6 +142,6 @@ func runCommand(pm PackageManager, script string) string {
 // Always uses npm start because npm is guaranteed to be available in the
 // node runtime image. pnpm/yarn/bun are only installed in the build stage.
 // npm start reads scripts.start from package.json, which is package-manager agnostic.
-func startCommand(pm PackageManager) string {
+func startCommand() string {
 	return "npm start"
 }

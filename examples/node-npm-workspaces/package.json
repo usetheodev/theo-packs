@@ -1,0 +1,8 @@
+{
+  "name": "node-npm-workspaces",
+  "version": "1.0.0",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "start": "node index.js"
+  }
+}

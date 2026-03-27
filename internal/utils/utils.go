@@ -3,7 +3,6 @@ package utils
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -22,34 +21,6 @@ func RemoveDuplicates[T comparable](sliceList []T) []T {
 	return list
 }
 
-// MergeStringSlicePointers combines multiple string slice pointers, deduplicates values, and sorts them
-func MergeStringSlicePointers(slices ...*[]string) *[]string {
-	if len(slices) == 0 {
-		return nil
-	}
-
-	var allStrings []string
-	for _, slice := range slices {
-		if slice != nil {
-			allStrings = append(allStrings, *slice...)
-		}
-	}
-
-	if len(allStrings) == 0 {
-		return nil
-	}
-
-	seen := make(map[string]bool)
-	var uniqueStrings []string
-	for _, s := range allStrings {
-		if !seen[s] {
-			seen[s] = true
-			uniqueStrings = append(uniqueStrings, s)
-		}
-	}
-	sort.Strings(uniqueStrings)
-	return &uniqueStrings
-}
 
 func CapitalizeFirst(s string) string {
 	if s == "" {

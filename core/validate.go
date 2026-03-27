@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/usetheo/theopacks/core/app"
 	"github.com/usetheo/theopacks/core/logger"
@@ -24,10 +25,30 @@ func ValidatePlan(p *plan.BuildPlan, app *app.App, logger *logger.Logger, option
 		return false
 	}
 
+	if !validateStepNames(p, logger) {
+		return false
+	}
+
+	if !validateCircularReferences(p, logger) {
+		return false
+	}
+
+	stepNames := make(map[string]bool, len(p.Steps))
+	for _, step := range p.Steps {
+		stepNames[step.Name] = true
+	}
+
 	for _, step := range p.Steps {
 		if !validateInputs(step.Inputs, step.Name, logger) {
 			return false
 		}
+		if !validateStepReferences(step.Inputs, step.Name, stepNames, logger) {
+			return false
+		}
+	}
+
+	if !validateStepReferences(p.Deploy.Inputs, "deploy", stepNames, logger) {
+		return false
 	}
 
 	return validateDeployLayers(p, logger)
@@ -90,10 +111,80 @@ func validateInputs(inputs []plan.Layer, stepName string, logger *logger.Logger)
 	return true
 }
 
+func validateStepReferences(inputs []plan.Layer, ownerName string, stepNames map[string]bool, logger *logger.Logger) bool {
+	for _, input := range inputs {
+		if input.Step != "" && !stepNames[input.Step] {
+			logger.LogError("`%s` references non-existent step %q", ownerName, input.Step)
+			return false
+		}
+	}
+	return true
+}
+
 func validateDeployLayers(p *plan.BuildPlan, logger *logger.Logger) bool {
 	if p.Deploy.Base.Image == "" && p.Deploy.Base.Step == "" {
 		logger.LogError("deploy.base is required")
 		return false
+	}
+
+	return true
+}
+
+func validateStepNames(p *plan.BuildPlan, logger *logger.Logger) bool {
+	seen := make(map[string]bool, len(p.Steps))
+	for _, step := range p.Steps {
+		name := strings.TrimSpace(step.Name)
+		if name == "" {
+			logger.LogError("step has an empty name")
+			return false
+		}
+		if seen[name] {
+			logger.LogError("duplicate step name %q", name)
+			return false
+		}
+		seen[name] = true
+	}
+	return true
+}
+
+func validateCircularReferences(p *plan.BuildPlan, logger *logger.Logger) bool {
+	// Build adjacency: step name -> set of step names it depends on
+	deps := make(map[string][]string, len(p.Steps))
+	for _, step := range p.Steps {
+		for _, input := range step.Inputs {
+			if input.Step != "" {
+				deps[step.Name] = append(deps[step.Name], input.Step)
+			}
+		}
+	}
+
+	// DFS cycle detection with coloring:
+	// 0 = unvisited, 1 = in progress, 2 = done
+	state := make(map[string]int, len(p.Steps))
+
+	var visit func(name string) bool
+	visit = func(name string) bool {
+		if state[name] == 2 {
+			return false
+		}
+		if state[name] == 1 {
+			return true // cycle found
+		}
+		state[name] = 1
+		for _, dep := range deps[name] {
+			if visit(dep) {
+				return true
+			}
+		}
+		state[name] = 2
+		return false
+	}
+
+	for _, step := range p.Steps {
+		if visit(step.Name) {
+			logger.LogError("circular reference detected involving step %q", step.Name)
+			return false
+		}
 	}
 
 	return true

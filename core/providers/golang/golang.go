@@ -8,6 +8,7 @@ import (
 
 	"github.com/usetheo/theopacks/core/app"
 	"github.com/usetheo/theopacks/core/generate"
+	"github.com/usetheo/theopacks/core/logger"
 	"github.com/usetheo/theopacks/core/plan"
 )
 
@@ -60,7 +61,7 @@ func (p *GoProvider) planSimple(ctx *generate.GenerateContext) error {
 }
 
 func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext) error {
-	modules, err := parseGoWork(ctx.App)
+	modules, err := parseGoWork(ctx.App, ctx.Logger)
 	if err != nil {
 		return fmt.Errorf("failed to parse go.work: %w", err)
 	}
@@ -79,6 +80,7 @@ func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext) error {
 		installStep.AddCommand(plan.NewCopyCommand("go.work.sum", "./"))
 	}
 
+	hasExternalDeps := false
 	for _, mod := range modules {
 		goMod := filepath.Join(mod, "go.mod")
 		if ctx.App.HasFile(goMod) {
@@ -87,10 +89,19 @@ func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext) error {
 		goSum := filepath.Join(mod, "go.sum")
 		if ctx.App.HasFile(goSum) {
 			installStep.AddCommand(plan.NewCopyCommand(goSum, mod+"/"))
+			hasExternalDeps = true
 		}
 	}
 
-	installStep.AddCommand(plan.NewExecShellCommand("go mod download"))
+	// Only run go mod download when modules have external dependencies.
+	// In a Go workspace, modules that only depend on each other (resolved
+	// via go.work) and stdlib have no go.sum files and nothing to download.
+	// Running go mod download in that case fails because workspace-local
+	// module paths (e.g. example.com/project/pkg/shared) are not resolvable
+	// as remote URLs.
+	if hasExternalDeps {
+		installStep.AddCommand(plan.NewExecShellCommand("go mod download"))
+	}
 
 	// Build step: copy source and compile target
 	buildStep := ctx.NewCommandStep("build")
@@ -126,7 +137,13 @@ func findSimpleBuildTarget(ctx *generate.GenerateContext) string {
 }
 
 // parseGoWork reads go.work and extracts module paths from the use (...) block.
-func parseGoWork(a *app.App) ([]string, error) {
+func parseGoWork(a *app.App, log ...*logger.Logger) ([]string, error) {
+	// Extract optional logger
+	var l *logger.Logger
+	if len(log) > 0 {
+		l = log[0]
+	}
+
 	content, err := a.ReadFile("go.work")
 	if err != nil {
 		return nil, err
@@ -140,6 +157,9 @@ func parseGoWork(a *app.App) ([]string, error) {
 		if singleMatch != nil {
 			return []string{strings.TrimPrefix(singleMatch[1], "./")}, nil
 		}
+		if l != nil {
+			l.LogWarn("go.work file has no valid use directive — file may be malformed")
+		}
 		return nil, fmt.Errorf("no use directive found in go.work")
 	}
 
@@ -150,6 +170,13 @@ func parseGoWork(a *app.App) ([]string, error) {
 		if mod != "" {
 			modules = append(modules, mod)
 		}
+	}
+
+	if len(modules) == 0 {
+		if l != nil {
+			l.LogWarn("go.work has use () block but no modules listed inside it")
+		}
+		return nil, fmt.Errorf("go.work has empty use block — no modules declared")
 	}
 
 	return modules, nil

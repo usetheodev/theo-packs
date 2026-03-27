@@ -201,8 +201,14 @@ func writeFileCommand(b *strings.Builder, cmd plan.FileCommand, step *plan.Step)
 	}
 
 	dest := filepath.Join(cmd.Path, cmd.Name)
-	escaped := strings.ReplaceAll(content, "'", "'\\''")
-	fmt.Fprintf(b, "RUN printf '%%s' '%s' > %s\n", escaped, dest)
+	escapedContent := shellEscape(content)
+	escapedDest := shellEscape(dest)
+	fmt.Fprintf(b, "RUN printf '%%s' %s > %s\n", escapedContent, escapedDest)
+}
+
+// shellEscape wraps a string in single quotes, escaping any embedded single quotes.
+func shellEscape(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 func writeEnvVars(b *strings.Builder, vars map[string]string) {

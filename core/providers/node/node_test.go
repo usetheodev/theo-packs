@@ -58,6 +58,33 @@ func TestNodeDetect(t *testing.T) {
 	}
 }
 
+func createNodeTempApp(t *testing.T, files map[string]string) *app.App {
+	t.Helper()
+	dir := t.TempDir()
+	for name, content := range files {
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	}
+	a, err := app.NewApp(dir)
+	require.NoError(t, err)
+	return a
+}
+
+func createNodeTestContext(t *testing.T, a *app.App, envVars map[string]string) *generate.GenerateContext {
+	t.Helper()
+	var envPtr *map[string]string
+	if envVars != nil {
+		envPtr = &envVars
+	}
+	env := app.NewEnvironment(envPtr)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+	ctx, err := generate.NewGenerateContext(a, env, cfg, log)
+	require.NoError(t, err)
+	return ctx
+}
+
 func TestNodePlan(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "node-test")
 	require.NoError(t, err)
@@ -81,4 +108,42 @@ func TestNodePlan(t *testing.T) {
 
 	require.Equal(t, "npm start", ctx.Deploy.StartCmd)
 	require.Len(t, ctx.Steps, 2)
+}
+
+// --- hardening tests ---
+
+func TestDetectPackageManager_BunLockb(t *testing.T) {
+	// bun.lockb (binary lockfile) should trigger Bun detection
+	a := createNodeTempApp(t, map[string]string{
+		"package.json": `{"name":"test"}`,
+		"bun.lockb":    "",
+	})
+	require.Equal(t, PackageManagerBun, DetectPackageManager(a))
+}
+
+func TestNodePlan_NoScripts(t *testing.T) {
+	// package.json with no scripts at all should still produce a valid plan
+	a := createNodeTempApp(t, map[string]string{
+		"package.json": `{"name": "test", "version": "1.0.0"}`,
+	})
+	ctx := createNodeTestContext(t, a, nil)
+
+	provider := &NodeProvider{}
+	err := provider.Plan(ctx)
+	require.NoError(t, err)
+
+	// With no start script, falls back to "npm start"
+	require.Equal(t, "npm start", ctx.Deploy.StartCmd)
+	require.Len(t, ctx.Steps, 2)
+}
+
+func TestDetectPackageManager_ConflictingLockFiles(t *testing.T) {
+	// When yarn.lock and pnpm-lock.yaml both exist, pnpm wins
+	// because it's checked first in DetectPackageManager
+	a := createNodeTempApp(t, map[string]string{
+		"package.json":    `{"name":"test"}`,
+		"yarn.lock":       "# yarn",
+		"pnpm-lock.yaml":  "lockfileVersion: 6",
+	})
+	require.Equal(t, PackageManagerPnpm, DetectPackageManager(a))
 }

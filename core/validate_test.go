@@ -110,6 +110,141 @@ func TestValidateStartCommand(t *testing.T) {
 	})
 }
 
+func TestValidateStepNames(t *testing.T) {
+	t.Run("empty step name", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		step := plan.NewStep("")
+		step.Commands = []plan.Command{plan.NewExecShellCommand("echo hi")}
+		buildPlan.Steps = append(buildPlan.Steps, *step)
+
+		require.False(t, validateStepNames(buildPlan, log))
+		require.Equal(t, 1, len(log.Logs))
+		require.Equal(t, logger.Error, log.Logs[0].Level)
+		require.Contains(t, log.Logs[0].Msg, "empty name")
+	})
+
+	t.Run("whitespace-only step name", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		step := plan.NewStep("   ")
+		step.Commands = []plan.Command{plan.NewExecShellCommand("echo hi")}
+		buildPlan.Steps = append(buildPlan.Steps, *step)
+
+		require.False(t, validateStepNames(buildPlan, log))
+		require.Equal(t, 1, len(log.Logs))
+		require.Contains(t, log.Logs[0].Msg, "empty name")
+	})
+
+	t.Run("duplicate step names", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		step1 := plan.NewStep("build")
+		step1.Commands = []plan.Command{plan.NewExecShellCommand("echo hi")}
+		step2 := plan.NewStep("build")
+		step2.Commands = []plan.Command{plan.NewExecShellCommand("echo hi")}
+		buildPlan.Steps = append(buildPlan.Steps, *step1, *step2)
+
+		require.False(t, validateStepNames(buildPlan, log))
+		require.Equal(t, 1, len(log.Logs))
+		require.Equal(t, logger.Error, log.Logs[0].Level)
+		require.Contains(t, log.Logs[0].Msg, "duplicate step name")
+		require.Contains(t, log.Logs[0].Msg, "build")
+	})
+
+	t.Run("valid unique step names", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		step1 := plan.NewStep("install")
+		step2 := plan.NewStep("build")
+		buildPlan.Steps = append(buildPlan.Steps, *step1, *step2)
+
+		require.True(t, validateStepNames(buildPlan, log))
+		require.Equal(t, 0, len(log.Logs))
+	})
+}
+
+func TestValidateCircularReferences(t *testing.T) {
+	t.Run("no circular references", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		installStep := plan.NewStep("install")
+		installStep.Inputs = []plan.Layer{plan.NewImageLayer("node:18")}
+		buildStep := plan.NewStep("build")
+		buildStep.Inputs = []plan.Layer{plan.NewStepLayer("install")}
+		buildPlan.Steps = append(buildPlan.Steps, *installStep, *buildStep)
+
+		require.True(t, validateCircularReferences(buildPlan, log))
+		require.Equal(t, 0, len(log.Logs))
+	})
+
+	t.Run("direct self-reference", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		step := plan.NewStep("build")
+		step.Inputs = []plan.Layer{plan.NewStepLayer("build")}
+		buildPlan.Steps = append(buildPlan.Steps, *step)
+
+		require.False(t, validateCircularReferences(buildPlan, log))
+		require.Equal(t, 1, len(log.Logs))
+		require.Equal(t, logger.Error, log.Logs[0].Level)
+		require.Contains(t, log.Logs[0].Msg, "circular reference")
+	})
+
+	t.Run("indirect circular reference", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		stepA := plan.NewStep("a")
+		stepA.Inputs = []plan.Layer{plan.NewStepLayer("b")}
+		stepB := plan.NewStep("b")
+		stepB.Inputs = []plan.Layer{plan.NewStepLayer("c")}
+		stepC := plan.NewStep("c")
+		stepC.Inputs = []plan.Layer{plan.NewStepLayer("a")}
+		buildPlan.Steps = append(buildPlan.Steps, *stepA, *stepB, *stepC)
+
+		require.False(t, validateCircularReferences(buildPlan, log))
+		require.Equal(t, 1, len(log.Logs))
+		require.Contains(t, log.Logs[0].Msg, "circular reference")
+	})
+}
+
+func TestValidateDeployBase(t *testing.T) {
+	t.Run("empty deploy base", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		buildPlan.Deploy = plan.Deploy{
+			Base: plan.Layer{},
+		}
+
+		require.False(t, validateDeployLayers(buildPlan, log))
+		require.Equal(t, 1, len(log.Logs))
+		require.Equal(t, logger.Error, log.Logs[0].Level)
+		require.Contains(t, log.Logs[0].Msg, "deploy.base is required")
+	})
+
+	t.Run("deploy base with image", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		buildPlan.Deploy = plan.Deploy{
+			Base: plan.NewImageLayer("node:18"),
+		}
+
+		require.True(t, validateDeployLayers(buildPlan, log))
+		require.Equal(t, 0, len(log.Logs))
+	})
+
+	t.Run("deploy base with step", func(t *testing.T) {
+		log := logger.NewLogger()
+		buildPlan := plan.NewBuildPlan()
+		buildPlan.Deploy = plan.Deploy{
+			Base: plan.NewStepLayer("build"),
+		}
+
+		require.True(t, validateDeployLayers(buildPlan, log))
+		require.Equal(t, 0, len(log.Logs))
+	})
+}
+
 func TestValidateInputs(t *testing.T) {
 	log := logger.NewLogger()
 

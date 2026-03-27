@@ -1,0 +1,7 @@
+{
+  "name": "node-pnpm-workspaces",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node index.js"
+  }
+}

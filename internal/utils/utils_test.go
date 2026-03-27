@@ -15,32 +15,6 @@ func TestRemoveDuplicates(t *testing.T) {
 	require.Equal(t, []string{"a"}, RemoveDuplicates([]string{"a", "a", "a"}))
 }
 
-func TestMergeStringSlicePointers(t *testing.T) {
-	t.Run("empty input", func(t *testing.T) {
-		result := MergeStringSlicePointers()
-		require.Nil(t, result)
-	})
-
-	t.Run("nil slices", func(t *testing.T) {
-		result := MergeStringSlicePointers(nil, nil)
-		require.Nil(t, result)
-	})
-
-	t.Run("merge and deduplicate", func(t *testing.T) {
-		a := []string{"c", "a"}
-		b := []string{"b", "a"}
-		result := MergeStringSlicePointers(&a, &b)
-		require.NotNil(t, result)
-		require.Equal(t, []string{"a", "b", "c"}, *result)
-	})
-
-	t.Run("mixed nil and non-nil", func(t *testing.T) {
-		a := []string{"x"}
-		result := MergeStringSlicePointers(nil, &a, nil)
-		require.NotNil(t, result)
-		require.Equal(t, []string{"x"}, *result)
-	})
-}
 
 func TestCapitalizeFirst(t *testing.T) {
 	require.Equal(t, "Hello", CapitalizeFirst("hello"))
@@ -146,7 +120,7 @@ func TestMergeStructs(t *testing.T) {
 	t.Run("merge basic fields", func(t *testing.T) {
 		dst := &TestStruct{Name: "original", Count: 1}
 		src := &TestStruct{Name: "updated", Count: 0}
-		MergeStructs(dst, src)
+		require.NoError(t, MergeStructs(dst, src))
 		require.Equal(t, "updated", dst.Name)
 		require.Equal(t, 1, dst.Count, "zero values should not override")
 	})
@@ -154,14 +128,14 @@ func TestMergeStructs(t *testing.T) {
 	t.Run("merge slices", func(t *testing.T) {
 		dst := &TestStruct{Tags: []string{"a"}}
 		src := &TestStruct{Tags: []string{"b", "c"}}
-		MergeStructs(dst, src)
+		require.NoError(t, MergeStructs(dst, src))
 		require.Equal(t, []string{"b", "c"}, dst.Tags, "slices should be replaced entirely")
 	})
 
 	t.Run("merge maps", func(t *testing.T) {
 		dst := &TestStruct{Data: map[string]string{"a": "1", "b": "2"}}
 		src := &TestStruct{Data: map[string]string{"b": "3", "c": "4"}}
-		MergeStructs(dst, src)
+		require.NoError(t, MergeStructs(dst, src))
 		require.Equal(t, "1", dst.Data["a"])
 		require.Equal(t, "3", dst.Data["b"], "later values win")
 		require.Equal(t, "4", dst.Data["c"])
@@ -170,20 +144,20 @@ func TestMergeStructs(t *testing.T) {
 	t.Run("merge pointer fields", func(t *testing.T) {
 		dst := &TestStruct{Inner: &Inner{Value: "old"}}
 		src := &TestStruct{Inner: &Inner{Value: "new"}}
-		MergeStructs(dst, src)
+		require.NoError(t, MergeStructs(dst, src))
 		require.Equal(t, "new", dst.Inner.Value)
 	})
 
 	t.Run("nil src pointer does not override", func(t *testing.T) {
 		dst := &TestStruct{Inner: &Inner{Value: "keep"}}
 		src := &TestStruct{}
-		MergeStructs(dst, src)
+		require.NoError(t, MergeStructs(dst, src))
 		require.Equal(t, "keep", dst.Inner.Value)
 	})
 
 	t.Run("nil src skipped", func(t *testing.T) {
 		dst := &TestStruct{Name: "keep"}
-		MergeStructs(dst, nil)
+		require.NoError(t, MergeStructs(dst, nil))
 		require.Equal(t, "keep", dst.Name)
 	})
 }

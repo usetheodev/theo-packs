@@ -3,7 +3,6 @@ WORKDIR /app
 COPY go.work ./
 COPY api/go.mod api/
 COPY shared/go.mod shared/
-RUN sh -c 'go mod download'
 
 FROM install AS build
 WORKDIR /app

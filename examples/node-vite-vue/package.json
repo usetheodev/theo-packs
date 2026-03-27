@@ -1,0 +1,15 @@
+{
+  "name": "node-vite-vue",
+  "version": "1.0.0",
+  "dependencies": {
+    "vue": "3.3.0"
+  },
+  "devDependencies": {
+    "vite": "5.0.0",
+    "@vitejs/plugin-vue": "4.0.0"
+  },
+  "scripts": {
+    "start": "vite preview",
+    "build": "vite build"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "node-astro",
+  "version": "1.0.0",
+  "dependencies": {
+    "astro": "4.0.0"
+  },
+  "scripts": {
+    "start": "astro preview",
+    "build": "astro build"
+  }
+}
