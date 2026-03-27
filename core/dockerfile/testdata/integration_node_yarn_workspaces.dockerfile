@@ -3,7 +3,8 @@ WORKDIR /app
 RUN sh -c 'corepack enable'
 COPY package.json ./
 COPY yarn.lock ./
-COPY packages/pkg-a/package.json packages/pkg-a/
+COPY packages/api/package.json packages/api/
+COPY packages/shared/package.json packages/shared/
 RUN sh -c 'yarn install --frozen-lockfile'
 
 FROM install AS build

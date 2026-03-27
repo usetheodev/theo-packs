@@ -122,7 +122,8 @@ func TestMergeConfigSmall(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(config2JSON), &config2))
 	require.NoError(t, json.Unmarshal([]byte(expectedJSON), &expected))
 
-	result := Merge(&config1, &config2)
+	result, err := Merge(&config1, &config2)
+	require.NoError(t, err)
 
 	if diff := cmp.Diff(expected, *result); diff != "" {
 		t.Errorf("configs mismatch (-want +got):\n%s", diff)
@@ -275,7 +276,8 @@ func TestMergeConfig(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(config2JSON), &config2))
 	require.NoError(t, json.Unmarshal([]byte(expectedJSON), &expected))
 
-	result := Merge(&config1, &config2)
+	result, err := Merge(&config1, &config2)
+	require.NoError(t, err)
 
 	if diff := cmp.Diff(expected, *result); diff != "" {
 		t.Errorf("configs mismatch (-want +got):\n%s", diff)
@@ -311,7 +313,8 @@ func TestMergeConfigStart(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(config2JSON), &config2))
 	require.NoError(t, json.Unmarshal([]byte(expectedJSON), &expected))
 
-	result := Merge(&config1, &config2)
+	result, err := Merge(&config1, &config2)
+	require.NoError(t, err)
 
 	if diff := cmp.Diff(expected, *result); diff != "" {
 		t.Errorf("configs mismatch (-want +got):\n%s", diff)

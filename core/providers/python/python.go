@@ -1,6 +1,8 @@
 package python
 
 import (
+	"strings"
+
 	"github.com/usetheo/theopacks/core/generate"
 	"github.com/usetheo/theopacks/core/plan"
 )
@@ -32,24 +34,33 @@ func (p *PythonProvider) Initialize(ctx *generate.GenerateContext) error {
 }
 
 func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
+	var err error
+
 	if isUvWorkspace(ctx) {
-		return p.planUvWorkspace(ctx)
+		err = p.planUvWorkspace(ctx)
+	} else if ctx.App.HasFile("requirements.txt") {
+		err = p.planRequirements(ctx)
+	} else if isPoetryProject(ctx) {
+		err = p.planPoetry(ctx)
+	} else if ctx.App.HasFile("Pipfile") {
+		err = p.planPipfile(ctx)
+	} else if ctx.App.HasFile("pyproject.toml") {
+		err = p.planPyproject(ctx)
+	} else if ctx.App.HasFile("setup.py") {
+		err = p.planSetupPy(ctx)
 	}
-	if ctx.App.HasFile("requirements.txt") {
-		return p.planRequirements(ctx)
+
+	if err != nil {
+		return err
 	}
-	if isPoetryProject(ctx) {
-		return p.planPoetry(ctx)
+
+	// Auto-detect start command if not already set by config
+	if ctx.Deploy.StartCmd == "" {
+		if cmd := detectStartCommand(ctx); cmd != "" {
+			ctx.Deploy.StartCmd = cmd
+		}
 	}
-	if ctx.App.HasFile("Pipfile") {
-		return p.planPipfile(ctx)
-	}
-	if ctx.App.HasFile("pyproject.toml") {
-		return p.planPyproject(ctx)
-	}
-	if ctx.App.HasFile("setup.py") {
-		return p.planSetupPy(ctx)
-	}
+
 	return nil
 }
 
@@ -155,16 +166,19 @@ func (p *PythonProvider) planSetupPy(ctx *generate.GenerateContext) error {
 
 // planUvWorkspace handles UV workspace projects.
 // UV workspaces have local path deps that need all files at install time.
+// uv sync installs into .venv/ so we add that to PATH in the deploy stage.
 func (p *PythonProvider) planUvWorkspace(ctx *generate.GenerateContext) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImage))
 	installStep.AddInput(ctx.NewLocalLayer())
-	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir uv && uv sync --no-dev"))
+	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir uv && uv sync --all-packages --no-dev"))
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes}),
 	})
+	// uv sync installs packages into .venv/bin, not /usr/local/bin
+	ctx.Deploy.Paths = append(ctx.Deploy.Paths, "/app/.venv/bin")
 
 	return nil
 }
@@ -184,6 +198,7 @@ func isPoetryProject(ctx *generate.GenerateContext) bool {
 	}
 
 	if err := ctx.App.ReadTOML("pyproject.toml", &pyproject); err != nil {
+		ctx.Logger.LogWarn("Failed to parse pyproject.toml for Poetry detection: %s", err)
 		return false
 	}
 
@@ -207,14 +222,102 @@ func isUvWorkspace(ctx *generate.GenerateContext) bool {
 	}
 
 	if err := ctx.App.ReadTOML("pyproject.toml", &pyproject); err != nil {
+		ctx.Logger.LogWarn("Failed to parse pyproject.toml for UV workspace detection: %s", err)
 		return false
 	}
 
 	return len(pyproject.Tool.UV.Workspace.Members) > 0
 }
 
+// detectStartCommand tries to determine the start command for a Python app.
+// It checks, in order: Procfile, FastAPI with uvicorn, Flask, Django.
+func detectStartCommand(ctx *generate.GenerateContext) string {
+	// Check Procfile first (industry standard: Heroku, Railway, etc.)
+	if ctx.App.HasFile("Procfile") {
+		if cmd := parseProcfileWeb(ctx); cmd != "" {
+			return cmd
+		}
+	}
+
+	// Auto-detect FastAPI + uvicorn from requirements or pyproject.toml
+	if hasPackage(ctx, "uvicorn") && hasPackage(ctx, "fastapi") {
+		// Look for the main module that defines the FastAPI app
+		if ctx.App.HasFile("main.py") {
+			return "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+		}
+		if ctx.App.HasFile("app.py") {
+			return "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}"
+		}
+	}
+
+	// Auto-detect gunicorn
+	if hasPackage(ctx, "gunicorn") {
+		if ctx.App.HasFile("app.py") {
+			return "gunicorn app:app --bind 0.0.0.0:${PORT:-8000}"
+		}
+	}
+
+	return ""
+}
+
+// parseProcfileWeb reads a Procfile and returns the web process command.
+func parseProcfileWeb(ctx *generate.GenerateContext) string {
+	content, err := ctx.App.ReadFile("Procfile")
+	if err != nil {
+		return ""
+	}
+
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "web:") {
+			cmd := strings.TrimSpace(strings.TrimPrefix(line, "web:"))
+			if cmd != "" {
+				return cmd
+			}
+		}
+	}
+
+	return ""
+}
+
+// hasPackage checks whether a Python package is listed in requirements.txt
+// or pyproject.toml dependencies.
+func hasPackage(ctx *generate.GenerateContext, pkg string) bool {
+	if ctx.App.HasFile("requirements.txt") {
+		content, err := ctx.App.ReadFile("requirements.txt")
+		if err == nil {
+			for _, line := range strings.Split(content, "\n") {
+				line = strings.TrimSpace(line)
+				// Match package name at start of line (before version specifier)
+				name := strings.Split(line, ">=")[0]
+				name = strings.Split(name, "==")[0]
+				name = strings.Split(name, "~=")[0]
+				name = strings.Split(name, "<")[0]
+				name = strings.Split(name, ">")[0]
+				name = strings.Split(name, "[")[0]
+				name = strings.TrimSpace(name)
+				if strings.EqualFold(name, pkg) {
+					return true
+				}
+			}
+		}
+	}
+
+	if ctx.App.HasFile("pyproject.toml") {
+		content, err := ctx.App.ReadFile("pyproject.toml")
+		if err == nil {
+			// Simple check: look for the package name in dependencies
+			if strings.Contains(content, "\""+pkg) || strings.Contains(content, "'"+pkg) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func (p *PythonProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *PythonProvider) StartCommandHelp() string {
-	return "Specify a start command:\n  - Add a Procfile with: web: python app.py\n  - Or set THEOPACKS_START_CMD=python app.py"
+	return "Specify a start command:\n  - Add a Procfile with: web: uvicorn main:app --host 0.0.0.0 --port 8000\n  - Or set THEOPACKS_START_CMD=python app.py"
 }

@@ -24,8 +24,8 @@ func examplesDir(t *testing.T) string {
 	_, thisFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "failed to determine test file location")
 
-	// core/monorepo_test.go -> theo-packs/core -> theo-packs -> theo -> examples
-	dir := filepath.Join(filepath.Dir(thisFile), "..", "..", "examples")
+	// core/monorepo_test.go -> theo-packs/core -> theo-packs/examples
+	dir := filepath.Join(filepath.Dir(thisFile), "..", "examples")
 	abs, err := filepath.Abs(dir)
 	require.NoError(t, err)
 

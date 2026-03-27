@@ -1,6 +1,7 @@
 package dockerfile
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -426,4 +427,169 @@ func TestGenerate_DeployWithVariables(t *testing.T) {
 	got, err := Generate(p)
 	require.NoError(t, err)
 	require.Contains(t, got, "ENV NODE_ENV=\"production\"\nENV PORT=\"3000\"\n")
+}
+
+func TestGenerate_ExecCommandWithSingleQuotes(t *testing.T) {
+	p := plan.NewBuildPlan()
+
+	step := plan.NewStep("build")
+	step.Inputs = []plan.Layer{
+		plan.NewImageLayer("debian:bookworm-slim"),
+		plan.NewLocalLayer(),
+	}
+	step.Commands = []plan.Command{
+		plan.NewExecShellCommand("echo 'hello world'"),
+	}
+	p.AddStep(*step)
+
+	p.Deploy = plan.Deploy{
+		Base:     plan.NewImageLayer("debian:bookworm-slim"),
+		Inputs:   []plan.Layer{plan.NewStepLayer("build", plan.Filter{Include: []string{"."}})},
+		StartCmd: "echo 'hello'",
+	}
+
+	got, err := Generate(p)
+	require.NoError(t, err)
+	// The shell command wraps in single quotes via ShellCommandString,
+	// so embedded single quotes appear in the RUN instruction.
+	require.Contains(t, got, "RUN sh -c 'echo 'hello world''")
+}
+
+func TestGenerate_ExecCommandWithEnvVarReference(t *testing.T) {
+	p := plan.NewBuildPlan()
+
+	step := plan.NewStep("build")
+	step.Inputs = []plan.Layer{
+		plan.NewImageLayer("debian:bookworm-slim"),
+		plan.NewLocalLayer(),
+	}
+	step.Commands = []plan.Command{
+		plan.NewExecShellCommand("echo $HOME && ls $GOPATH/bin"),
+	}
+	p.AddStep(*step)
+
+	p.Deploy = plan.Deploy{
+		Base:   plan.NewImageLayer("debian:bookworm-slim"),
+		Inputs: []plan.Layer{plan.NewStepLayer("build", plan.Filter{Include: []string{"."}})},
+	}
+
+	got, err := Generate(p)
+	require.NoError(t, err)
+	// Environment variable references must be preserved verbatim in the RUN instruction.
+	require.Contains(t, got, "$HOME")
+	require.Contains(t, got, "$GOPATH/bin")
+	require.Contains(t, got, "RUN sh -c 'echo $HOME && ls $GOPATH/bin'")
+}
+
+func TestGenerate_StepWithZeroCommands(t *testing.T) {
+	p := plan.NewBuildPlan()
+
+	// A step with no commands should still produce FROM + WORKDIR
+	step := plan.NewStep("base")
+	step.Inputs = []plan.Layer{
+		plan.NewImageLayer("debian:bookworm-slim"),
+	}
+	step.Commands = []plan.Command{}
+	p.AddStep(*step)
+
+	p.Deploy = plan.Deploy{
+		Base:     plan.NewStepLayer("base"),
+		StartCmd: "/app/server",
+	}
+
+	got, err := Generate(p)
+	require.NoError(t, err)
+	require.Contains(t, got, "FROM debian:bookworm-slim AS base\n")
+	require.Contains(t, got, "WORKDIR /app\n")
+	// No RUN, COPY, or ENV instructions should appear in the step
+	// (only FROM + WORKDIR, then the deploy stage)
+	lines := strings.Split(got, "\n")
+	stepLines := 0
+	for _, line := range lines {
+		if strings.HasPrefix(line, "RUN ") {
+			stepLines++
+		}
+	}
+	require.Equal(t, 0, stepLines, "step with no commands should produce no RUN instructions")
+}
+
+func TestGenerate_FileCommandWithMultilineContent(t *testing.T) {
+	p := plan.NewBuildPlan()
+
+	step := plan.NewStep("build")
+	step.Inputs = []plan.Layer{
+		plan.NewImageLayer("debian:bookworm-slim"),
+	}
+	step.Assets["config.yaml"] = "server:\n  host: 0.0.0.0\n  port: 8080\n"
+	step.Commands = []plan.Command{
+		plan.NewFileCommand("/app", "config.yaml"),
+	}
+	p.AddStep(*step)
+
+	p.Deploy = plan.Deploy{
+		Base:     plan.NewStepLayer("build"),
+		StartCmd: "/app/server",
+	}
+
+	got, err := Generate(p)
+	require.NoError(t, err)
+	// The multiline content should be shell-escaped and written via printf
+	require.Contains(t, got, "RUN printf '%s'")
+	require.Contains(t, got, "config.yaml")
+	// Newlines should be preserved in the escaped content
+	require.Contains(t, got, "server:\n  host: 0.0.0.0\n  port: 8080\n")
+}
+
+func TestGenerate_FileCommandWithSingleQuotesInContent(t *testing.T) {
+	p := plan.NewBuildPlan()
+
+	step := plan.NewStep("build")
+	step.Inputs = []plan.Layer{
+		plan.NewImageLayer("debian:bookworm-slim"),
+	}
+	step.Assets["script.sh"] = "echo 'hello world'\nexit 0"
+	step.Commands = []plan.Command{
+		plan.NewFileCommand("/app", "script.sh"),
+	}
+	p.AddStep(*step)
+
+	p.Deploy = plan.Deploy{
+		Base:     plan.NewStepLayer("build"),
+		StartCmd: "/app/server",
+	}
+
+	got, err := Generate(p)
+	require.NoError(t, err)
+	// Single quotes within file content should be escaped via shellEscape:
+	// ' → '\'' (end quote, escaped literal quote, start quote)
+	require.Contains(t, got, "'\\''hello world'\\''")
+}
+
+func TestGenerate_VeryLongCommandString(t *testing.T) {
+	p := plan.NewBuildPlan()
+
+	// Build a very long command (1000+ characters)
+	longPkg := strings.Repeat("some-very-long-package-name ", 50)
+	longCmd := "apt-get install -y " + strings.TrimSpace(longPkg)
+
+	step := plan.NewStep("build")
+	step.Inputs = []plan.Layer{
+		plan.NewImageLayer("debian:bookworm-slim"),
+		plan.NewLocalLayer(),
+	}
+	step.Commands = []plan.Command{
+		plan.NewExecShellCommand(longCmd),
+	}
+	p.AddStep(*step)
+
+	p.Deploy = plan.Deploy{
+		Base:   plan.NewImageLayer("debian:bookworm-slim"),
+		Inputs: []plan.Layer{plan.NewStepLayer("build", plan.Filter{Include: []string{"."}})},
+	}
+
+	got, err := Generate(p)
+	require.NoError(t, err)
+	// The full command should appear in the output without truncation
+	require.Contains(t, got, longCmd)
+	require.Contains(t, got, "RUN sh -c '"+longCmd+"'")
 }

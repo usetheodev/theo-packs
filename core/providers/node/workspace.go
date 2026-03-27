@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theopacks/core/logger"
 )
 
 type WorkspaceType int
@@ -34,13 +35,19 @@ type WorkspaceInfo struct {
 }
 
 // DetectWorkspace analyzes the app to determine if it's a Node.js workspace monorepo.
-func DetectWorkspace(a *app.App) *WorkspaceInfo {
+func DetectWorkspace(a *app.App, log ...*logger.Logger) *WorkspaceInfo {
 	pm := DetectPackageManager(a)
 	hasTurbo := a.HasFile("turbo.json")
 
+	// Extract optional logger
+	var l *logger.Logger
+	if len(log) > 0 {
+		l = log[0]
+	}
+
 	// pnpm-workspace.yaml is the definitive pnpm indicator
 	if a.HasFile("pnpm-workspace.yaml") {
-		members := resolvePnpmWorkspaceMembers(a)
+		members := resolvePnpmWorkspaceMembers(a, l)
 		return &WorkspaceInfo{
 			Type:           WorkspacePnpm,
 			PackageManager: PackageManagerPnpm,
@@ -50,12 +57,12 @@ func DetectWorkspace(a *app.App) *WorkspaceInfo {
 	}
 
 	// Check package.json for workspaces field
-	patterns := readWorkspacesField(a)
+	patterns := readWorkspacesField(a, l)
 	if len(patterns) == 0 {
 		return nil
 	}
 
-	members := resolveWorkspacePatterns(a, patterns)
+	members := resolveWorkspacePatterns(a, patterns, l)
 
 	wsType := WorkspaceNpm
 	if pm == PackageManagerYarn {
@@ -119,10 +126,7 @@ func LockfileName(pm PackageManager) string {
 	case PackageManagerYarn:
 		return "yarn.lock"
 	case PackageManagerBun:
-		if true { // bun.lockb is binary, bun.lock is text — check both
-			return "bun.lockb"
-		}
-		return "bun.lock"
+		return "bun.lockb"
 	default:
 		return "package-lock.json"
 	}
@@ -188,29 +192,35 @@ func ManifestFiles(a *app.App, pm PackageManager, ws *WorkspaceInfo) []string {
 
 // --- internal helpers ---
 
-func readWorkspacesField(a *app.App) []string {
+func readWorkspacesField(a *app.App, log *logger.Logger) []string {
 	var pkg struct {
 		Workspaces []string `json:"workspaces"`
 	}
 	if err := a.ReadJSON("package.json", &pkg); err != nil {
+		if log != nil {
+			log.LogWarn("Failed to parse package.json for workspace detection: %s", err)
+		}
 		return nil
 	}
 	return pkg.Workspaces
 }
 
-func resolvePnpmWorkspaceMembers(a *app.App) []string {
+func resolvePnpmWorkspaceMembers(a *app.App, log *logger.Logger) []string {
 	var config struct {
 		Packages []string `yaml:"packages"`
 	}
 	if err := a.ReadYAML("pnpm-workspace.yaml", &config); err != nil {
+		if log != nil {
+			log.LogWarn("Failed to parse pnpm-workspace.yaml: %s", err)
+		}
 		return nil
 	}
-	return resolveWorkspacePatterns(a, config.Packages)
+	return resolveWorkspacePatterns(a, config.Packages, log)
 }
 
 // resolveWorkspacePatterns converts workspace glob patterns (e.g., "packages/*")
 // into actual directory paths that contain a package.json.
-func resolveWorkspacePatterns(a *app.App, patterns []string) []string {
+func resolveWorkspacePatterns(a *app.App, patterns []string, log *logger.Logger) []string {
 	seen := make(map[string]bool)
 	var members []string
 
@@ -219,6 +229,9 @@ func resolveWorkspacePatterns(a *app.App, patterns []string) []string {
 		pkgPattern := fmt.Sprintf("%s/package.json", pattern)
 		files, err := a.FindFiles(pkgPattern)
 		if err != nil {
+			if log != nil {
+				log.LogWarn("Failed to resolve workspace pattern %q: %s", pattern, err)
+			}
 			continue
 		}
 		for _, f := range files {

@@ -1,18 +1,27 @@
 package utils
 
 import (
+	"fmt"
 	"reflect"
 )
 
 // MergeStructs merges multiple structs of the same type, with later values taking precedence.
 // Only non-zero values from later structs will override earlier values.
-func MergeStructs(dst interface{}, srcs ...interface{}) {
+// Returns an error if a type mismatch causes a panic during reflection.
+func MergeStructs(dst interface{}, srcs ...interface{}) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("config merge failed: %v", r)
+		}
+	}()
+
 	for _, src := range srcs {
 		if src == nil {
 			continue
 		}
 		mergeStruct(dst, src)
 	}
+	return nil
 }
 
 func mergeStruct(dst, src interface{}) {

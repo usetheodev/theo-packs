@@ -1,0 +1,8 @@
+{
+  "name": "fullstack-mixed-web",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node index.js",
+    "build": "echo build"
+  }
+}

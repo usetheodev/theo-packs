@@ -1,0 +1,15 @@
+{
+  "name": "node-remix",
+  "version": "1.0.0",
+  "dependencies": {
+    "@remix-run/node": "2.0.0",
+    "@remix-run/react": "2.0.0",
+    "@remix-run/serve": "2.0.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "scripts": {
+    "start": "remix-serve build",
+    "build": "remix build"
+  }
+}

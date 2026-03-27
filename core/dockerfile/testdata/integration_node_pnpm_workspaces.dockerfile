@@ -4,8 +4,8 @@ RUN sh -c 'npm install -g pnpm'
 COPY package.json ./
 COPY pnpm-lock.yaml ./
 COPY pnpm-workspace.yaml ./
-COPY packages/pkg-a/package.json packages/pkg-a/
-COPY packages/pkg-b/package.json packages/pkg-b/
+COPY packages/api/package.json packages/api/
+COPY packages/shared/package.json packages/shared/
 RUN sh -c 'pnpm install --frozen-lockfile'
 
 FROM install AS build
