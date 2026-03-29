@@ -1,0 +1,68 @@
+# Build and push theo-packs-runner container image to DigitalOcean Container Registry.
+#
+# Trigger:
+#   push to main     → build + push with :latest and :sha tags
+#   workflow_dispatch → manual build
+#
+# The image is used by the Theo build pipeline's generate-dockerfile step
+# in Argo Workflows. It replaces hardcoded bash Dockerfile generation.
+#
+# Required secrets (GitHub Environment: infra-dev):
+#   DIGITALOCEAN_TOKEN — DO API token for registry login + push
+
+name: "Build: theo-packs-runner"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "cmd/**"
+      - "Dockerfile.generate"
+      - "go.mod"
+      - "go.sum"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: registry.digitalocean.com/theo-infra-registry
+  IMAGE_NAME: theo-packs-runner
+
+jobs:
+  build:
+    name: Build and push
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: infra-dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_TOKEN }}
+
+      - name: Login to DO Container Registry
+        run: doctl registry login --expiry-seconds 600
+
+      - name: Build image
+        run: |
+          docker build \
+            -f Dockerfile.generate \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            .
+
+      - name: Push image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Summary
+        run: |
+          echo "### theo-packs-runner" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SHA: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
