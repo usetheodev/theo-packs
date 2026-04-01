@@ -69,7 +69,7 @@ func buildImage(t *testing.T, projectDir, dockerfileContent, tag string) {
 	dfPath := filepath.Join(projectDir, "Dockerfile")
 	err := os.WriteFile(dfPath, []byte(dockerfileContent), 0644)
 	require.NoError(t, err)
-	defer os.Remove(dfPath)
+	defer func() { _ = os.Remove(dfPath) }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
