@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://usetheo.dev">
+    <img src="https://usetheo.dev/logo.png" alt="Theo" height="80" />
+  </a>
+</p>
+
 # theo-packs
 
 Zero-configuration application builder that automatically detects your project's language and framework, generates an optimized build plan, and produces container images via BuildKit. Part of the [Theo](https://usetheo.dev) platform.
