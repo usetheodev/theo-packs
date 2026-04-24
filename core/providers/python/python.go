@@ -1,19 +1,22 @@
 package python
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/usetheo/theopacks/core/generate"
 	"github.com/usetheo/theopacks/core/plan"
 )
 
-// pythonDeployIncludes lists paths that must be copied from the build stage
-// to the deploy stage for Python apps. Site-packages and bin contain installed
-// packages and their CLI entrypoints (gunicorn, uvicorn, flask, etc.).
-var pythonDeployIncludes = []string{
-	".",
-	"/usr/local/lib/python3.12/site-packages",
-	"/usr/local/bin",
+// pythonDeployIncludes returns paths that must be copied from the build stage
+// to the deploy stage for Python apps. The site-packages path is version-specific
+// because the official Python Docker images install packages under /usr/local/lib/pythonX.Y/.
+func pythonDeployIncludes(pythonVersion string) []string {
+	return []string{
+		".",
+		fmt.Sprintf("/usr/local/lib/python%s/site-packages", pythonVersion),
+		"/usr/local/bin",
+	}
 }
 
 type PythonProvider struct{}
@@ -34,20 +37,27 @@ func (p *PythonProvider) Initialize(ctx *generate.GenerateContext) error {
 }
 
 func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
+	version, source := detectPythonVersion(ctx)
+
+	ref := ctx.Resolver.Default("python", version)
+	if source != "default" {
+		ctx.Resolver.Version(ref, version, source)
+	}
+
 	var err error
 
 	if isUvWorkspace(ctx) {
-		err = p.planUvWorkspace(ctx)
+		err = p.planUvWorkspace(ctx, version)
 	} else if ctx.App.HasFile("requirements.txt") {
-		err = p.planRequirements(ctx)
+		err = p.planRequirements(ctx, version)
 	} else if isPoetryProject(ctx) {
-		err = p.planPoetry(ctx)
+		err = p.planPoetry(ctx, version)
 	} else if ctx.App.HasFile("Pipfile") {
-		err = p.planPipfile(ctx)
+		err = p.planPipfile(ctx, version)
 	} else if ctx.App.HasFile("pyproject.toml") {
-		err = p.planPyproject(ctx)
+		err = p.planPyproject(ctx, version)
 	} else if ctx.App.HasFile("setup.py") {
-		err = p.planSetupPy(ctx)
+		err = p.planSetupPy(ctx, version)
 	}
 
 	if err != nil {
@@ -65,9 +75,9 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 }
 
 // planRequirements optimizes for requirements.txt with manifest-first caching.
-func (p *PythonProvider) planRequirements(ctx *generate.GenerateContext) error {
+func (p *PythonProvider) planRequirements(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 	installStep.AddCommand(plan.NewCopyCommand("requirements.txt", "./"))
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir -r requirements.txt"))
 
@@ -75,9 +85,9 @@ func (p *PythonProvider) planRequirements(ctx *generate.GenerateContext) error {
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
 
-	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
+	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes}),
+		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes(version)}),
 	})
 
 	return nil
@@ -85,9 +95,9 @@ func (p *PythonProvider) planRequirements(ctx *generate.GenerateContext) error {
 
 // planPoetry handles Poetry projects with pyproject.toml containing [tool.poetry].
 // Uses poetry install with lock file caching.
-func (p *PythonProvider) planPoetry(ctx *generate.GenerateContext) error {
+func (p *PythonProvider) planPoetry(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 
 	// Copy manifests first for caching
 	installStep.AddCommand(plan.NewCopyCommand("pyproject.toml", "./"))
@@ -101,18 +111,18 @@ func (p *PythonProvider) planPoetry(ctx *generate.GenerateContext) error {
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
 
-	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
+	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes}),
+		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes(version)}),
 	})
 
 	return nil
 }
 
 // planPipfile handles Pipfile-based projects.
-func (p *PythonProvider) planPipfile(ctx *generate.GenerateContext) error {
+func (p *PythonProvider) planPipfile(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 
 	// Copy manifests first for caching
 	installStep.AddCommand(plan.NewCopyCommand("Pipfile", "./"))
@@ -126,39 +136,39 @@ func (p *PythonProvider) planPipfile(ctx *generate.GenerateContext) error {
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
 
-	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
+	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes}),
+		plan.NewStepLayer("build", plan.Filter{Include: pythonDeployIncludes(version)}),
 	})
 
 	return nil
 }
 
 // planPyproject handles generic pyproject.toml projects (hatchling, setuptools, etc.).
-func (p *PythonProvider) planPyproject(ctx *generate.GenerateContext) error {
+func (p *PythonProvider) planPyproject(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 	installStep.AddInput(ctx.NewLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir ."))
 
-	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
+	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes}),
+		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes(version)}),
 	})
 
 	return nil
 }
 
 // planSetupPy handles legacy setup.py projects.
-func (p *PythonProvider) planSetupPy(ctx *generate.GenerateContext) error {
+func (p *PythonProvider) planSetupPy(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 	installStep.AddInput(ctx.NewLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir ."))
 
-	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
+	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes}),
+		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes(version)}),
 	})
 
 	return nil
@@ -167,15 +177,15 @@ func (p *PythonProvider) planSetupPy(ctx *generate.GenerateContext) error {
 // planUvWorkspace handles UV workspace projects.
 // UV workspaces have local path deps that need all files at install time.
 // uv sync installs into .venv/ so we add that to PATH in the deploy stage.
-func (p *PythonProvider) planUvWorkspace(ctx *generate.GenerateContext) error {
+func (p *PythonProvider) planUvWorkspace(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 	installStep.AddInput(ctx.NewLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir uv && uv sync --all-packages --no-dev"))
 
-	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImage)
+	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
-		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes}),
+		plan.NewStepLayer("install", plan.Filter{Include: pythonDeployIncludes(version)}),
 	})
 	// uv sync installs packages into .venv/bin, not /usr/local/bin
 	ctx.Deploy.Paths = append(ctx.Deploy.Paths, "/app/.venv/bin")
@@ -314,6 +324,44 @@ func hasPackage(ctx *generate.GenerateContext, pkg string) bool {
 	}
 
 	return false
+}
+
+// detectPythonVersion determines the Python version to use for build/runtime images.
+// Priority: config packages > THEOPACKS_PYTHON_VERSION env var > .python-version > runtime.txt > default.
+func detectPythonVersion(ctx *generate.GenerateContext) (version string, source string) {
+	// Config packages have highest priority (set via theopacks.json or THEOPACKS_PACKAGES)
+	if pkg := ctx.Resolver.Get("python"); pkg != nil && pkg.Source != "theopacks default" {
+		return generate.NormalizeToMajorMinor(pkg.Version), pkg.Source
+	}
+
+	// Environment variable
+	if envVersion, varName := ctx.Env.GetConfigVariable("PYTHON_VERSION"); envVersion != "" {
+		return generate.NormalizeToMajorMinor(envVersion), varName
+	}
+
+	// .python-version file
+	if ctx.App.HasFile(".python-version") {
+		if content, err := ctx.App.ReadFile(".python-version"); err == nil {
+			v := generate.NormalizeToMajorMinor(strings.TrimSpace(content))
+			if v != "" {
+				return v, ".python-version"
+			}
+		}
+	}
+
+	// runtime.txt (Heroku convention: "python-3.11.6" → "3.11")
+	if ctx.App.HasFile("runtime.txt") {
+		if content, err := ctx.App.ReadFile("runtime.txt"); err == nil {
+			line := strings.TrimSpace(content)
+			line = strings.TrimPrefix(line, "python-")
+			v := generate.NormalizeToMajorMinor(line)
+			if v != "" {
+				return v, "runtime.txt"
+			}
+		}
+	}
+
+	return generate.DefaultPythonVersion, "default"
 }
 
 func (p *PythonProvider) CleansePlan(buildPlan *plan.BuildPlan) {}

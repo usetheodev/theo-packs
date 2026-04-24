@@ -103,6 +103,98 @@ func TestGoDetect(t *testing.T) {
 	}
 }
 
+// --- version detection ---
+
+func TestDetectGoVersion(t *testing.T) {
+	tests := []struct {
+		name       string
+		files      map[string]string
+		envVars    map[string]string
+		wantVer    string
+		wantSource string
+	}{
+		{
+			name:       "default when no version info",
+			files:      map[string]string{"go.mod": "module test"},
+			wantVer:    "1.23",
+			wantSource: "default",
+		},
+		{
+			name:       "reads from go.mod",
+			files:      map[string]string{"go.mod": "module test\ngo 1.22"},
+			wantVer:    "1.22",
+			wantSource: "go.mod",
+		},
+		{
+			name:       "reads from go.mod with patch",
+			files:      map[string]string{"go.mod": "module test\ngo 1.21.5"},
+			wantVer:    "1.21",
+			wantSource: "go.mod",
+		},
+		{
+			name:       "env var overrides go.mod",
+			files:      map[string]string{"go.mod": "module test\ngo 1.22"},
+			envVars:    map[string]string{"THEOPACKS_GO_VERSION": "1.21"},
+			wantVer:    "1.21",
+			wantSource: "THEOPACKS_GO_VERSION",
+		},
+		{
+			name:       "malformed go.mod falls back to default",
+			files:      map[string]string{"go.mod": "garbage content"},
+			wantVer:    "1.23",
+			wantSource: "default",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := createTempApp(t, tt.files)
+			ctx := createTestContext(t, a, tt.envVars)
+
+			version, source := detectGoVersion(ctx)
+			require.Equal(t, tt.wantVer, version)
+			require.Equal(t, tt.wantSource, source)
+		})
+	}
+}
+
+func TestDetectGoVersion_ConfigPackages(t *testing.T) {
+	a := createTempApp(t, map[string]string{
+		"go.mod": "module test\ngo 1.22",
+	})
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	cfg.Packages = map[string]string{"go": "1.24"}
+	log := logger.NewLogger()
+	ctx, err := generate.NewGenerateContext(a, env, cfg, log)
+	require.NoError(t, err)
+
+	version, source := detectGoVersion(ctx)
+	require.Equal(t, "1.24", version)
+	require.Equal(t, "custom config", source)
+}
+
+func TestExtractGoVersionFromMod(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{"standard", "module test\ngo 1.23", "1.23"},
+		{"with patch", "module test\ngo 1.22.5", "1.22"},
+		{"no go directive", "module test", ""},
+		{"empty", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := createTempApp(t, map[string]string{"go.mod": tt.content})
+			ctx := createTestContext(t, a, nil)
+			require.Equal(t, tt.want, extractGoVersionFromMod(ctx))
+		})
+	}
+}
+
 // --- go.work parsing ---
 
 func TestParseGoWork(t *testing.T) {

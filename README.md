@@ -18,13 +18,13 @@ Source code → Provider detection → Build plan → BuildKit LLB → Container
 
 ## Supported Languages
 
-| Language | Detection | Package Managers |
-|----------|-----------|------------------|
-| **Go** | `go.mod`, `go.work` | Go modules, workspaces |
-| **Node.js** | `package.json` | npm, yarn, pnpm, bun |
-| **Python** | `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py` | pip, poetry, pipenv, uv |
-| **Static files** | `index.html` | -- |
-| **Shell** | `*.sh` | -- |
+| Language | Detection | Package Managers | Version Sources |
+|----------|-----------|------------------|-----------------|
+| **Go** | `go.mod`, `go.work` | Go modules, workspaces | `go.mod`, `THEOPACKS_GO_VERSION` |
+| **Node.js** | `package.json` | npm, yarn, pnpm, bun | `engines.node`, `.nvmrc`, `.node-version`, `THEOPACKS_NODE_VERSION` |
+| **Python** | `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py` | pip, poetry, pipenv, uv | `.python-version`, `runtime.txt`, `THEOPACKS_PYTHON_VERSION` |
+| **Static files** | `index.html` | -- | -- |
+| **Shell** | `*.sh` | -- | -- |
 
 ## Project Structure
 
@@ -118,6 +118,36 @@ Projects can be customized via `theopacks.json` at the project root:
 }
 ```
 
+### Version Detection
+
+theo-packs automatically detects the language version from your project files and selects the appropriate Docker base image. If no version is specified, sensible defaults are used (Node 20, Python 3.12, Go 1.23).
+
+**Priority order** (highest wins):
+
+1. `theopacks.json` `packages` field or `THEOPACKS_PACKAGES` env var
+2. Language-specific env var (`THEOPACKS_NODE_VERSION`, `THEOPACKS_PYTHON_VERSION`, `THEOPACKS_GO_VERSION`)
+3. Project version files (`.nvmrc`, `.python-version`, `go.mod`, `engines.node`, `runtime.txt`)
+4. Default version
+
+**Examples:**
+
+```bash
+# Via version files (just add the file to your project)
+echo "18" > .nvmrc                    # → FROM node:18-bookworm
+echo "3.11" > .python-version         # → FROM python:3.11-bookworm
+
+# Via environment variable
+THEOPACKS_NODE_VERSION=22             # → FROM node:22-bookworm
+THEOPACKS_PYTHON_VERSION=3.9          # → FROM python:3.9-bookworm
+THEOPACKS_GO_VERSION=1.21             # → FROM golang:1.21-bookworm
+
+# Via theopacks.json
+{ "packages": { "node": "22" } }      # → FROM node:22-bookworm
+
+# Go version is auto-detected from go.mod
+# go 1.22                             # → FROM golang:1.22-bookworm
+```
+
 ### Environment Variables
 
 | Variable | Description |
@@ -125,7 +155,10 @@ Projects can be customized via `theopacks.json` at the project root:
 | `THEOPACKS_START_CMD` | Override start command |
 | `THEOPACKS_BUILD_CMD` | Override build command |
 | `THEOPACKS_INSTALL_CMD` | Override install command |
-| `THEOPACKS_PACKAGES` | Comma-separated package versions (e.g. `nodejs@20,npm@10`) |
+| `THEOPACKS_PACKAGES` | Space-separated package versions (e.g. `node@20 python@3.11`) |
+| `THEOPACKS_NODE_VERSION` | Override Node.js version for base image |
+| `THEOPACKS_PYTHON_VERSION` | Override Python version for base image |
+| `THEOPACKS_GO_VERSION` | Override Go version for base image |
 | `THEOPACKS_BUILD_APT_PACKAGES` | Extra apt packages for build |
 | `THEOPACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime |
 | `THEOPACKS_CONFIG_FILE` | Custom config file path |

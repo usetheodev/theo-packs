@@ -1,4 +1,4 @@
-FROM golang:1.23-bookworm AS install
+FROM golang:1.22-bookworm AS install
 WORKDIR /app
 COPY go.mod ./
 RUN sh -c 'go mod download'
