@@ -1,5 +1,5 @@
 package core
-
+//Force
 import (
 	"fmt"
 	"strings"
