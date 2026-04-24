@@ -638,6 +638,139 @@ version = "1.0.0"
 	})
 }
 
+// --- version detection ---
+
+func createPythonTempApp(t *testing.T, files map[string]string) *app.App {
+	t.Helper()
+	dir := t.TempDir()
+	for name, content := range files {
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	}
+	a, err := app.NewApp(dir)
+	require.NoError(t, err)
+	return a
+}
+
+func createPythonTestContext(t *testing.T, a *app.App, envVars map[string]string) *generate.GenerateContext {
+	t.Helper()
+	var envPtr *map[string]string
+	if envVars != nil {
+		envPtr = &envVars
+	}
+	env := app.NewEnvironment(envPtr)
+	cfg := config.EmptyConfig()
+	log := logger.NewLogger()
+	ctx, err := generate.NewGenerateContext(a, env, cfg, log)
+	require.NoError(t, err)
+	return ctx
+}
+
+func TestDetectPythonVersion(t *testing.T) {
+	tests := []struct {
+		name       string
+		files      map[string]string
+		envVars    map[string]string
+		wantVer    string
+		wantSource string
+	}{
+		{
+			name:       "default when no version info",
+			files:      map[string]string{"requirements.txt": "flask"},
+			wantVer:    "3.12",
+			wantSource: "default",
+		},
+		{
+			name: "reads .python-version",
+			files: map[string]string{
+				"requirements.txt": "flask",
+				".python-version":  "3.11",
+			},
+			wantVer:    "3.11",
+			wantSource: ".python-version",
+		},
+		{
+			name: "reads .python-version with patch",
+			files: map[string]string{
+				"requirements.txt": "flask",
+				".python-version":  "3.9.18",
+			},
+			wantVer:    "3.9",
+			wantSource: ".python-version",
+		},
+		{
+			name: "reads runtime.txt",
+			files: map[string]string{
+				"requirements.txt": "flask",
+				"runtime.txt":      "python-3.10.12",
+			},
+			wantVer:    "3.10",
+			wantSource: "runtime.txt",
+		},
+		{
+			name: ".python-version beats runtime.txt",
+			files: map[string]string{
+				"requirements.txt": "flask",
+				".python-version":  "3.11",
+				"runtime.txt":      "python-3.10.12",
+			},
+			wantVer:    "3.11",
+			wantSource: ".python-version",
+		},
+		{
+			name: "env var overrides .python-version",
+			files: map[string]string{
+				"requirements.txt": "flask",
+				".python-version":  "3.11",
+			},
+			envVars:    map[string]string{"THEOPACKS_PYTHON_VERSION": "3.9"},
+			wantVer:    "3.9",
+			wantSource: "THEOPACKS_PYTHON_VERSION",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := createPythonTempApp(t, tt.files)
+			ctx := createPythonTestContext(t, a, tt.envVars)
+
+			version, source := detectPythonVersion(ctx)
+			require.Equal(t, tt.wantVer, version)
+			require.Equal(t, tt.wantSource, source)
+		})
+	}
+}
+
+func TestDetectPythonVersion_ConfigPackages(t *testing.T) {
+	a := createPythonTempApp(t, map[string]string{
+		"requirements.txt": "flask",
+		".python-version":  "3.11",
+	})
+	env := app.NewEnvironment(nil)
+	cfg := config.EmptyConfig()
+	cfg.Packages = map[string]string{"python": "3.9"}
+	log := logger.NewLogger()
+	ctx, err := generate.NewGenerateContext(a, env, cfg, log)
+	require.NoError(t, err)
+
+	version, source := detectPythonVersion(ctx)
+	require.Equal(t, "3.9", version)
+	require.Equal(t, "custom config", source)
+}
+
+func TestPythonDeployIncludes(t *testing.T) {
+	includes := pythonDeployIncludes("3.11")
+	require.Equal(t, []string{
+		".",
+		"/usr/local/lib/python3.11/site-packages",
+		"/usr/local/bin",
+	}, includes)
+
+	includes312 := pythonDeployIncludes("3.12")
+	require.Equal(t, "/usr/local/lib/python3.12/site-packages", includes312[1])
+}
+
 func TestPythonStartCommandHelp(t *testing.T) {
 	provider := &PythonProvider{}
 	help := provider.StartCommandHelp()

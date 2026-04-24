@@ -1,0 +1,455 @@
+# theo-packs
+
+> Zero-configuration application builder for containerization. Detects language/framework from source code and generates optimized Dockerfiles. Part of the Theo Kubernetes PaaS (https://usetheo.dev).
+
+## Project Overview
+
+theo-packs analyzes source code, detects the programming language and framework, and produces a structured BuildPlan that converts into a multi-stage Dockerfile. No user-written Dockerfile needed.
+
+```
+Source code → Provider.Detect() → Provider.Plan() → BuildPlan → Dockerfile
+```
+
+Two Go modules:
+
+| Module | Path | Import | Purpose |
+|--------|------|--------|---------|
+| Core library | `core/` | `github.com/usetheo/theopacks` | Language detection, build plan generation, Dockerfile generation |
+| CLI + BuildKit | `railpack/` | `github.com/railwayapp/railpack` | CLI interface, converts BuildPlan to BuildKit LLB, builds container images |
+
+## Directory Structure
+
+```
+theo-packs/
+├── core/                          # Core library (minimal dependencies)
+│   ├── core.go                    # Entry point: GenerateBuildPlan()
+│   ├── validate.go                # Plan validation (start command, circular refs, inputs)
+│   ├── app/
+│   │   ├── app.go                 # File system abstraction (App type)
+│   │   └── environment.go         # THEOPACKS_* environment variable access
+│   ├── config/
+│   │   └── config.go              # Config model (theopacks.json) + merging
+│   ├── dockerfile/
+│   │   └── generate.go            # BuildPlan → Dockerfile string conversion
+│   ├── generate/
+│   │   ├── context.go             # GenerateContext: orchestrates plan generation
+│   │   ├── deploy_builder.go      # DeployBuilder: runtime stage configuration
+│   │   ├── images.go              # Version-aware Docker image tag construction
+│   │   └── command_step_builder.go # CommandStepBuilder: build stage commands
+│   ├── logger/
+│   │   └── logger.go              # Logger with Info/Warn/Error levels
+│   ├── plan/
+│   │   ├── plan.go                # BuildPlan, Deploy data structures
+│   │   ├── step.go                # Step: named build stage
+│   │   ├── layer.go               # Layer: image ref, step ref, or local files
+│   │   └── command.go             # Command types: Exec, Copy, File, Path
+│   ├── providers/
+│   │   ├── provider.go            # Provider interface + registry
+│   │   ├── golang/golang.go       # Go provider (go.mod, go.work, version detection)
+│   │   ├── node/node.go           # Node.js provider (npm/yarn/pnpm/bun, workspaces, version detection)
+│   │   ├── python/python.go       # Python provider (pip/poetry/pipenv/uv, version detection)
+│   │   ├── staticfile/staticfile.go # Static HTML files provider
+│   │   └── shell/shell.go         # Shell scripts provider (fallback)
+│   └── resolver/
+│       ├── resolver.go            # Package version tracking and resolution
+│       └── version.go             # Version string normalization (fuzzy matching)
+├── railpack/                      # CLI + BuildKit integration
+│   ├── cmd/cli/                   # CLI entry point
+│   ├── core/                      # Extended providers with mise version manager
+│   ├── examples/                  # 110+ example projects with integration tests
+│   └── mise.toml                  # Development tasks (mise run <task>)
+├── examples/                      # Example projects for core module testing
+├── cmd/theopacks-generate/        # Standalone CLI for core module
+└── internal/utils/                # Shared utilities
+```
+
+## Core Concepts
+
+### Provider Interface
+
+Every supported language implements the Provider interface:
+
+```go
+type Provider interface {
+    Name() string                                        // e.g. "python"
+    Detect(ctx *generate.GenerateContext) (bool, error)  // Check for manifest files
+    Initialize(ctx *generate.GenerateContext) error       // Parse/validate project
+    Plan(ctx *generate.GenerateContext) error              // Generate build steps
+    CleansePlan(buildPlan *plan.BuildPlan)                 // Post-generation cleanup
+    StartCommandHelp() string                              // Help text when start cmd missing
+}
+```
+
+Provider detection order (first match wins):
+1. Go — `go.mod` or `go.work`
+2. Python — `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py`
+3. Node.js — `package.json`
+4. Static files — `index.html`
+5. Shell — `*.sh` files
+
+Override via config: `{ "provider": "node" }` in `theopacks.json`.
+
+### BuildPlan Data Model
+
+```
+BuildPlan
+├── Steps[]                # Named build stages (multi-stage Dockerfile)
+│   ├── Name               # Stage name (e.g. "install", "build")
+│   ├── Inputs[]           # Layer references (base image, previous step, local files)
+│   ├── Commands[]         # Exec, Copy, File, Path commands
+│   ├── Caches[]           # Named cache mount references
+│   ├── Secrets[]          # Secret names to mount
+│   ├── Variables{}        # ENV variables for this stage
+│   └── Assets{}           # Inline file content for FileCommand
+├── Deploy                 # Final runtime stage
+│   ├── Base               # Runtime base image (Layer)
+│   ├── Inputs[]           # Files to COPY --from build stages
+│   ├── StartCmd           # Container CMD
+│   ├── Variables{}        # Runtime ENV variables
+│   └── Paths[]            # Additional PATH entries
+├── Caches{}               # Cache definitions (directory → type)
+└── Secrets[]              # Plan-level secret names
+```
+
+### Layer Types
+
+A Layer represents a source of files for a build stage:
+
+| Type | JSON | Go Constructor | Dockerfile |
+|------|------|----------------|------------|
+| Docker image | `{"image": "node:20-bookworm"}` | `plan.NewImageLayer("node:20-bookworm")` | `FROM node:20-bookworm` |
+| Previous step | `{"step": "install"}` | `plan.NewStepLayer("install")` | `COPY --from=install` |
+| Local files | `{"local": true}` | `plan.NewLocalLayer()` | `COPY . .` |
+| Spread | `{"spread": true}` | — | merge/append semantics |
+
+Special JSON shorthand: `"."` → local, `"..."` → spread, `"$stepname"` → step ref.
+
+### Command Types
+
+| Type | Go Constructor | Dockerfile |
+|------|----------------|------------|
+| Exec | `plan.NewExecShellCommand("npm install")` | `RUN sh -c 'npm install'` |
+| Copy | `plan.NewCopyCommand("package.json", "./")` | `COPY package.json ./` |
+| File | `plan.NewFileCommand("/etc", "config.toml")` | `RUN printf '%s' '...' > /etc/config.toml` |
+| Path | `plan.NewPathCommand("/usr/local/bin")` | `ENV PATH=/usr/local/bin:$PATH` |
+
+### App Abstraction
+
+All file operations on the analyzed project go through the App type:
+
+```go
+app.HasFile("package.json")              // bool
+app.ReadFile("go.mod")                   // (string, error)
+app.ReadJSON("package.json", &pkg)       // error
+app.ReadTOML("pyproject.toml", &pyproj)  // error
+app.ReadYAML("config.yaml", &cfg)        // error
+app.FindFiles("*.go")                    // ([]string, error)
+app.FindDirectories("cmd/*")             // ([]string, error)
+app.HasMatch("**/*.py")                  // bool
+```
+
+Never use `os.ReadFile` directly on project files.
+
+### Environment Variables
+
+Access via `app.Environment`:
+
+```go
+env.GetVariable("NODE_ENV")                           // raw value
+env.GetConfigVariable("START_CMD")                     // looks for THEOPACKS_START_CMD, returns (value, varName)
+env.GetConfigVariableList("PACKAGES")                  // splits by whitespace
+env.IsConfigVariableTruthy("SKIP_BUILD")               // "1" or "true"
+```
+
+## Version Detection
+
+Each provider auto-detects the language version from project files and selects the matching Docker base image. If no version is specified, defaults are used.
+
+### Priority Order (highest wins)
+
+1. Config packages — `theopacks.json` `packages` field or `THEOPACKS_PACKAGES` env var
+2. Language-specific env var — `THEOPACKS_NODE_VERSION`, `THEOPACKS_PYTHON_VERSION`, `THEOPACKS_GO_VERSION`
+3. Project version files — `.nvmrc`, `.python-version`, `go.mod` directive, `engines.node`, `runtime.txt`, `.node-version`
+4. Default version — Node 20, Python 3.12, Go 1.23
+
+### Version Sources by Language
+
+**Go:**
+- `go.mod` `go X.XX` directive → extracts major.minor
+- `THEOPACKS_GO_VERSION` env var
+- Default: `1.23`
+- Image pattern: `golang:<major.minor>-bookworm`
+- Runtime: always `debian:bookworm-slim` (Go compiles to static binary)
+
+**Node.js:**
+- `package.json` `engines.node` field (supports `>=22`, `^18.3.2`, etc.)
+- `.nvmrc` file
+- `.node-version` file
+- `THEOPACKS_NODE_VERSION` env var
+- Default: `20`
+- Image pattern: `node:<major>-bookworm` / `node:<major>-bookworm-slim`
+
+**Python:**
+- `.python-version` file
+- `runtime.txt` (Heroku format: `python-3.11.6`)
+- `THEOPACKS_PYTHON_VERSION` env var
+- Default: `3.12`
+- Image pattern: `python:<major.minor>-bookworm` / `python:<major.minor>-slim-bookworm`
+- Site-packages path is version-specific: `/usr/local/lib/python<major.minor>/site-packages`
+
+### Version Normalization
+
+The `generate` package provides normalization functions:
+
+```go
+generate.NormalizeToMajor("^18.3.2")       // "18"
+generate.NormalizeToMajor(">=22 <23")      // "22"
+generate.NormalizeToMajor("v16.14.0")      // "16"
+generate.NormalizeToMajorMinor("3.12.1")   // "3.12"
+generate.NormalizeToMajorMinor("~1.23.4")  // "1.23"
+```
+
+### Image Tag Construction
+
+```go
+generate.NodeBuildImageForVersion("22")      // "node:22-bookworm"
+generate.NodeRuntimeImageForVersion("18")    // "node:18-bookworm-slim"
+generate.PythonBuildImageForVersion("3.11")  // "python:3.11-bookworm"
+generate.PythonRuntimeImageForVersion("3.9") // "python:3.9-slim-bookworm"
+generate.GoBuildImageForVersion("1.22")      // "golang:1.22-bookworm"
+```
+
+Empty string → falls back to default version.
+
+### Resolver
+
+The resolver tracks which version was selected and where it came from:
+
+```go
+ref := ctx.Resolver.Default("node", "20")              // register with default
+ctx.Resolver.Version(ref, "22", "package.json engines") // override with source
+ctx.Resolver.SetPreviousVersion("node", "18")           // from previous build
+
+resolved, err := ctx.Resolver.ResolvePackages()
+// resolved["node"].ResolvedVersion = "22"
+// resolved["node"].Source = "package.json engines"
+```
+
+## Configuration
+
+### theopacks.json
+
+JSONC format (comments allowed). Placed at project root.
+
+```jsonc
+{
+  "provider": "node",                           // override auto-detection
+  "buildAptPackages": ["git", "curl"],           // apt packages for build stage
+  "packages": { "node": "22", "python": "3.11" }, // pin language versions
+  "secrets": ["DATABASE_URL"],                    // secret names to mount
+  "caches": {
+    "npm": { "directory": "/root/.npm", "type": "shared" }
+  },
+  "steps": {
+    "install": {
+      "commands": [
+        { "src": "package.json", "dest": "./" },
+        { "cmd": "sh -c 'npm ci'" }
+      ],
+      "variables": { "NODE_ENV": "production" }
+    }
+  },
+  "deploy": {
+    "startCommand": "node server.js",
+    "aptPackages": ["curl"],
+    "variables": { "NODE_ENV": "production" },
+    "paths": ["/app/.venv/bin"]
+  }
+}
+```
+
+### Config Merging Order
+
+Three sources merge (later overrides earlier):
+1. File config — `theopacks.json`
+2. Environment config — `THEOPACKS_*` variables
+3. Options config — programmatic `GenerateBuildPlanOptions`
+
+### Environment Variables Reference
+
+| Variable | Description |
+|----------|-------------|
+| `THEOPACKS_START_CMD` | Override start command |
+| `THEOPACKS_BUILD_CMD` | Override build command |
+| `THEOPACKS_INSTALL_CMD` | Override install command |
+| `THEOPACKS_PACKAGES` | Space-separated package versions (`node@20 python@3.11`) |
+| `THEOPACKS_NODE_VERSION` | Override Node.js version for base image |
+| `THEOPACKS_PYTHON_VERSION` | Override Python version for base image |
+| `THEOPACKS_GO_VERSION` | Override Go version for base image |
+| `THEOPACKS_BUILD_APT_PACKAGES` | Extra apt packages for build stage |
+| `THEOPACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime stage |
+| `THEOPACKS_CONFIG_FILE` | Custom config file path |
+| `THEOPACKS_GO_MODULE` | Which module to build in Go workspace |
+
+## Typical Provider Plan Flow
+
+Each provider follows this pattern in `Plan()`:
+
+```go
+func (p *MyProvider) Plan(ctx *generate.GenerateContext) error {
+    // 1. Detect version
+    version, source := detectMyVersion(ctx)
+    ref := ctx.Resolver.Default("mylang", version)
+    if source != "default" {
+        ctx.Resolver.Version(ref, version, source)
+    }
+
+    // 2. Install step — copy manifests, install deps (cacheable layer)
+    installStep := ctx.NewCommandStep("install")
+    installStep.AddInput(plan.NewImageLayer(generate.MyBuildImageForVersion(version)))
+    installStep.AddCommand(plan.NewCopyCommand("manifest.lock", "./"))
+    installStep.AddCommand(plan.NewExecShellCommand("install-deps"))
+
+    // 3. Build step — copy source, compile
+    buildStep := ctx.NewCommandStep("build")
+    buildStep.AddInput(plan.NewStepLayer("install"))
+    buildStep.AddInput(ctx.NewLocalLayer())
+    buildStep.AddCommand(plan.NewExecShellCommand("build-cmd"))
+
+    // 4. Deploy configuration
+    ctx.Deploy.Base = plan.NewImageLayer(generate.MyRuntimeImageForVersion(version))
+    ctx.Deploy.StartCmd = "start-cmd"
+    ctx.Deploy.AddInputs([]plan.Layer{
+        plan.NewStepLayer("build", plan.Filter{Include: []string{"."}}),
+    })
+
+    return nil
+}
+```
+
+## Dockerfile Generation
+
+`dockerfile.Generate(plan)` converts a BuildPlan into a multi-stage Dockerfile:
+
+- Each Step becomes a `FROM ... AS <name>` stage
+- First input of each step determines the base image
+- Commands map to RUN, COPY, ENV instructions
+- Cache mounts become `--mount=type=cache` on RUN
+- Secret mounts become `--mount=type=secret` on RUN
+- Deploy section becomes the final (unnamed) stage with CMD
+
+Example output:
+```dockerfile
+FROM golang:1.22-bookworm AS install
+WORKDIR /app
+COPY go.mod ./
+RUN sh -c 'go mod download'
+
+FROM install AS build
+WORKDIR /app
+COPY . .
+RUN sh -c 'go build -o /app/server .'
+
+FROM debian:bookworm-slim
+WORKDIR /app
+COPY --from=build /app/server /app/server
+CMD ["/bin/bash", "-c", "/app/server"]
+```
+
+## Validation
+
+`ValidatePlan()` checks:
+- At least one step has commands (provider detected something)
+- Start command exists (warning or error depending on config)
+- No duplicate step names
+- No circular step references
+- All step references point to existing steps
+- Deploy has a base image
+
+## Library Usage
+
+```go
+import (
+    "github.com/usetheo/theopacks/core"
+    "github.com/usetheo/theopacks/core/app"
+    "github.com/usetheo/theopacks/core/dockerfile"
+)
+
+// 1. Create app from project directory
+a, _ := app.NewApp("/path/to/project")
+env := app.NewEnvironment(&map[string]string{
+    "THEOPACKS_START_CMD": "node server.js",
+})
+
+// 2. Generate build plan
+result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+
+if result.Success {
+    // 3. result.Plan — structured BuildPlan
+    // 4. result.ResolvedPackages — detected versions with sources
+    // 5. result.DetectedProviders — which language was detected
+
+    // 6. Convert to Dockerfile
+    dockerfileContent, _ := dockerfile.Generate(result.Plan)
+}
+```
+
+## Development
+
+### Prerequisites
+
+- Go 1.25+
+- Docker
+- Mise (https://mise.jdx.dev/)
+
+### Commands
+
+```bash
+cd railpack
+mise run setup                  # Bootstrap: install tools, start BuildKit, tidy modules
+mise run check                  # Lint + format (go vet, go fmt, golangci-lint)
+mise run test                   # Unit tests
+mise run tidy                   # go mod tidy
+
+# CLI
+mise run cli -- plan examples/node-bun
+mise run cli -- build examples/node-bun --show-plan
+mise run cli -- info examples/node-bun
+
+# Integration tests
+mise run test-integration -- -run "TestExamplesIntegration/node-vite"
+cd examples/node-bun && mise run test-integration-cwd
+
+# Update golden files
+mise run test-update-snapshots
+
+# Core module tests (from repo root)
+cd core && go test ./...
+```
+
+### Testing Patterns
+
+- **testify** (`require` package) for assertions
+- Table-driven tests with `t.Run()` and `t.Parallel()`
+- Golden files in `testdata/` directories, updated with `UPDATE_GOLDEN=true`
+- Integration tests in `examples/` with `test.json` (JSONC format)
+- Arrange-Act-Assert pattern
+
+### Adding a New Provider
+
+1. Create `core/providers/<language>/` directory
+2. Implement the `Provider` interface
+3. Add version detection function (`detectXVersion`)
+4. Add image tag functions to `core/generate/images.go` if needed
+5. Register in `core/providers/provider.go` → `GetLanguageProviders()` (order matters)
+6. Add example projects in `railpack/examples/<language>-*/` with `test.json`
+7. Write unit tests in `core/providers/<language>/*_test.go`
+
+### Key Rules
+
+- Use `app.App` for all file operations on the analyzed project (never `os.ReadFile`)
+- Use `mise run <task>` instead of `go test/vet/fmt` directly
+- Wrap errors with `fmt.Errorf("context: %w", err)`
+- Comments explain WHY, not WHAT — don't start with function name
+- Prefer early returns over deep nesting
+- Never manually edit lockfiles or golden files

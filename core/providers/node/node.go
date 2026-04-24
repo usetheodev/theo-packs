@@ -3,6 +3,7 @@ package node
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/usetheo/theopacks/core/app"
 	"github.com/usetheo/theopacks/core/generate"
@@ -42,9 +43,15 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	installCmd := InstallCommand(pm, hasLock)
 	pkg := readPackageJSON(ctx.App, ctx.Logger)
 
+	version, source := detectNodeVersion(ctx, pkg)
+	ref := ctx.Resolver.Default("node", version)
+	if source != "default" {
+		ctx.Resolver.Version(ref, version, source)
+	}
+
 	// Install step — copy manifests first for layer caching
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.NodeBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.NodeBuildImageForVersion(version)))
 
 	if setup := SetupCommand(pm); setup != "" {
 		installStep.AddCommand(plan.NewExecShellCommand(setup))
@@ -81,7 +88,7 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	}
 
 	// Deploy — use start script from package.json if available
-	ctx.Deploy.Base = plan.NewImageLayer(generate.NodeRuntimeImage)
+	ctx.Deploy.Base = plan.NewImageLayer(generate.NodeRuntimeImageForVersion(version))
 	if pkg.hasStartScript() {
 		ctx.Deploy.StartCmd = startCommand()
 	} else {
@@ -94,6 +101,50 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	return nil
 }
 
+// detectNodeVersion determines the Node.js version to use for build/runtime images.
+// Priority: config packages > THEOPACKS_NODE_VERSION env var > package.json engines > .nvmrc > .node-version > default.
+func detectNodeVersion(ctx *generate.GenerateContext, pkg *packageJSON) (version string, source string) {
+	// Config packages have highest priority (set via theopacks.json or THEOPACKS_PACKAGES)
+	if p := ctx.Resolver.Get("node"); p != nil && p.Source != "theopacks default" {
+		return generate.NormalizeToMajor(p.Version), p.Source
+	}
+
+	// Environment variable
+	if envVersion, varName := ctx.Env.GetConfigVariable("NODE_VERSION"); envVersion != "" {
+		return generate.NormalizeToMajor(envVersion), varName
+	}
+
+	// package.json engines.node
+	if nodeEngine, ok := pkg.Engines["node"]; ok && nodeEngine != "" {
+		v := generate.NormalizeToMajor(nodeEngine)
+		if v != "" {
+			return v, "package.json engines.node"
+		}
+	}
+
+	// .nvmrc file
+	if ctx.App.HasFile(".nvmrc") {
+		if content, err := ctx.App.ReadFile(".nvmrc"); err == nil {
+			v := generate.NormalizeToMajor(strings.TrimSpace(content))
+			if v != "" {
+				return v, ".nvmrc"
+			}
+		}
+	}
+
+	// .node-version file
+	if ctx.App.HasFile(".node-version") {
+		if content, err := ctx.App.ReadFile(".node-version"); err == nil {
+			v := generate.NormalizeToMajor(strings.TrimSpace(content))
+			if v != "" {
+				return v, ".node-version"
+			}
+		}
+	}
+
+	return generate.DefaultNodeVersion, "default"
+}
+
 func (p *NodeProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *NodeProvider) StartCommandHelp() string {
@@ -103,6 +154,7 @@ func (p *NodeProvider) StartCommandHelp() string {
 // packageJSON holds the fields we need from package.json.
 type packageJSON struct {
 	Scripts map[string]string `json:"scripts"`
+	Engines map[string]string `json:"engines"`
 }
 
 func readPackageJSON(a *app.App, log *logger.Logger) *packageJSON {

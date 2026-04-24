@@ -7,12 +7,13 @@ import (
 const (
 	DefaultRuntimeImage = "debian:bookworm-slim"
 
-	// Build images — official images with full toolchains for compilation
+	// Default images — used when no version is detected or by providers that
+	// don't support dynamic versioning. Prefer the *ForVersion() functions in
+	// images.go for version-aware image selection.
 	GoBuildImage     = "golang:1.23-bookworm"
 	NodeBuildImage   = "node:20-bookworm"
 	PythonBuildImage = "python:3.12-bookworm"
 
-	// Runtime images — slim images for the final deploy stage
 	GoRuntimeImage         = DefaultRuntimeImage // Go compiles to static binary
 	NodeRuntimeImage       = "node:20-bookworm-slim"
 	PythonRuntimeImage     = "python:3.12-slim-bookworm"

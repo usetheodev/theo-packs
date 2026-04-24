@@ -27,18 +27,25 @@ func (p *GoProvider) Initialize(ctx *generate.GenerateContext) error {
 }
 
 func (p *GoProvider) Plan(ctx *generate.GenerateContext) error {
-	if ctx.App.HasFile("go.work") {
-		return p.planWorkspace(ctx)
+	version, source := detectGoVersion(ctx)
+
+	ref := ctx.Resolver.Default("go", version)
+	if source != "default" {
+		ctx.Resolver.Version(ref, version, source)
 	}
-	return p.planSimple(ctx)
+
+	if ctx.App.HasFile("go.work") {
+		return p.planWorkspace(ctx, version)
+	}
+	return p.planSimple(ctx, version)
 }
 
-func (p *GoProvider) planSimple(ctx *generate.GenerateContext) error {
+func (p *GoProvider) planSimple(ctx *generate.GenerateContext, version string) error {
 	target := findSimpleBuildTarget(ctx)
 
 	// Install step: copy manifests and download deps (cacheable layer)
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.GoBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.GoBuildImageForVersion(version)))
 	installStep.AddCommand(plan.NewCopyCommand("go.mod", "./"))
 	if ctx.App.HasFile("go.sum") {
 		installStep.AddCommand(plan.NewCopyCommand("go.sum", "./"))
@@ -51,6 +58,7 @@ func (p *GoProvider) planSimple(ctx *generate.GenerateContext) error {
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -o /app/server %s", target)))
 
+	// Go compiles to a static binary, so the runtime image is always debian slim
 	ctx.Deploy.Base = plan.NewImageLayer(generate.GoRuntimeImage)
 	ctx.Deploy.StartCmd = "/app/server"
 	ctx.Deploy.AddInputs([]plan.Layer{
@@ -60,7 +68,7 @@ func (p *GoProvider) planSimple(ctx *generate.GenerateContext) error {
 	return nil
 }
 
-func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext) error {
+func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext, version string) error {
 	modules, err := parseGoWork(ctx.App, ctx.Logger)
 	if err != nil {
 		return fmt.Errorf("failed to parse go.work: %w", err)
@@ -73,7 +81,7 @@ func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext) error {
 
 	// Install step: copy workspace manifests and download deps
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.GoBuildImage))
+	installStep.AddInput(plan.NewImageLayer(generate.GoBuildImageForVersion(version)))
 
 	installStep.AddCommand(plan.NewCopyCommand("go.work", "./"))
 	if ctx.App.HasFile("go.work.sum") {
@@ -197,6 +205,45 @@ func findBuildTarget(ctx *generate.GenerateContext, modules []string) string {
 	}
 
 	return ""
+}
+
+// detectGoVersion determines the Go version to use for the build image.
+// Priority: config packages > THEOPACKS_GO_VERSION env var > go.mod directive > default.
+func detectGoVersion(ctx *generate.GenerateContext) (version string, source string) {
+	// Config packages have highest priority (set via theopacks.json or THEOPACKS_PACKAGES)
+	if pkg := ctx.Resolver.Get("go"); pkg != nil && pkg.Source != "theopacks default" {
+		return generate.NormalizeToMajorMinor(pkg.Version), pkg.Source
+	}
+
+	// Environment variable
+	if envVersion, varName := ctx.Env.GetConfigVariable("GO_VERSION"); envVersion != "" {
+		return generate.NormalizeToMajorMinor(envVersion), varName
+	}
+
+	// go.mod "go" directive
+	if ctx.App.HasFile("go.mod") {
+		if v := extractGoVersionFromMod(ctx); v != "" {
+			return v, "go.mod"
+		}
+	}
+
+	return generate.DefaultGoVersion, "default"
+}
+
+// extractGoVersionFromMod reads the "go X.XX" directive from go.mod.
+func extractGoVersionFromMod(ctx *generate.GenerateContext) string {
+	content, err := ctx.App.ReadFile("go.mod")
+	if err != nil {
+		return ""
+	}
+
+	re := regexp.MustCompile(`(?m)^go\s+(\d+\.\d+)`)
+	match := re.FindStringSubmatch(content)
+	if match == nil {
+		return ""
+	}
+
+	return match[1]
 }
 
 func (p *GoProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
