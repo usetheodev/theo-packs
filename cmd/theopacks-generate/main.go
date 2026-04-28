@@ -11,6 +11,22 @@
 //	  --app-path apps/api \
 //	  --app-name api \
 //	  --output /workspace/Dockerfile.api
+//
+// CHG-002b 2026-04-28 — workspace-aware build:
+//
+// If the project root (source) is a Node workspace monorepo (turbo.json,
+// pnpm-workspace.yaml, or package.json#workspaces), theopacks-generate
+// analyzes the WORKSPACE ROOT instead of the per-app subdirectory and
+// emits a Dockerfile that:
+//   - Installs deps once at the workspace root (lockfile + manifests)
+//   - Copies the full workspace and runs the build with proper filtering
+//     (turbo run build --filter=<app>... / pnpm --filter <app>... build /
+//     npm run build --workspaces --if-present)
+//   - In the runtime stage, copies only apps/<app>/dist + node_modules
+//
+// This unblocks cross-package TypeScript imports (the original failure
+// mode that caused L3-realistic to fail at `tsc` with "Cannot find
+// module '@dogfood/shared-utils'").
 package main
 
 import (
@@ -23,6 +39,7 @@ import (
 	"github.com/usetheo/theopacks/core"
 	"github.com/usetheo/theopacks/core/app"
 	"github.com/usetheo/theopacks/core/dockerfile"
+	"github.com/usetheo/theopacks/core/providers/node"
 )
 
 func main() {
@@ -55,14 +72,31 @@ func main() {
 		return
 	}
 
-	// Initialize the app abstraction from the app directory
-	a, err := app.NewApp(appDir)
-	if err != nil {
-		log.Fatalf("[theopacks] Failed to analyze source at %s: %v\n\nMake sure the app path is correct in your theo.yaml.", appDir, err)
+	// CHG-002b workspace detection: if the source root is a Node workspace
+	// monorepo, analyze the ROOT (not the per-app subdir) so the Node
+	// provider can detect cross-package dependencies and emit a workspace-
+	// aware build command. Pass the app name + relative path via env vars
+	// so the provider can scope the build (e.g. turbo --filter).
+	rootApp, rootErr := app.NewApp(*source)
+	envVars := map[string]string{}
+	analyzeDir := appDir
+	if rootErr == nil {
+		if ws := node.DetectWorkspace(rootApp); ws != nil {
+			fmt.Fprintf(os.Stderr,
+				"[theopacks] Workspace detected at %s (type=%v, hasTurbo=%v, members=%d) — analyzing root for app %q at %q\n",
+				*source, ws.Type, ws.HasTurbo, len(ws.MemberPaths), *appName, *appPath)
+			analyzeDir = *source
+			envVars["THEOPACKS_APP_NAME"] = *appName
+			envVars["THEOPACKS_APP_PATH"] = *appPath
+		}
 	}
 
-	// Generate build plan
-	envVars := map[string]string{}
+	// Initialize the app abstraction from the chosen directory
+	a, err := app.NewApp(analyzeDir)
+	if err != nil {
+		log.Fatalf("[theopacks] Failed to analyze source at %s: %v\n\nMake sure the app path is correct in your theo.yaml.", analyzeDir, err)
+	}
+
 	env := app.NewEnvironment(&envVars)
 	result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
 

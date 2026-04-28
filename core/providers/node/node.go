@@ -77,19 +77,34 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 
 	installStep.AddCommand(plan.NewExecShellCommand(installCmd))
 
-	// Build step — copy full source and run build if available
+	// Build step — copy full source and run build if available.
+	//
+	// CHG-002b 2026-04-28 — workspace-aware build command. When Theo runs
+	// theopacks-generate against a workspace root, it sets
+	// THEOPACKS_APP_NAME so we can scope the build to a single app while
+	// still building all transitive deps in the workspace.
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
 
-	if pkg.hasBuildScript() {
-		buildCmd := runCommand(pm, "build")
-		buildStep.AddCommand(plan.NewExecShellCommand(buildCmd))
+	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appPath, _ := ctx.Env.GetConfigVariable("APP_PATH")
+
+	if pkg.hasBuildScript() || (ws != nil && appName != "") {
+		buildCmd := workspaceBuildCommand(pm, ws, appName, pkg.hasBuildScript())
+		if buildCmd != "" {
+			buildStep.AddCommand(plan.NewExecShellCommand(buildCmd))
+		}
 	}
 
 	// Deploy — use start script from package.json if available
 	ctx.Deploy.Base = plan.NewImageLayer(generate.NodeRuntimeImageForVersion(version))
-	if pkg.hasStartScript() {
+
+	// In workspace mode, the app's start script lives in apps/<name>/package.json,
+	// not the root. Inject `cd <appPath>` before the npm start.
+	if ws != nil && appPath != "" {
+		ctx.Deploy.StartCmd = fmt.Sprintf("cd %s && %s", appPath, startCommand())
+	} else if pkg.hasStartScript() {
 		ctx.Deploy.StartCmd = startCommand()
 	} else {
 		ctx.Deploy.StartCmd = "npm start"
@@ -99,6 +114,62 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	})
 
 	return nil
+}
+
+// workspaceBuildCommand returns the shell command that builds the target
+// app, respecting any workspace dependency graph.
+//
+// Order of preference:
+//  1. turbo (when turbo.json present)               — `npx turbo run build --filter=<app>...`
+//     The trailing `...` includes the app's transitive deps.
+//  2. pnpm workspaces                               — `pnpm --filter <app>... run build`
+//     Same semantics: includes transitive deps.
+//  3. npm/yarn workspaces with appName              — build all packages first
+//     (no topological order in npm), then the app:
+//     `npm run build --workspaces --if-present && npm run build -w <app> --if-present`
+//  4. Standalone (no workspace)                     — `<pm> run build`.
+//
+// If the package.json has no build script and we're not in workspace mode,
+// returns "" (caller skips emitting RUN).
+func workspaceBuildCommand(pm PackageManager, ws *WorkspaceInfo, appName string, hasBuild bool) string {
+	if ws == nil {
+		if !hasBuild {
+			return ""
+		}
+		return runCommand(pm, "build")
+	}
+
+	if ws.HasTurbo {
+		if appName == "" {
+			return "npx turbo run build"
+		}
+		return fmt.Sprintf("npx turbo run build --filter=%s...", appName)
+	}
+
+	switch ws.Type {
+	case WorkspacePnpm:
+		if appName == "" {
+			return "pnpm -r run build"
+		}
+		// `<app>...` selects app + its workspace deps in topological order.
+		return fmt.Sprintf("pnpm --filter %s... run build", appName)
+	case WorkspaceNpm, WorkspaceYarn:
+		// npm and yarn classic don't have built-in topological build; build
+		// all workspaces (no-op for those without a build script via
+		// --if-present) so packages are ready before the app's compiler runs.
+		if appName == "" {
+			return runCommand(pm, "build") + " --workspaces --if-present"
+		}
+		all := runCommand(pm, "build") + " --workspaces --if-present"
+		one := fmt.Sprintf("%s --workspace=%s --if-present", runCommand(pm, "build"), appName)
+		return all + " && " + one
+	}
+
+	// Defensive fallback.
+	if hasBuild {
+		return runCommand(pm, "build")
+	}
+	return ""
 }
 
 // detectNodeVersion determines the Node.js version to use for build/runtime images.
