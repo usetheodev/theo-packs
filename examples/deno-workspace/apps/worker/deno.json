@@ -1,0 +1,6 @@
+{
+  "name": "@theo/worker",
+  "tasks": {
+    "start": "deno run -A main.ts"
+  }
+}
