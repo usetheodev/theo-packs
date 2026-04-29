@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM ruby:3.3-bookworm AS install
 WORKDIR /app
 COPY Gemfile ./

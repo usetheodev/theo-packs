@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM golang:1.23-bookworm AS install
 WORKDIR /app
 COPY go.work ./

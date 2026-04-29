@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM node:20-bookworm AS install
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \

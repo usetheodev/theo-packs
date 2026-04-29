@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM debian:bookworm-slim AS packages-apt-runtime
 WORKDIR /app
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

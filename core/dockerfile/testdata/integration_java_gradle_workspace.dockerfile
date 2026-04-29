@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM gradle:8-jdk21 AS install
 WORKDIR /app
 COPY build.gradle.kts ./
