@@ -46,9 +46,13 @@ Per-language commits land in this order (bisectable):
 - **0 file in new providers exceeds 350 lines**
 - **0 lint warnings** (`golangci-lint v2.11.4`)
 - **0 vet warnings** (`go vet ./...`)
-- **All ~120 unit tests pass** across the 6 new packages
+- **All ~135 unit tests pass** across the 6 new packages
 - **All ~47 integration tests pass** (29 pre-existing unchanged + 18 new)
 - **All 5 pre-existing providers unchanged** (no regression)
+- **Statement coverage** on the 6 new providers (`go test -cover`):
+  - rust: **92.0%**, java: **91.7%**, deno: **91.2%**, dotnet: **90.1%**, ruby: **89.6%**, php: **87.3%** — average ~90%
+- **Race-detector clean**: `go test -race -shuffle=on ./...` green; no concurrency issues
+- **Order-independent**: `go test -count=3 -shuffle=on` green for providers + dockerfile (no state leakage between repeated runs)
 
 ## ADRs (selected — see plan for full list)
 
