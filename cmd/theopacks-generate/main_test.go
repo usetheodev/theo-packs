@@ -332,3 +332,92 @@ func TestCLI_HandlesReadonlySourceGracefully(t *testing.T) {
 	require.NoError(t, readErr)
 	require.Contains(t, string(df), "FROM")
 }
+
+// --- --app-name → THEOPACKS_APP_NAME bridge for non-Node workspaces ---
+
+// TestCLI_BridgesAppNameToCargoWorkspace verifies the regression path: a
+// Cargo workspace previously failed because --app-name was only bridged to
+// THEOPACKS_APP_NAME for Node-shaped workspaces. With the bridge unified,
+// rust/ruby/php/dotnet/deno workspaces all work the same way Node does.
+func TestCLI_BridgesAppNameToCargoWorkspace(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "rust-workspace")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "api",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Cargo workspace should accept --app-name=api: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "cargo build --release -p api",
+		"Dockerfile must build the selected workspace member")
+}
+
+func TestCLI_BridgesAppNameToRubyMonorepo(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "ruby-monorepo")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "api",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Ruby monorepo should accept --app-name=api: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "apps/api",
+		"Dockerfile must reference the selected app")
+}
+
+func TestCLI_BridgesAppNameToPhpMonorepo(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "php-monorepo")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "api",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "PHP monorepo should accept --app-name=api: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "apps/api",
+		"Dockerfile must reference the selected app")
+}
+
+// TestCLI_NoBridgeWhenAppNameEmpty asserts the empty-default behavior: a
+// single-app project (no monorepo) with no --app-name flag is unaffected,
+// because we don't bridge an empty string into THEOPACKS_APP_NAME (which
+// would otherwise look for a literal app named "").
+func TestCLI_NoBridgeWhenAppNameEmpty(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "go-simple")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		// no --app-name
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "single-app project should not require --app-name: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "FROM")
+}

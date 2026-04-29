@@ -46,7 +46,12 @@ import (
 func main() {
 	source := flag.String("source", "/workspace", "Root directory of the cloned source code")
 	appPath := flag.String("app-path", ".", "Relative path to the app within the source (e.g., apps/api)")
-	appName := flag.String("app-name", "app", "Name of the app (used for log context)")
+	// app-name has no default. When unset, providers that need a workspace
+	// target (Cargo workspaces, Ruby/PHP apps/+packages, Gradle subprojects,
+	// .NET solutions, Deno workspaces) will surface their usual "set
+	// THEOPACKS_APP_NAME to one of: ..." error. The previous default of
+	// "app" caused those providers to look for a literal app named "app".
+	appName := flag.String("app-name", "", "Name of the app (selects target in monorepos; required for multi-app workspaces)")
 	output := flag.String("output", "", "Output path for the generated Dockerfile (required)")
 	flag.Parse()
 
@@ -73,22 +78,35 @@ func main() {
 		return
 	}
 
-	// CHG-002b workspace detection: if the source root is a Node workspace
-	// monorepo, analyze the ROOT (not the per-app subdir) so the Node
-	// provider can detect cross-package dependencies and emit a workspace-
-	// aware build command. Pass the app name + relative path via env vars
-	// so the provider can scope the build (e.g. turbo --filter).
-	rootApp, rootErr := app.NewApp(*source)
+	// Bridge --app-name and --app-path to env vars so any provider can read
+	// them via Environment.GetConfigVariable("APP_NAME"). Originally this
+	// only fired for Node workspaces (CHG-002b); extended in this change to
+	// fire unconditionally when the flag is non-empty so that Cargo/Ruby/
+	// PHP/.NET/Deno workspaces also receive the target. Empty values are NOT
+	// bridged because providers treat THEOPACKS_APP_NAME="" as "unspecified"
+	// and the usual workspace error path is preferable to a silent miss.
 	envVars := map[string]string{}
+	if *appName != "" {
+		envVars["THEOPACKS_APP_NAME"] = *appName
+	}
+	if *appPath != "" && *appPath != "." {
+		envVars["THEOPACKS_APP_PATH"] = *appPath
+	}
+
+	// CHG-002b: if the source root is a Node workspace monorepo, analyze the
+	// ROOT (not the per-app subdir) so the Node provider can detect
+	// cross-package dependencies and emit a workspace-aware build command
+	// (e.g. turbo --filter). For non-Node workspaces, providers handle the
+	// workspace shape themselves from the per-app subdir, so we only redirect
+	// analyzeDir for the Node case.
+	rootApp, rootErr := app.NewApp(*source)
 	analyzeDir := appDir
 	if rootErr == nil {
 		if ws := node.DetectWorkspace(rootApp); ws != nil {
 			fmt.Fprintf(os.Stderr,
-				"[theopacks] Workspace detected at %s (type=%v, hasTurbo=%v, members=%d) — analyzing root for app %q at %q\n",
+				"[theopacks] Node workspace detected at %s (type=%v, hasTurbo=%v, members=%d) — analyzing root for app %q at %q\n",
 				*source, ws.Type, ws.HasTurbo, len(ws.MemberPaths), *appName, *appPath)
 			analyzeDir = *source
-			envVars["THEOPACKS_APP_NAME"] = *appName
-			envVars["THEOPACKS_APP_PATH"] = *appPath
 		}
 	}
 
