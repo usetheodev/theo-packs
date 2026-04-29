@@ -88,6 +88,27 @@ func TestDenoProvider_Detect(t *testing.T) {
 	}
 }
 
+// TestDenoProvider_DetectsBeforeNode verifies the unit-level half of ADR D3:
+// DenoProvider.Detect must return true when deno.json is present, regardless
+// of whether package.json is also present. The framework-level "Deno wins
+// over Node" invariant is locked in two more places:
+//   - core/providers/provider_test.go TestRegistrationOrder + Less(deno,node)
+//   - core/core_test.go TestGenerateBuildPlan_DenoBeforeNode (end-to-end)
+//
+// Together those three layers prevent regressions from misordered registry,
+// misnamed Detect signal, or framework-level routing changes.
+func TestDenoProvider_DetectsBeforeNode(t *testing.T) {
+	a := createTempApp(t, map[string]string{
+		"deno.json":    `{}`,
+		"package.json": `{"name":"hybrid","scripts":{"start":"node index.js"}}`,
+		"index.js":     `console.log("ok")`,
+	})
+	ctx := createTestContext(t, a, nil)
+	got, err := (&DenoProvider{}).Detect(ctx)
+	require.NoError(t, err)
+	require.True(t, got, "DenoProvider must claim a project that ships both deno.json and package.json (ADR D3 unit-level)")
+}
+
 func TestDenoProvider_StartCommandHelp(t *testing.T) {
 	help := (&DenoProvider{}).StartCommandHelp()
 	require.Contains(t, help, "deno.json")
