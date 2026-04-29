@@ -295,10 +295,10 @@ func TestDenoImageForVersion(t *testing.T) {
 		version string
 		want    string
 	}{
-		{"major", "2", "denoland/deno:bin-2"},
-		{"semver", "2.1.5", "denoland/deno:bin-2"},
-		{"v prefix", "v1", "denoland/deno:bin-1"},
-		{"empty uses default", "", "denoland/deno:bin-2"},
+		{"major", "2", "denoland/deno:2"},
+		{"semver", "2.1.5", "denoland/deno:2"},
+		{"v prefix", "v1", "denoland/deno:1"},
+		{"empty uses default", "", "denoland/deno:2"},
 	}
 
 	for _, tt := range tests {
@@ -312,9 +312,9 @@ func TestDenoImageForVersion(t *testing.T) {
 func TestDenoRuntimeImageForVersion(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "denoland/deno:distroless-2", DenoRuntimeImageForVersion("2"))
-	assert.Equal(t, "denoland/deno:distroless-1", DenoRuntimeImageForVersion("1"))
-	assert.Equal(t, "denoland/deno:distroless-2", DenoRuntimeImageForVersion(""))
+	assert.Equal(t, "denoland/deno:2", DenoRuntimeImageForVersion("2"))
+	assert.Equal(t, "denoland/deno:1", DenoRuntimeImageForVersion("1"))
+	assert.Equal(t, "denoland/deno:2", DenoRuntimeImageForVersion(""))
 }
 
 // Sanity check: the new default constants must not be empty (otherwise image strings

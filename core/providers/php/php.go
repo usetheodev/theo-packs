@@ -66,7 +66,7 @@ func (p *PhpProvider) planSimple(ctx *generate.GenerateContext, composer *Compos
 	// first-class multi-stage tool stamping, so we use the cached binary
 	// from the composer:2 image and copy it in.
 	installStep.AddCommand(plan.NewExecShellCommand(
-		"sh -c 'apt-get update && apt-get install -y --no-install-recommends git unzip ca-certificates && rm -rf /var/lib/apt/lists/* && curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer'",
+		"apt-get update && apt-get install -y --no-install-recommends git unzip ca-certificates && rm -rf /var/lib/apt/lists/* && curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer",
 	))
 	installStep.AddCommand(plan.NewCopyCommand("composer.json", "./"))
 	if ctx.App.HasFile("composer.lock") {
@@ -84,7 +84,7 @@ func (p *PhpProvider) planSimple(ctx *generate.GenerateContext, composer *Compos
 		// full source tree is in place but tolerate failures because some
 		// optimize subtasks fail without database access at build time.
 		buildStep.AddCommand(plan.NewExecShellCommand(
-			"sh -c 'php artisan config:cache || true; php artisan route:cache || true; php artisan view:cache || true'",
+			"php artisan config:cache || true; php artisan route:cache || true; php artisan view:cache || true",
 		))
 	}
 
@@ -106,7 +106,7 @@ func (p *PhpProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspace
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PhpImageForVersion(version)))
 	installStep.AddCommand(plan.NewExecShellCommand(
-		"sh -c 'apt-get update && apt-get install -y --no-install-recommends git unzip ca-certificates && rm -rf /var/lib/apt/lists/* && curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer'",
+		"apt-get update && apt-get install -y --no-install-recommends git unzip ca-certificates && rm -rf /var/lib/apt/lists/* && curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer",
 	))
 	installStep.AddCommand(plan.NewCopyCommand("composer.json", "./"))
 	if ctx.App.HasFile("composer.lock") {

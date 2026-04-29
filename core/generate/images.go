@@ -186,24 +186,33 @@ func DotnetRuntimeImageForVersion(version string) string {
 	return fmt.Sprintf("mcr.microsoft.com/dotnet/runtime:%s", v)
 }
 
-// DenoImageForVersion returns the Deno build image (full Debian-based) for the given major version.
-// Example: "2" → "denoland/deno:bin-2".
+// DenoImageForVersion returns the Deno debian-based build image for the given
+// major version. The "denoland/deno:bin-<v>" tag we used earlier turned out
+// not to exist on Docker Hub (only specific patch tags + "bin" without version
+// suffix are published). The bare "denoland/deno:<v>" tag is the canonical
+// debian variant.
+//
+// Example: "2" → "denoland/deno:2".
 func DenoImageForVersion(version string) string {
 	v := NormalizeToMajor(version)
 	if v == "" {
 		v = DefaultDenoVersion
 	}
-	return fmt.Sprintf("denoland/deno:bin-%s", v)
+	return fmt.Sprintf("denoland/deno:%s", v)
 }
 
-// DenoRuntimeImageForVersion returns the distroless Deno runtime image for the given major version.
-// Example: "2" → "denoland/deno:distroless-2".
+// DenoRuntimeImageForVersion returns the runtime image for the given major
+// version. We use the same debian-based image as build for now; switching to
+// a smaller variant would need verification that the user's app's permissions
+// still work in distroless.
+//
+// Example: "2" → "denoland/deno:2".
 func DenoRuntimeImageForVersion(version string) string {
 	v := NormalizeToMajor(version)
 	if v == "" {
 		v = DefaultDenoVersion
 	}
-	return fmt.Sprintf("denoland/deno:distroless-%s", v)
+	return fmt.Sprintf("denoland/deno:%s", v)
 }
 
 // normalizeRustVersion preserves the level of precision the user gave (major, major.minor,

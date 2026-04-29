@@ -1,6 +1,6 @@
 FROM php:8.1-cli-bookworm AS install
 WORKDIR /app
-RUN sh -c 'sh -c 'apt-get update && apt-get install -y --no-install-recommends git unzip ca-certificates && rm -rf /var/lib/apt/lists/* && curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer''
+RUN sh -c 'apt-get update && apt-get install -y --no-install-recommends git unzip ca-certificates && rm -rf /var/lib/apt/lists/* && curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer'
 COPY composer.json ./
 RUN sh -c 'composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader --no-progress'
 

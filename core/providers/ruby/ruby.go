@@ -72,7 +72,7 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 		// Users with full Rails asset pipelines should set
 		// theopacks.json buildAptPackages: ["nodejs"] or precompile locally.
 		buildStep.AddCommand(plan.NewExecShellCommand(
-			"sh -c 'bundle exec rake assets:precompile RAILS_ENV=production || echo \"asset precompile skipped — install nodejs via theopacks.json buildAptPackages if your app needs it\"'",
+			"bundle exec rake assets:precompile RAILS_ENV=production || echo 'asset precompile skipped — install nodejs via theopacks.json buildAptPackages if your app needs it'",
 		))
 	}
 
