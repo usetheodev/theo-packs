@@ -6,6 +6,14 @@ type BuildPlan struct {
 	Caches  map[string]*Cache `json:"caches,omitempty"`
 	Secrets []string          `json:"secrets,omitempty"`
 	Deploy  Deploy            `json:"deploy,omitempty"`
+
+	// ProviderName is the language provider that produced this plan
+	// (e.g., "node", "rust", "python"). Set by core.GenerateBuildPlan
+	// after detection. Used by the renderer to emit a defensive header
+	// comment naming the provider so a debugger looking at a generated
+	// Dockerfile knows what generator produced it. Empty → renderer
+	// falls back to "unknown".
+	ProviderName string `json:"providerName,omitempty"`
 }
 
 type Deploy struct {
