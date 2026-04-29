@@ -46,3 +46,31 @@ Modifications made for theo-packs include (non-exhaustive):
 
 All modifications are © 2025-2026 The Theo Authors and are released
 under the same Apache License, Version 2.0.
+
+------------------------------------------------------------------------
+
+Per-provider derivations (theo-packs ↔ Railpack)
+
+The following provider packages were added in the multi-language expansion
+and incorporate detection logic, manifest parsing, and version-resolution
+priorities derived from the upstream Railpack provider of the same name:
+
+  * core/providers/rust/    — derived from railpack/core/providers/rust
+  * core/providers/java/    — derived from railpack/core/providers/java
+  * core/providers/dotnet/  — derived from railpack/core/providers/dotnet
+  * core/providers/ruby/    — derived from railpack/core/providers/ruby
+  * core/providers/php/     — derived from railpack/core/providers/php
+  * core/providers/deno/    — derived from railpack/core/providers/deno
+
+The Plan() bodies in each of those packages were rewritten from scratch
+to match theo-packs' base-image-per-language strategy (rust:<v>-bookworm,
+eclipse-temurin:<v>, ruby:<v>-bookworm-slim, php:<v>-cli-bookworm,
+mcr.microsoft.com/dotnet/{sdk,aspnet,runtime}:<v>, denoland/deno:bin-<v>)
+because Railpack uses mise-driven LLB primitives whereas theo-packs emits
+Dockerfiles with explicit base images. Test fixtures and example projects
+that were ported retain their structure and licensing terms; new fixtures
+are © 2025-2026 The Theo Authors.
+
+The five original providers (golang, node, python, staticfile, shell) and
+the test/configuration scaffolding around them are also originally derived
+from Railpack as noted in the general acknowledgement above.
