@@ -135,9 +135,9 @@ func planGradleWorkspace(ctx *generate.GenerateContext, version string, subproje
 	target, ok := selectGradleSubproject(subprojects, appName)
 	if !ok {
 		if appName == "" {
-			return fmt.Errorf("Gradle workspace has multiple subprojects; set THEOPACKS_APP_NAME to one of: %s", strings.Join(subprojectNames(subprojects), ", "))
+			return fmt.Errorf("gradle workspace has multiple subprojects; set THEOPACKS_APP_NAME to one of: %s", strings.Join(subprojectNames(subprojects), ", "))
 		}
-		return fmt.Errorf("Gradle workspace has no subproject named %q; available: %s", appName, strings.Join(subprojectNames(subprojects), ", "))
+		return fmt.Errorf("gradle workspace has no subproject named %q; available: %s", appName, strings.Join(subprojectNames(subprojects), ", "))
 	}
 
 	hasSpring := gradleHasSpringBoot(ctx.App)

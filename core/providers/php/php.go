@@ -97,9 +97,9 @@ func (p *PhpProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspace
 	name, path, ok := ws.SelectApp(appName)
 	if !ok {
 		if appName == "" {
-			return fmt.Errorf("PHP workspace has multiple apps; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.AppNames(), ", "))
+			return fmt.Errorf("php workspace has multiple apps; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.AppNames(), ", "))
 		}
-		return fmt.Errorf("PHP workspace has no app named %q; available: %s", appName, strings.Join(ws.AppNames(), ", "))
+		return fmt.Errorf("php workspace has no app named %q; available: %s", appName, strings.Join(ws.AppNames(), ", "))
 	}
 	_ = name
 

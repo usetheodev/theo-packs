@@ -55,7 +55,7 @@ func (p *RustProvider) Plan(ctx *generate.GenerateContext) error {
 
 func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoToml, version string) error {
 	if cargo.IsLibraryOnly() {
-		return fmt.Errorf("Rust crate is library-only (no [[bin]] target and no src/main.rs); add a binary target or use theopacks.json to override the build")
+		return fmt.Errorf("rust crate is library-only (no [[bin]] target and no src/main.rs); add a binary target or use theopacks.json to override the build")
 	}
 
 	bin := cargo.PrimaryBinary()
@@ -88,16 +88,16 @@ func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoTom
 func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *CargoToml, version string) error {
 	ws := DetectWorkspace(ctx.App, ctx.Logger)
 	if ws == nil || len(ws.MemberPaths) == 0 {
-		return fmt.Errorf("Cargo workspace has no resolvable members")
+		return fmt.Errorf("cargo workspace has no resolvable members")
 	}
 
 	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
 	name, _, ok := ws.SelectMember(appName)
 	if !ok {
 		if appName == "" {
-			return fmt.Errorf("Cargo workspace has multiple members; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.MemberNames(), ", "))
+			return fmt.Errorf("cargo workspace has multiple members; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.MemberNames(), ", "))
 		}
-		return fmt.Errorf("Cargo workspace has no member named %q; available members: %s", appName, strings.Join(ws.MemberNames(), ", "))
+		return fmt.Errorf("cargo workspace has no member named %q; available members: %s", appName, strings.Join(ws.MemberNames(), ", "))
 	}
 
 	// Install step: copy the entire root manifest tree (Cargo.toml + Cargo.lock
