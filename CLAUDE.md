@@ -35,16 +35,18 @@ The CLI (`theopacks-generate`) wraps this flow with workspace detection, user-Do
 All tasks are defined in `mise.toml` at the repo root. Run them from the root.
 
 ```bash
-mise run test     # go test ./core/... ./cmd/...
-mise run check    # go vet + go fmt + golangci-lint
-mise run tidy     # go mod tidy
+mise run test                   # go test ./core/... ./cmd/...
+mise run test-e2e               # go test -tags e2e ./e2e/ -timeout 1500s
+mise run test-update-snapshots  # UPDATE_GOLDEN=true go test ./core/dockerfile/...
+mise run check                  # go vet + go fmt + golangci-lint
+mise run tidy                   # go mod tidy
 ```
 
-Direct Go invocations for things Mise does not yet wrap:
+Direct Go invocations are also available for ad-hoc use:
 
 ```bash
 # E2E tests (slow — builds real Docker images, requires Docker running)
-go test -tags e2e ./e2e/ -timeout 600s
+go test -tags e2e ./e2e/ -timeout 1500s
 
 # Update Dockerfile golden files in core/dockerfile/testdata/
 UPDATE_GOLDEN=true go test ./core/dockerfile/...
@@ -64,7 +66,7 @@ go run ./cmd/theopacks-generate \
 ## The Rules
 
 ### Rule 1: Use `mise run`, not `go` directly (when a task exists)
-Use `mise run test`, `mise run check`, `mise run tidy`. Tasks live in `mise.toml` at the repo root. For things Mise does not wrap (E2E, golden updates, CLI demo) use `go` directly with the commands above — do not invent new top-level scripts.
+Use `mise run test`, `mise run test-e2e`, `mise run test-update-snapshots`, `mise run check`, `mise run tidy`. Tasks live in `mise.toml` at the repo root. For ad-hoc invocations (CLI demo, single-test runs) use `go` directly — do not invent new top-level scripts.
 
 ### Rule 2: Use the App abstraction for file operations
 All file system operations on the analyzed project MUST go through the `app.App` abstraction:

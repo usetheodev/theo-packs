@@ -199,9 +199,11 @@ THEOPACKS_GO_VERSION=1.21             # → FROM golang:1.21-bookworm
 All Mise tasks are defined in `mise.toml` at the repo root and run from the root.
 
 ```bash
-mise run test     # go test ./core/... ./cmd/...
-mise run check    # go vet + go fmt + golangci-lint
-mise run tidy     # go mod tidy
+mise run test                   # go test ./core/... ./cmd/...
+mise run test-e2e               # go test -tags e2e ./e2e/ -timeout 1500s (Docker)
+mise run test-update-snapshots  # UPDATE_GOLDEN=true go test ./core/dockerfile/...
+mise run check                  # go vet + go fmt + golangci-lint
+mise run tidy                   # go mod tidy
 ```
 
 ### End-to-End Tests

@@ -1,3 +1,6 @@
+//go:build e2e
+// +build e2e
+
 package e2e
 
 import (
@@ -17,9 +20,11 @@ import (
 	"github.com/usetheo/theopacks/core/dockerfile"
 )
 
-// E2E tests build real Docker images from example projects.
-// They require Docker to be running and are skipped if unavailable.
-// Run with: go test -tags e2e ./e2e/ -timeout 600s
+// E2E tests build real Docker images from example projects. They require
+// Docker to be running and are gated behind the `e2e` build tag so a plain
+// `go test ./...` does not pull them in.
+//
+// Run with: go test -tags e2e ./e2e/ -timeout 1500s
 
 func dockerAvailable() bool {
 	cmd := exec.Command("docker", "info")
