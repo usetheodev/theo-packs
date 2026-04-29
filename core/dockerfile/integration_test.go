@@ -91,6 +91,10 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"java-spring-gradle", nil},
 		{"java-spring-maven", nil},
 		{"java-gradle-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		// .NET
+		{"dotnet-aspnet", nil},
+		{"dotnet-console", nil},
+		{"dotnet-solution", nil},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static
