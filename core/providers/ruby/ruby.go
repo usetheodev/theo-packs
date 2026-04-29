@@ -8,8 +8,11 @@
 // plain Rack are auto-detected for the start command; the Procfile `web:`
 // line takes precedence when present.
 //
-// Build/runtime image: ruby:<v>-bookworm-slim (single image — Ruby is
-// interpreted, so the bundle and source ship into the same final stage).
+// Build image: ruby:<v>-bookworm (full image with build-essential
+// preinstalled — needed for native gem extensions like puma/nio4r/nokogiri).
+// Runtime image: ruby:<v>-slim-bookworm (compact image without compilers).
+// Gems install to /app/vendor/bundle in the build stage, which travels in
+// the image layer COPYed to the deploy stage — there is no cache mount.
 package ruby
 
 import (
@@ -56,13 +59,11 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 	}
 
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.RubyImageForVersion(version)))
-	// ruby:<v>-slim-bookworm omits compilers; native gem extensions (nio4r,
-	// puma, nokogiri…) need a working toolchain to build. We don't cache the
-	// apt index because the build stage is discarded after bundle install.
-	installStep.AddCommand(plan.NewExecShellCommand(
-		"apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*",
-	))
+	// Use the non-slim Ruby image for build: it ships with build-essential
+	// and libc6-dev preinstalled, so native gems (puma, nio4r, nokogiri)
+	// compile without an apt-get round-trip against Debian mirrors. The
+	// slim variant is used only at runtime (see configureRubyDeploy).
+	installStep.AddInput(plan.NewImageLayer(generate.RubyBuildImageForVersion(version)))
 	installStep.AddCommand(plan.NewCopyCommand("Gemfile", "./"))
 	if ctx.App.HasFile("Gemfile.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Gemfile.lock", "./"))
@@ -118,11 +119,8 @@ func (p *RubyProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspac
 	}
 
 	installStep := ctx.NewCommandStep("install")
-	installStep.AddInput(plan.NewImageLayer(generate.RubyImageForVersion(version)))
-	// See planSimple for the rationale on apt-get + bundle path. Same shape.
-	installStep.AddCommand(plan.NewExecShellCommand(
-		"apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*",
-	))
+	// See planSimple for the rationale on the non-slim build image + bundle path.
+	installStep.AddInput(plan.NewImageLayer(generate.RubyBuildImageForVersion(version)))
 	installStep.AddCommand(plan.NewCopyCommand("Gemfile", "./"))
 	if ctx.App.HasFile("Gemfile.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Gemfile.lock", "./"))

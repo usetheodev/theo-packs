@@ -1,6 +1,5 @@
-FROM ruby:3.3-slim-bookworm AS install
+FROM ruby:3.3-bookworm AS install
 WORKDIR /app
-RUN sh -c 'apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*'
 COPY Gemfile ./
 RUN sh -c 'bundle config set --local path vendor/bundle'
 RUN sh -c 'bundle config set --local without development:test'

@@ -136,7 +136,7 @@ func MavenImageForJavaVersion(version string) string {
 	return fmt.Sprintf("maven:3-eclipse-temurin-%s", v)
 }
 
-// RubyImageForVersion returns a single Ruby image used for both build and runtime.
+// RubyImageForVersion returns the slim runtime image used by the deploy stage.
 // Docker Hub publishes the slim+distro variants as `<version>-slim-<distro>`
 // (slim BEFORE distro). The reverse order does not exist.
 //
@@ -147,6 +147,24 @@ func RubyImageForVersion(version string) string {
 		v = DefaultRubyVersion
 	}
 	return fmt.Sprintf("ruby:%s-slim-bookworm", v)
+}
+
+// RubyBuildImageForVersion returns the full Ruby image (non-slim) for build
+// stages. The non-slim image ships with build-essential, libc6-dev, and other
+// tooling needed to compile native gem extensions (puma, nio4r, nokogiri).
+// Doing this avoids a slow `apt-get install build-essential` against Debian
+// mirrors at install time and gives reproducible builds.
+//
+// gems compiled here run unmodified in RubyImageForVersion (deploy) because
+// both images share the same glibc-bookworm base and Ruby version.
+//
+// Example: "3.3" → "ruby:3.3-bookworm".
+func RubyBuildImageForVersion(version string) string {
+	v := NormalizeToMajorMinor(version)
+	if v == "" {
+		v = DefaultRubyVersion
+	}
+	return fmt.Sprintf("ruby:%s-bookworm", v)
 }
 
 // PhpImageForVersion returns a single PHP CLI image used for both build and runtime.
