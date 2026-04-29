@@ -169,6 +169,12 @@ func TestGoldens_HTTPFrameworksHaveHEALTHCHECK(t *testing.T) {
 // RUN that invokes a known package manager must have a corresponding
 // cache mount. We sample one golden per language — the providers are
 // shared across goldens of the same language so this is sufficient.
+//
+// Ruby is intentionally absent: bundler must install gems into a path that
+// ends up in the final image (we use `bundle config --local path vendor/bundle`
+// so gems live under /app/vendor/bundle, which is COPYed to the deploy stage).
+// A cache mount at /usr/local/bundle would silently drop the gems because
+// BuildKit cache mounts are not part of the resulting image layer.
 func TestGoldens_PackageManagerStepsHaveCacheMounts(t *testing.T) {
 	cases := []struct {
 		golden string
@@ -179,7 +185,6 @@ func TestGoldens_PackageManagerStepsHaveCacheMounts(t *testing.T) {
 		{"integration_java_spring_gradle.dockerfile", "target=/root/.gradle"},
 		{"integration_java_spring_maven.dockerfile", "target=/root/.m2"},
 		{"integration_dotnet_aspnet.dockerfile", "target=/root/.nuget/packages"},
-		{"integration_ruby_sinatra.dockerfile", "target=/usr/local/bundle"},
 		{"integration_php_slim.dockerfile", "target=/root/.composer/cache"},
 		{"integration_node_npm.dockerfile", "target=/root/.npm"},
 		{"integration_python_flask.dockerfile", "target=/root/.cache/pip"},

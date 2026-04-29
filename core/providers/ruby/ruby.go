@@ -57,14 +57,23 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.RubyImageForVersion(version)))
-	installStep.AddCacheMount("/usr/local/bundle", "")
+	// ruby:<v>-slim-bookworm omits compilers; native gem extensions (nio4r,
+	// puma, nokogiri…) need a working toolchain to build. We don't cache the
+	// apt index because the build stage is discarded after bundle install.
+	installStep.AddCommand(plan.NewExecShellCommand(
+		"apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*",
+	))
 	installStep.AddCommand(plan.NewCopyCommand("Gemfile", "./"))
 	if ctx.App.HasFile("Gemfile.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Gemfile.lock", "./"))
 	}
-	// Use bundler's colon-separated multi-group form so the command body has
-	// no single quotes — avoids the quote-in-quote collision once the
-	// renderer wraps it in `sh -c '...'`.
+	// Pin gem install path INSIDE /app so the deploy stage's COPY of `/app`
+	// carries the gems. Cache-mounting /usr/local/bundle is destructive: the
+	// cache is not part of the resulting image layer, so the deploy step would
+	// get an empty bundle. Use bundler's colon-separated multi-group form so
+	// the command body has no single quotes — avoids the quote-in-quote
+	// collision once the renderer wraps it in `sh -c '...'`.
+	installStep.AddCommand(plan.NewExecShellCommand("bundle config set --local path vendor/bundle"))
 	installStep.AddCommand(plan.NewExecShellCommand("bundle config set --local without development:test"))
 	installStep.AddCommand(plan.NewExecShellCommand("bundle install --jobs 4 --retry 3"))
 
@@ -110,14 +119,15 @@ func (p *RubyProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspac
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.RubyImageForVersion(version)))
-	installStep.AddCacheMount("/usr/local/bundle", "")
+	// See planSimple for the rationale on apt-get + bundle path. Same shape.
+	installStep.AddCommand(plan.NewExecShellCommand(
+		"apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*",
+	))
 	installStep.AddCommand(plan.NewCopyCommand("Gemfile", "./"))
 	if ctx.App.HasFile("Gemfile.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Gemfile.lock", "./"))
 	}
-	// Use bundler's colon-separated multi-group form so the command body has
-	// no single quotes — avoids the quote-in-quote collision once the
-	// renderer wraps it in `sh -c '...'`.
+	installStep.AddCommand(plan.NewExecShellCommand("bundle config set --local path vendor/bundle"))
 	installStep.AddCommand(plan.NewExecShellCommand("bundle config set --local without development:test"))
 	installStep.AddCommand(plan.NewExecShellCommand("bundle install --jobs 4 --retry 3"))
 
@@ -155,6 +165,10 @@ func configureRubyDeploy(ctx *generate.GenerateContext, version, startCmd string
 	}
 	ctx.Deploy.Variables["BUNDLE_DEPLOYMENT"] = "true"
 	ctx.Deploy.Variables["BUNDLE_WITHOUT"] = "development:test"
+	// Mirror the install-time `bundle config --local path vendor/bundle` so
+	// `bundle exec` at runtime finds the gems even if WORKDIR or the user's
+	// start command cd's elsewhere before invoking bundler.
+	ctx.Deploy.Variables["BUNDLE_PATH"] = "vendor/bundle"
 	ctx.Deploy.StartCmd = startCmd
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"."}}),
