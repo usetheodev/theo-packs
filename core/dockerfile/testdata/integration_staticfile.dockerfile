@@ -5,4 +5,4 @@ COPY . ./
 FROM python:3.12-slim-bookworm
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "python -m http.server 8080"]
+CMD ["python", "-m", "http.server", "8080"]

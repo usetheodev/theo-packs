@@ -53,8 +53,10 @@ func planMaven(ctx *generate.GenerateContext, version string) error {
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCommand(plan.NewExecShellCommand("mvn -B -DskipTests package"))
+	// Renderer wraps in sh -c once based on CommandKindShell. Pre-wrap here
+	// used to produce nested sh -c. Pass bare body.
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		"sh -c 'set -e; jar=$(ls target/*.jar | grep -v -- \"-sources\\.jar$\\|-javadoc\\.jar$\\|original-\" | head -n1); cp \"$jar\" /app/app.jar'",
+		"set -e; jar=$(ls target/*.jar | grep -v -- \"-sources\\.jar$\\|-javadoc\\.jar$\\|original-\" | head -n1); cp \"$jar\" /app/app.jar",
 	))
 
 	configureMavenDeploy(ctx, version)
@@ -118,7 +120,7 @@ func planMavenWorkspace(ctx *generate.GenerateContext, version string, modules [
 		fmt.Sprintf("mvn -B -DskipTests -pl %s -am package", target),
 	))
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		fmt.Sprintf("sh -c 'set -e; jar=$(ls %s/target/*.jar | grep -v -- \"-sources\\.jar$\\|-javadoc\\.jar$\\|original-\" | head -n1); cp \"$jar\" /app/app.jar'", target),
+		fmt.Sprintf("set -e; jar=$(ls %s/target/*.jar | grep -v -- \"-sources\\.jar$\\|-javadoc\\.jar$\\|original-\" | head -n1); cp \"$jar\" /app/app.jar", target),
 	))
 
 	configureMavenDeploy(ctx, version)

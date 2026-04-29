@@ -10,4 +10,4 @@ COPY . .
 FROM denoland/deno:2
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "deno run -A apps/api/main.ts"]
+CMD ["deno", "run", "-A", "apps/api/main.ts"]

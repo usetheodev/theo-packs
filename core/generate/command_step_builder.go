@@ -8,28 +8,34 @@ import (
 )
 
 type CommandStepBuilder struct {
-	DisplayName string
-	Commands    []plan.Command
-	Inputs      []plan.Layer
-	Assets      map[string]string
-	Variables   map[string]string
-	Caches      []string
-	Secrets     []string
-	app         *a.App
-	env         *a.Environment
+	DisplayName    string
+	Commands       []plan.Command
+	Inputs         []plan.Layer
+	Assets         map[string]string
+	Variables      map[string]string
+	Caches         []string
+	BuildKitCaches []plan.BuildKitCacheMount
+	Secrets        []string
+	app            *a.App
+	env            *a.Environment
 }
 
 func (c *GenerateContext) NewCommandStep(name string) *CommandStepBuilder {
 	step := &CommandStepBuilder{
-		DisplayName: c.GetStepName(name),
-		Inputs:      []plan.Layer{},
-		Commands:    []plan.Command{},
-		Assets:      map[string]string{},
-		Variables:   map[string]string{},
-		Caches:      []string{},
-		Secrets:     []string{"*"},
-		app:         c.App,
-		env:         c.Env,
+		DisplayName:    c.GetStepName(name),
+		Inputs:         []plan.Layer{},
+		Commands:       []plan.Command{},
+		Assets:         map[string]string{},
+		Variables:      map[string]string{},
+		Caches:         []string{},
+		BuildKitCaches: []plan.BuildKitCacheMount{},
+		// Secrets default to empty: the renderer auto-detects the secrets
+		// each RUN command actually references and mounts only those.
+		// Providers can opt back into "mount everything" with `step.Secrets =
+		// []string{"*"}` when needed.
+		Secrets: nil,
+		app:     c.App,
+		env:     c.Env,
 	}
 
 	for i, existingStep := range c.Steps {
@@ -61,6 +67,27 @@ func (b *CommandStepBuilder) AddCache(name string) {
 		return
 	}
 	b.Caches = append(b.Caches, name)
+}
+
+// AddCacheMount declares a BuildKit `--mount=type=cache` for this step. The
+// sharing arg defaults to "locked" (empty string maps to "locked"). Calls are
+// idempotent: the same target won't be added twice.
+func (b *CommandStepBuilder) AddCacheMount(target, sharing string) {
+	if target == "" {
+		return
+	}
+	for _, existing := range b.BuildKitCaches {
+		if existing.Target == target {
+			return
+		}
+	}
+	if sharing == "" {
+		sharing = plan.CacheTypeLocked
+	}
+	b.BuildKitCaches = append(b.BuildKitCaches, plan.BuildKitCacheMount{
+		Target:  target,
+		Sharing: sharing,
+	})
 }
 
 func (b *CommandStepBuilder) AddCommand(command plan.Command) {
@@ -114,6 +141,7 @@ func (b *CommandStepBuilder) Build(p *plan.BuildPlan, options *BuildStepOptions)
 	step.Commands = b.Commands
 	step.Assets = b.Assets
 	step.Caches = b.Caches
+	step.BuildKitCaches = b.BuildKitCaches
 	step.Variables = b.Variables
 	step.Secrets = b.Secrets
 

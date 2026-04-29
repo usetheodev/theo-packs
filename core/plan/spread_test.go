@@ -76,7 +76,9 @@ func TestNewStep(t *testing.T) {
 	require.Equal(t, "install", step.Name)
 	require.NotNil(t, step.Assets)
 	require.NotNil(t, step.Variables)
-	require.Equal(t, []string{"*"}, step.Secrets)
+	// Secrets default to nil (empty); the renderer auto-detects which
+	// secrets each RUN actually references.
+	require.Nil(t, step.Secrets)
 }
 
 func TestStepAddCommands(t *testing.T) {

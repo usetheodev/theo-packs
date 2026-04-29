@@ -12,4 +12,4 @@ RUN sh -c 'php artisan config:cache || true; php artisan route:cache || true; ph
 FROM php:8.2-cli-bookworm
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
+CMD ["/bin/sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]

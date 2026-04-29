@@ -78,8 +78,11 @@ func planGradle(ctx *generate.GenerateContext, version string) error {
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCommand(plan.NewExecShellCommand(buildCmd))
+	// Renderer adds `sh -c '...'` once based on CommandKindShell. Pre-wrapping
+	// here used to produce `RUN sh -c 'sh -c '...''` which broke quoting. Pass
+	// the bare body.
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		"sh -c 'set -e; jar=$(ls build/libs/*.jar | grep -v -- \"-plain\\.jar$\" | head -n1); cp \"$jar\" /app/app.jar'",
+		"set -e; jar=$(ls build/libs/*.jar | grep -v -- \"-plain\\.jar$\" | head -n1); cp \"$jar\" /app/app.jar",
 	))
 
 	configureGradleDeploy(ctx, version)
@@ -160,7 +163,7 @@ func planGradleWorkspace(ctx *generate.GenerateContext, version string, subproje
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCommand(plan.NewExecShellCommand(buildCmd))
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		fmt.Sprintf("sh -c 'set -e; jar=$(ls %s/build/libs/*.jar | grep -v -- \"-plain\\.jar$\" | head -n1); cp \"$jar\" /app/app.jar'", target),
+		fmt.Sprintf("set -e; jar=$(ls %s/build/libs/*.jar | grep -v -- \"-plain\\.jar$\" | head -n1); cp \"$jar\" /app/app.jar", target),
 	))
 
 	configureGradleDeploy(ctx, version)

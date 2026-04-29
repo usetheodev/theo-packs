@@ -18,4 +18,4 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 FROM packages-apt-runtime
 WORKDIR /app
 COPY --from=build /app/server /app/server
-CMD ["/bin/bash", "-c", "/app/server"]
+CMD ["/app/server"]

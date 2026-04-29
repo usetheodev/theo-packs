@@ -12,4 +12,4 @@ RUN sh -c 'npm run build'
 FROM node:20-bookworm-slim
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "npm start"]
+CMD ["npm", "start"]

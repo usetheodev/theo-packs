@@ -12,4 +12,4 @@ RUN sh -c 'deno task build'
 FROM denoland/deno:2
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "deno task start"]
+CMD ["deno", "task", "start"]

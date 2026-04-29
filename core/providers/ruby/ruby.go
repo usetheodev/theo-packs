@@ -61,7 +61,10 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 	if ctx.App.HasFile("Gemfile.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Gemfile.lock", "./"))
 	}
-	installStep.AddCommand(plan.NewExecShellCommand("bundle config set --local without 'development test'"))
+	// Use bundler's colon-separated multi-group form so the command body has
+	// no single quotes — avoids the quote-in-quote collision once the
+	// renderer wraps it in `sh -c '...'`.
+	installStep.AddCommand(plan.NewExecShellCommand("bundle config set --local without development:test"))
 	installStep.AddCommand(plan.NewExecShellCommand("bundle install --jobs 4 --retry 3"))
 
 	buildStep := ctx.NewCommandStep("build")
@@ -96,7 +99,10 @@ func (p *RubyProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspac
 	if ctx.App.HasFile("Gemfile.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Gemfile.lock", "./"))
 	}
-	installStep.AddCommand(plan.NewExecShellCommand("bundle config set --local without 'development test'"))
+	// Use bundler's colon-separated multi-group form so the command body has
+	// no single quotes — avoids the quote-in-quote collision once the
+	// renderer wraps it in `sh -c '...'`.
+	installStep.AddCommand(plan.NewExecShellCommand("bundle config set --local without development:test"))
 	installStep.AddCommand(plan.NewExecShellCommand("bundle install --jobs 4 --retry 3"))
 
 	buildStep := ctx.NewCommandStep("build")

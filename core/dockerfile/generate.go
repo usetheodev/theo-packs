@@ -94,10 +94,53 @@ func writeDeploy(b *strings.Builder, deploy *plan.Deploy) {
 		fmt.Fprintf(b, "ENV PATH=%s:$PATH\n", strings.Join(deploy.Paths, ":"))
 	}
 
-	// CMD
+	// CMD — exec form when the start command is shell-feature-free, fallback
+	// to /bin/sh -c (NEVER /bin/bash — bash is absent on slim/distroless).
 	if deploy.StartCmd != "" {
-		fmt.Fprintf(b, "CMD [\"/bin/bash\", \"-c\", %q]\n", deploy.StartCmd)
+		emitCMD(b, deploy.StartCmd)
 	}
+}
+
+// emitCMD writes the CMD directive choosing the safest form available:
+//
+//   - exec form `CMD ["arg0", "arg1", ...]` when startCmd is shell-feature-free
+//     (no $, ;, &&, ||, |, >, <, `(`, `)`, `{`, `}`, `\`, quotes).
+//     This makes the app PID 1 → SIGTERM propagates → graceful shutdown works.
+//
+//   - shell form `CMD ["/bin/sh", "-c", "<cmd>"]` for env-var expansion
+//     (`${PORT:-3000}`), pipes, and other shell features. Uses /bin/sh, NOT
+//     /bin/bash — bash is absent from debian:bookworm-slim and distroless.
+func emitCMD(b *strings.Builder, startCmd string) {
+	startCmd = strings.TrimSpace(startCmd)
+	if startCmd == "" {
+		return
+	}
+
+	if needsShell(startCmd) {
+		fmt.Fprintf(b, "CMD [\"/bin/sh\", \"-c\", %q]\n", startCmd)
+		return
+	}
+
+	// Exec form: split on whitespace into JSON array.
+	parts := strings.Fields(startCmd)
+	quoted := make([]string, len(parts))
+	for i, p := range parts {
+		quoted[i] = fmt.Sprintf("%q", p)
+	}
+	fmt.Fprintf(b, "CMD [%s]\n", strings.Join(quoted, ", "))
+}
+
+// needsShell reports whether the command body uses any feature that requires
+// a shell to interpret. Conservative — false positives fall back to the safe
+// /bin/sh form.
+func needsShell(cmd string) bool {
+	for _, r := range cmd {
+		switch r {
+		case '$', ';', '&', '|', '>', '<', '(', ')', '{', '}', '\\', '"', '\'', '`', '*', '?':
+			return true
+		}
+	}
+	return false
 }
 
 func writeFrom(b *strings.Builder, layer plan.Layer, stageName string) {
@@ -161,7 +204,16 @@ func writeDeployInput(b *strings.Builder, layer plan.Layer) {
 func writeRunCommand(b *strings.Builder, cmd plan.ExecCommand, step *plan.Step, p *plan.BuildPlan) {
 	var mounts []string
 
-	// Cache mounts
+	// BuildKit cache mounts (per-step, typed) — emitted before legacy named caches.
+	for _, mount := range step.BuildKitCaches {
+		sharing := mount.Sharing
+		if sharing == "" {
+			sharing = "locked"
+		}
+		mounts = append(mounts, fmt.Sprintf("--mount=type=cache,target=%s,sharing=%s", mount.Target, sharing))
+	}
+
+	// Legacy named cache mounts (BuildPlan.Caches map).
 	for _, cacheName := range step.Caches {
 		if cache, ok := p.Caches[cacheName]; ok {
 			sharing := cache.Type
@@ -172,17 +224,28 @@ func writeRunCommand(b *strings.Builder, cmd plan.ExecCommand, step *plan.Step, 
 		}
 	}
 
-	// Secret mounts
-	secrets := resolveSecrets(step.Secrets, p.Secrets)
+	// Secret mounts — only those actually referenced in the command body
+	// (substring match on $NAME or ${NAME}). Step.Secrets=["*"] preserves
+	// the legacy "mount everything" behavior as an explicit opt-in.
+	secrets := resolveSecrets(step.Secrets, p.Secrets, cmd.Cmd)
 	for _, secret := range secrets {
 		mounts = append(mounts, fmt.Sprintf("--mount=type=secret,id=%s", secret))
 	}
 
+	// Render either RUN <body> (Exec) or RUN sh -c '<body>' (Shell). The
+	// wrap happens here, not in the constructor, so providers always pass
+	// bare command strings and the renderer is the single source of truth
+	// for shell-wrapping semantics.
+	body := cmd.Cmd
+	if cmd.Kind == plan.CommandKindShell {
+		body = plan.ShellCommandString(cmd.Cmd)
+	}
+
 	if len(mounts) > 0 {
 		sort.Strings(mounts)
-		fmt.Fprintf(b, "RUN %s \\\n    %s\n", strings.Join(mounts, " \\\n    "), cmd.Cmd)
+		fmt.Fprintf(b, "RUN %s \\\n    %s\n", strings.Join(mounts, " \\\n    "), body)
 	} else {
-		fmt.Fprintf(b, "RUN %s\n", cmd.Cmd)
+		fmt.Fprintf(b, "RUN %s\n", body)
 	}
 }
 
@@ -244,12 +307,29 @@ func resolveDeployPaths(include string) (string, string) {
 	return abs, abs
 }
 
-// resolveSecrets expands "*" wildcard into all plan-level secrets.
-func resolveSecrets(stepSecrets, planSecrets []string) []string {
-	if len(stepSecrets) == 0 || len(planSecrets) == 0 {
+// resolveSecrets returns the secrets to mount on a specific RUN command.
+//
+// Three modes:
+//
+//  1. stepSecrets contains "*" (explicit wildcard, opt-in escape hatch):
+//     mount every plan-level secret regardless of usage. This preserves
+//     the legacy behavior for callers that genuinely need every secret.
+//
+//  2. stepSecrets non-empty without "*": mount exactly those secrets
+//     (sorted, deduped), regardless of usage. The provider has declared
+//     intent to expose them.
+//
+//  3. stepSecrets empty (the new default): substring-match every plan-
+//     level secret against the command body and mount only those whose
+//     `$NAME` or `${NAME}` token actually appears. This eliminates the
+//     spurious mounts that polluted every RUN under the old `["*"]`
+//     default.
+func resolveSecrets(stepSecrets, planSecrets []string, cmdBody string) []string {
+	if len(planSecrets) == 0 {
 		return nil
 	}
 
+	// Mode 1: explicit "*" wildcard.
 	for _, s := range stepSecrets {
 		if s == "*" {
 			sorted := make([]string, len(planSecrets))
@@ -259,10 +339,67 @@ func resolveSecrets(stepSecrets, planSecrets []string) []string {
 		}
 	}
 
-	sorted := make([]string, len(stepSecrets))
-	copy(sorted, stepSecrets)
-	sort.Strings(sorted)
-	return sorted
+	// Mode 2: explicit list.
+	if len(stepSecrets) > 0 {
+		sorted := make([]string, len(stepSecrets))
+		copy(sorted, stepSecrets)
+		sort.Strings(sorted)
+		return sorted
+	}
+
+	// Mode 3: auto-detect via substring match.
+	return autoDetectSecrets(cmdBody, planSecrets)
+}
+
+// autoDetectSecrets returns the subset of planSecrets whose `$NAME` or
+// `${NAME}` token appears in cmdBody. Token boundaries are checked so
+// `$THEOPACKS_VARS_FOO` does NOT match a secret named `THEOPACKS_VARS`
+// — only `$NAME` followed by a non-identifier character (or end of string)
+// counts.
+func autoDetectSecrets(cmdBody string, planSecrets []string) []string {
+	var matched []string
+	for _, name := range planSecrets {
+		if name == "" {
+			continue
+		}
+		if secretReferencedIn(cmdBody, name) {
+			matched = append(matched, name)
+		}
+	}
+	if len(matched) == 0 {
+		return nil
+	}
+	sort.Strings(matched)
+	return matched
+}
+
+// secretReferencedIn reports whether body contains either `${NAME}` (always
+// safe — braces close the token) or `$NAME` followed by a non-identifier
+// character / end-of-string. Identifier chars are [A-Za-z0-9_]; anything
+// else (space, quote, end of body) terminates the token.
+func secretReferencedIn(body, name string) bool {
+	// ${NAME} form — unambiguous.
+	if strings.Contains(body, "${"+name+"}") {
+		return true
+	}
+	// $NAME form — needs token-boundary check.
+	prefix := "$" + name
+	for i := 0; i+len(prefix) <= len(body); {
+		idx := strings.Index(body[i:], prefix)
+		if idx < 0 {
+			break
+		}
+		end := i + idx + len(prefix)
+		if end == len(body) || !isIdentChar(body[end]) {
+			return true
+		}
+		i = i + idx + 1
+	}
+	return false
+}
+
+func isIdentChar(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_'
 }
 
 // sanitizeStageName converts step names to valid Dockerfile stage names.

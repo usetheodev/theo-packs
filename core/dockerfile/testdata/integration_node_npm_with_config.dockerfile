@@ -10,4 +10,4 @@ COPY . .
 FROM node:20-bookworm-slim
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "node server.js"]
+CMD ["node", "server.js"]

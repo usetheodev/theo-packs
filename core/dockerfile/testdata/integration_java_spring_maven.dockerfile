@@ -7,9 +7,9 @@ FROM install AS build
 WORKDIR /app
 COPY . .
 RUN sh -c 'mvn -B -DskipTests package'
-RUN sh -c 'sh -c 'set -e; jar=$(ls target/*.jar | grep -v -- "-sources\.jar$\|-javadoc\.jar$\|original-" | head -n1); cp "$jar" /app/app.jar''
+RUN sh -c 'set -e; jar=$(ls target/*.jar | grep -v -- "-sources\.jar$\|-javadoc\.jar$\|original-" | head -n1); cp "$jar" /app/app.jar'
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/app.jar /app/app.jar
-CMD ["/bin/bash", "-c", "java -jar /app/app.jar"]
+CMD ["java", "-jar", "/app/app.jar"]

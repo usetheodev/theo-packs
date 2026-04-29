@@ -11,4 +11,4 @@ COPY . .
 FROM php:8.1-cli-bookworm
 WORKDIR /app
 COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "php -S 0.0.0.0:${PORT:-8000} -t public"]
+CMD ["/bin/sh", "-c", "php -S 0.0.0.0:${PORT:-8000} -t public"]
