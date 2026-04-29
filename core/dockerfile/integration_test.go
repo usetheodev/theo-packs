@@ -95,6 +95,10 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"dotnet-aspnet", nil},
 		{"dotnet-console", nil},
 		{"dotnet-solution", nil},
+		// Ruby
+		{"ruby-sinatra", nil},
+		{"ruby-rails", nil},
+		{"ruby-monorepo", map[string]string{"THEOPACKS_APP_NAME": "api"}},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static
