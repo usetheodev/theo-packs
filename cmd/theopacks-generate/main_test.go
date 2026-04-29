@@ -140,34 +140,91 @@ func TestGenerateGoMod(t *testing.T) {
 	require.NotEmpty(t, cmdLine, "CMD line should not be empty")
 }
 
-func TestUserProvidedDockerfileTakesPrecedence(t *testing.T) {
-	// Arrange: create a temp project with a user-provided Dockerfile
+// TestUserProvidedDockerfileIsRejected — theo-packs is the single source
+// of truth (D1 in docs/plans/single-source-of-truth-plan.md). A Dockerfile
+// inside the analyzed app dir causes hard fail with exit code 2.
+func TestUserProvidedDockerfileIsRejected(t *testing.T) {
 	bin := buildBinary(t)
 	sourceDir := t.TempDir()
 
-	userContent := "FROM alpine:3.20\nCMD [\"echo\", \"user-provided\"]\n"
-	err := os.WriteFile(filepath.Join(sourceDir, "Dockerfile"), []byte(userContent), 0644)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(sourceDir, "Dockerfile"),
+		[]byte("FROM alpine:3.20\n"),
+		0644,
+	))
 
 	outputDir := t.TempDir()
 	outputFile := filepath.Join(outputDir, "Dockerfile")
 
-	// Act
 	cmd := exec.Command(bin,
 		"--source", sourceDir,
 		"--app-path", ".",
-		"--app-name", "custom",
+		"--app-name", "rejected-app",
 		"--output", outputFile,
 	)
-	stdout, err := cmd.CombinedOutput()
-	require.NoError(t, err, "binary failed: %s", string(stdout))
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "CLI must reject user-supplied Dockerfile")
 
-	// Assert: output should be the user's Dockerfile, not generated
-	content, err := os.ReadFile(outputFile)
-	require.NoError(t, err)
-	require.Equal(t, userContent, string(content))
+	// Exit code 2 is the documented contract.
+	var ee *exec.ExitError
+	require.ErrorAs(t, err, &ee, "expected ExitError, got: %T", err)
+	require.Equal(t, 2, ee.ExitCode(), "exit code must be 2 (input invariant violated)")
 
-	require.Contains(t, string(stdout), "User-provided Dockerfile")
+	// stderr names the path and explains the contract.
+	output := string(out)
+	require.Contains(t, output, "user-supplied Dockerfile found at")
+	require.Contains(t, output, filepath.Join(sourceDir, "Dockerfile"))
+	require.Contains(t, output, "single source of truth")
+
+	// No Dockerfile written to --output.
+	_, statErr := os.Stat(outputFile)
+	require.True(t, os.IsNotExist(statErr),
+		"no Dockerfile should be written when the build is rejected")
+}
+
+// TestUserProvidedDockerfileAtWorkspaceRoot_IsNotRejected — a Dockerfile
+// at the workspace root (NOT inside the app path being analyzed) is
+// allowed; it may exist for local docker-compose workflows unrelated to
+// Theo. The contract only rejects within the analyzed app path.
+func TestUserProvidedDockerfileAtWorkspaceRoot_IsNotRejected(t *testing.T) {
+	bin := buildBinary(t)
+
+	// Synthetic monorepo: source/apps/api/* + source/Dockerfile (root).
+	workspace := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(workspace, "apps", "api"), 0755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(workspace, "package.json"),
+		[]byte(`{"name":"root","workspaces":["apps/*"]}`),
+		0644,
+	))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(workspace, "apps", "api", "package.json"),
+		[]byte(`{"name":"api","scripts":{"start":"node ."}}`),
+		0644,
+	))
+	// Dockerfile at the workspace root — must NOT trigger rejection
+	// because --app-path=apps/api scopes the check to apps/api/.
+	require.NoError(t, os.WriteFile(
+		filepath.Join(workspace, "Dockerfile"),
+		[]byte("FROM alpine:3.20\n"),
+		0644,
+	))
+
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile.out")
+	cmd := exec.Command(bin,
+		"--source", workspace,
+		"--app-path", "apps/api",
+		"--app-name", "api",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err,
+		"Dockerfile at workspace root must NOT trigger rejection: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "FROM",
+		"theo-packs must have generated a Dockerfile despite the unrelated workspace-root Dockerfile")
 }
 
 func TestFailsWithActionableMessageForMissingSource(t *testing.T) {

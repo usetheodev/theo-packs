@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (BREAKING)
+- **theo-packs is now the single source of truth for Dockerfile generation.** The CLI rejects user-supplied Dockerfiles at `<source>/<app-path>/Dockerfile` with exit code 2 and an error message naming the offending path. The previous "user-Dockerfile takes precedence" behavior has been removed entirely. There is no override flag, no warning mode, no env var. A Dockerfile at the workspace root (`<source>/Dockerfile`, outside the analyzed app path) is NOT checked — it may legitimately exist for local development outside Theo. See `docs/contracts/theo-packs-cli-contract.md`, "Single source of truth" preamble, for the full rationale and edge cases (#NNN)
+
+### Removed
+- User-Dockerfile precedence path from `cmd/theopacks-generate/main.go`. The block that copied a user-supplied Dockerfile to `--output` has been replaced with a hard-fail (#NNN)
+- "User-Dockerfile precedence" section from `docs/contracts/theo-packs-cli-contract.md`. Replaced by "Single source of truth" preamble + a "User-Dockerfile rejection" section + a new failure-modes table row (#NNN)
+- `TestUserProvidedDockerfileTakesPrecedence` from `cmd/theopacks-generate/main_test.go`. Replaced by `TestUserProvidedDockerfileIsRejected` and `TestUserProvidedDockerfileAtWorkspaceRoot_IsNotRejected` (#NNN)
+
 ### Added
 - Defensive header comment in every generated Dockerfile naming the producing provider and the expected `docker build` context. Turns cryptic `"/<path>": not found` build failures into self-explanatory output (#NNN)
 - New public function `dockerfile.HeaderComment(providerName) string` returning the metadata block; renderer-emitted, not provider-emitted (#NNN)
