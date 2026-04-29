@@ -242,6 +242,43 @@ func TestGenerateBuildPlanForDenoApp(t *testing.T) {
 	require.Equal(t, "deno task start", r.Plan.Deploy.StartCmd)
 }
 
+// TestGenerateBuildPlan_ProviderConfigOverride locks the config-driven
+// provider override path (core.go:267 — "if config.Provider != nil"). A
+// project that would normally route to the Deno provider (deno.json + npm-
+// compat package.json) can be forced to Node via theopacks.json. This is
+// the explicit escape hatch for users whose detection conflicts with their
+// intent.
+func TestGenerateBuildPlan_ProviderConfigOverride(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	// Both manifests present — Deno would normally win (ADR D3).
+	err = os.WriteFile(filepath.Join(tempDir, "deno.json"),
+		[]byte(`{"tasks":{"start":"deno run main.ts"}}`), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "package.json"),
+		[]byte(`{"name":"override","scripts":{"start":"node index.js"}}`), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "index.js"), []byte(`console.log("ok")`), 0644)
+	require.NoError(t, err)
+
+	// theopacks.json forces Node.
+	err = os.WriteFile(filepath.Join(tempDir, "theopacks.json"),
+		[]byte(`{"provider":"node"}`), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	r := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, r.Success, "build plan should succeed with config override, logs: %v", r.Logs)
+	require.Equal(t, "npm start", r.Plan.Deploy.StartCmd,
+		"start command must come from Node provider when theopacks.json forces it")
+}
+
 func TestGenerateBuildPlanForPythonApp(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "core-test")
 	require.NoError(t, err)
