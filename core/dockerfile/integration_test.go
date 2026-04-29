@@ -99,6 +99,10 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"ruby-sinatra", nil},
 		{"ruby-rails", nil},
 		{"ruby-monorepo", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		// PHP
+		{"php-slim", nil},
+		{"php-laravel", nil},
+		{"php-monorepo", map[string]string{"THEOPACKS_APP_NAME": "api"}},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static
