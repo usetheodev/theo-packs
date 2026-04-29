@@ -55,6 +55,47 @@ func TestGenerateBuildPlanForGoApp(t *testing.T) {
 	require.Equal(t, "/app/server", buildResult.Plan.Deploy.StartCmd)
 }
 
+// TestGenerateBuildPlan_DenoBeforeNode locks the ADR-D3 invariant end-to-end:
+// when a project ships both deno.json and an npm-compat package.json, the
+// detection order must route to the Deno provider, not Node. Provider order
+// is asserted at the registry level by TestRegistrationOrder; this test
+// closes the loop through the public API (GenerateBuildPlan) so a future
+// change to detection semantics — not just registration order — can't
+// regress this without breaking a test.
+func TestGenerateBuildPlan_DenoBeforeNode(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	// Project with BOTH manifests. Many real Deno projects ship a npm-compat
+	// package.json so editors / package metadata tooling recognize them.
+	err = os.WriteFile(filepath.Join(tempDir, "deno.json"),
+		[]byte(`{"imports":{"hono":"jsr:@hono/hono@4"},"tasks":{"start":"deno run -A main.ts"}}`),
+		0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "package.json"),
+		[]byte(`{"name":"deno-with-npm-compat","scripts":{"start":"echo this should not run"}}`),
+		0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "main.ts"), []byte("console.log('hi')"), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, buildResult.Success, "build plan generation should succeed, logs: %v", buildResult.Logs)
+	require.NotNil(t, buildResult.Plan)
+	require.Contains(t, buildResult.DetectedProviders, "deno",
+		"project with both deno.json and package.json must route to Deno (ADR D3)")
+	require.NotContains(t, buildResult.DetectedProviders, "node",
+		"Node must not win over Deno when deno.json is present")
+	require.Equal(t, "deno task start", buildResult.Plan.Deploy.StartCmd,
+		"start command must come from Deno provider, not Node's `npm start`")
+}
+
 func TestGenerateBuildPlanForPythonApp(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "core-test")
 	require.NoError(t, err)
