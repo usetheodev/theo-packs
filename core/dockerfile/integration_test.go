@@ -87,6 +87,10 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"rust-axum", nil},
 		{"rust-cli", nil},
 		{"rust-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		// Java
+		{"java-spring-gradle", nil},
+		{"java-spring-maven", nil},
+		{"java-gradle-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static
