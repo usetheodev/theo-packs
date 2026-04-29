@@ -1,0 +1,2 @@
+api: cd apps/api && bundle exec rackup -p ${PORT:-3000} -o 0.0.0.0
+worker: cd apps/worker && bundle exec ruby worker.rb
