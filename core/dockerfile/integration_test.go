@@ -83,6 +83,30 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"python-uv-workspace", map[string]string{"THEOPACKS_START_CMD": "python main.py"}},
 		{"python-streamlit", map[string]string{"THEOPACKS_START_CMD": "streamlit run app.py --server.port 8501 --server.address 0.0.0.0"}},
 		{"python-gradio", map[string]string{"THEOPACKS_START_CMD": "python app.py"}},
+		// Rust
+		{"rust-axum", nil},
+		{"rust-cli", nil},
+		{"rust-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		// Java
+		{"java-spring-gradle", nil},
+		{"java-spring-maven", nil},
+		{"java-gradle-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		// .NET
+		{"dotnet-aspnet", nil},
+		{"dotnet-console", nil},
+		{"dotnet-solution", nil},
+		// Ruby
+		{"ruby-sinatra", nil},
+		{"ruby-rails", nil},
+		{"ruby-monorepo", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		// PHP
+		{"php-slim", nil},
+		{"php-laravel", nil},
+		{"php-monorepo", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		// Deno
+		{"deno-fresh", nil},
+		{"deno-hono", nil},
+		{"deno-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static

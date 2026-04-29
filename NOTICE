@@ -1,0 +1,76 @@
+theo-packs
+Copyright 2025-2026 The Theo Authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+A copy of the License is included in the LICENSE file at the root
+of this repository, or you may obtain it at:
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+------------------------------------------------------------------------
+
+This product is derived from Railpack:
+
+    https://github.com/railwayapp/railpack
+    Copyright (c) Railway Corporation and the Railpack contributors
+    Licensed under the Apache License, Version 2.0
+
+The core language-detection engine, BuildPlan data model, Provider
+interface, and the structure of the language-specific providers
+(Go, Node.js, Python, static, shell) were originally developed in
+Railpack and have been adapted for the Theo platform. Much of the
+architecture, naming, and many implementation details preserved in
+this repository originate from that work.
+
+We are grateful to the Railway team and the Railpack community for
+publishing their work under a permissive license, which made this
+project possible.
+
+Modifications made for theo-packs include (non-exhaustive):
+
+  * Removal of the Railpack CLI and direct BuildKit/LLB integration;
+    theo-packs emits a Dockerfile and delegates image construction
+    to the downstream Theo build pipeline (Argo Workflow + external
+    BuildKit/Kaniko).
+  * Replacement of the multi-module layout (core + railpack) with a
+    single Go module (github.com/usetheo/theopacks) plus a single
+    CLI binary (cmd/theopacks-generate) used by the build cluster.
+  * Workspace-aware Dockerfile generation for Node monorepos
+    (turbo / pnpm / npm workspaces) driven by THEOPACKS_APP_NAME
+    and THEOPACKS_APP_PATH.
+  * Configuration namespace renamed from RAILPACK_* / railpack.json
+    to THEOPACKS_* / theopacks.json.
+  * Reduced dependency surface and an internal-only file system
+    abstraction tailored to the Theo build environment.
+
+All modifications are © 2025-2026 The Theo Authors and are released
+under the same Apache License, Version 2.0.
+
+------------------------------------------------------------------------
+
+Per-provider derivations (theo-packs ↔ Railpack)
+
+The following provider packages were added in the multi-language expansion
+and incorporate detection logic, manifest parsing, and version-resolution
+priorities derived from the upstream Railpack provider of the same name:
+
+  * core/providers/rust/    — derived from railpack/core/providers/rust
+  * core/providers/java/    — derived from railpack/core/providers/java
+  * core/providers/dotnet/  — derived from railpack/core/providers/dotnet
+  * core/providers/ruby/    — derived from railpack/core/providers/ruby
+  * core/providers/php/     — derived from railpack/core/providers/php
+  * core/providers/deno/    — derived from railpack/core/providers/deno
+
+The Plan() bodies in each of those packages were rewritten from scratch
+to match theo-packs' base-image-per-language strategy (rust:<v>-bookworm,
+eclipse-temurin:<v>, ruby:<v>-bookworm-slim, php:<v>-cli-bookworm,
+mcr.microsoft.com/dotnet/{sdk,aspnet,runtime}:<v>, denoland/deno:bin-<v>)
+because Railpack uses mise-driven LLB primitives whereas theo-packs emits
+Dockerfiles with explicit base images. Test fixtures and example projects
+that were ported retain their structure and licensing terms; new fixtures
+are © 2025-2026 The Theo Authors.
+
+The five original providers (golang, node, python, staticfile, shell) and
+the test/configuration scaffolding around them are also originally derived
+from Railpack as noted in the general acknowledgement above.

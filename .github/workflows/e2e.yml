@@ -1,0 +1,57 @@
+# E2E pipeline for theo-packs: builds real Docker images from every example
+# project to verify the generated Dockerfiles are buildable end-to-end.
+#
+# Triggered MANUALLY (workflow_dispatch) and on PRs that touch provider /
+# example / Dockerfile-rendering code, so we don't pay the cost of ~14 Docker
+# builds for unrelated docs/CI changes.
+#
+# Closes the "go test -tags e2e green on Docker-enabled host" DoD item from
+# docs/plans/add-six-language-providers-plan.md — ubuntu-latest runners ship
+# with Docker, so this provides the validated execution path.
+#
+# Security: actions pinned to commit SHAs (same convention as ci.yml).
+
+name: E2E
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "core/providers/**"
+      - "core/dockerfile/**"
+      - "core/generate/images.go"
+      - "examples/**"
+      - "e2e/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/e2e.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-build:
+    name: E2E Docker Builds
+    runs-on: ubuntu-latest
+    # 12 new languages × ~60-120s/build + setup ≈ 25 min worst case.
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Cache Go modules and build artifacts
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-
+
+      - name: Verify Docker is available
+        run: docker info >/dev/null
+
+      - name: Run E2E tests
+        run: mise run test-e2e

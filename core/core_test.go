@@ -55,6 +55,230 @@ func TestGenerateBuildPlanForGoApp(t *testing.T) {
 	require.Equal(t, "/app/server", buildResult.Plan.Deploy.StartCmd)
 }
 
+// TestGenerateBuildPlan_DenoBeforeNode locks the ADR-D3 invariant end-to-end:
+// when a project ships both deno.json and an npm-compat package.json, the
+// detection order must route to the Deno provider, not Node. Provider order
+// is asserted at the registry level by TestRegistrationOrder; this test
+// closes the loop through the public API (GenerateBuildPlan) so a future
+// change to detection semantics — not just registration order — can't
+// regress this without breaking a test.
+func TestGenerateBuildPlan_DenoBeforeNode(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	// Project with BOTH manifests. Many real Deno projects ship a npm-compat
+	// package.json so editors / package metadata tooling recognize them.
+	err = os.WriteFile(filepath.Join(tempDir, "deno.json"),
+		[]byte(`{"imports":{"hono":"jsr:@hono/hono@4"},"tasks":{"start":"deno run -A main.ts"}}`),
+		0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "package.json"),
+		[]byte(`{"name":"deno-with-npm-compat","scripts":{"start":"echo this should not run"}}`),
+		0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "main.ts"), []byte("console.log('hi')"), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	buildResult := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, buildResult.Success, "build plan generation should succeed, logs: %v", buildResult.Logs)
+	require.NotNil(t, buildResult.Plan)
+	require.Contains(t, buildResult.DetectedProviders, "deno",
+		"project with both deno.json and package.json must route to Deno (ADR D3)")
+	require.NotContains(t, buildResult.DetectedProviders, "node",
+		"Node must not win over Deno when deno.json is present")
+	require.Equal(t, "deno task start", buildResult.Plan.Deploy.StartCmd,
+		"start command must come from Deno provider, not Node's `npm start`")
+}
+
+func TestGenerateBuildPlanForRustApp(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	err = os.WriteFile(filepath.Join(tempDir, "Cargo.toml"), []byte(`[package]
+name = "myapp"
+version = "0.1.0"
+edition = "2021"
+`), 0644)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(tempDir, "src"), 0755))
+	err = os.WriteFile(filepath.Join(tempDir, "src", "main.rs"), []byte("fn main(){}"), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	r := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, r.Success, "rust plan should succeed, logs: %v", r.Logs)
+	require.Contains(t, r.DetectedProviders, "rust")
+	require.Equal(t, "/app/server", r.Plan.Deploy.StartCmd)
+}
+
+func TestGenerateBuildPlanForJavaApp(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	err = os.WriteFile(filepath.Join(tempDir, "build.gradle.kts"), []byte(`plugins {
+    java
+    id("org.springframework.boot") version "3.3.0"
+}
+`), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	r := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, r.Success, "java plan should succeed, logs: %v", r.Logs)
+	require.Contains(t, r.DetectedProviders, "java")
+	require.Equal(t, "java -jar /app/app.jar", r.Plan.Deploy.StartCmd)
+}
+
+func TestGenerateBuildPlanForDotnetApp(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	err = os.WriteFile(filepath.Join(tempDir, "app.csproj"), []byte(`<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+`), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	r := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, r.Success, "dotnet plan should succeed, logs: %v", r.Logs)
+	require.Contains(t, r.DetectedProviders, "dotnet")
+	require.Equal(t, "dotnet /app/app.dll", r.Plan.Deploy.StartCmd)
+}
+
+func TestGenerateBuildPlanForRubyApp(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	err = os.WriteFile(filepath.Join(tempDir, "Gemfile"), []byte(`source "https://rubygems.org"
+gem "sinatra", "~> 4.0"
+`), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "config.ru"), []byte(`run lambda { |env| [200, {}, ["ok"]] }`), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	r := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, r.Success, "ruby plan should succeed, logs: %v", r.Logs)
+	require.Contains(t, r.DetectedProviders, "ruby")
+	require.Contains(t, r.Plan.Deploy.StartCmd, "rackup")
+}
+
+func TestGenerateBuildPlanForPhpApp(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	err = os.WriteFile(filepath.Join(tempDir, "composer.json"), []byte(`{
+  "require": {"php": ">=8.1", "slim/slim": "^4.0"}
+}
+`), 0644)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(tempDir, "public"), 0755))
+	err = os.WriteFile(filepath.Join(tempDir, "public", "index.php"), []byte("<?php"), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	r := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, r.Success, "php plan should succeed, logs: %v", r.Logs)
+	require.Contains(t, r.DetectedProviders, "php")
+	require.Contains(t, r.Plan.Deploy.StartCmd, "-t public")
+}
+
+func TestGenerateBuildPlanForDenoApp(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	err = os.WriteFile(filepath.Join(tempDir, "deno.json"), []byte(`{
+  "imports": {"hono": "jsr:@hono/hono@4"},
+  "tasks": {"start": "deno run -A main.ts"}
+}
+`), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "main.ts"), []byte("Deno.serve(()=>new Response('ok'))"), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	r := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, r.Success, "deno plan should succeed, logs: %v", r.Logs)
+	require.Contains(t, r.DetectedProviders, "deno")
+	require.Equal(t, "deno task start", r.Plan.Deploy.StartCmd)
+}
+
+// TestGenerateBuildPlan_ProviderConfigOverride locks the config-driven
+// provider override path (core.go:267 — "if config.Provider != nil"). A
+// project that would normally route to the Deno provider (deno.json + npm-
+// compat package.json) can be forced to Node via theopacks.json. This is
+// the explicit escape hatch for users whose detection conflicts with their
+// intent.
+func TestGenerateBuildPlan_ProviderConfigOverride(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "core-test")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	// Both manifests present — Deno would normally win (ADR D3).
+	err = os.WriteFile(filepath.Join(tempDir, "deno.json"),
+		[]byte(`{"tasks":{"start":"deno run main.ts"}}`), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "package.json"),
+		[]byte(`{"name":"override","scripts":{"start":"node index.js"}}`), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "index.js"), []byte(`console.log("ok")`), 0644)
+	require.NoError(t, err)
+
+	// theopacks.json forces Node.
+	err = os.WriteFile(filepath.Join(tempDir, "theopacks.json"),
+		[]byte(`{"provider":"node"}`), 0644)
+	require.NoError(t, err)
+
+	userApp, err := app.NewApp(tempDir)
+	require.NoError(t, err)
+
+	env := app.NewEnvironment(nil)
+	r := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
+
+	require.True(t, r.Success, "build plan should succeed with config override, logs: %v", r.Logs)
+	require.Equal(t, "npm start", r.Plan.Deploy.StartCmd,
+		"start command must come from Node provider when theopacks.json forces it")
+}
+
 func TestGenerateBuildPlanForPythonApp(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "core-test")
 	require.NoError(t, err)

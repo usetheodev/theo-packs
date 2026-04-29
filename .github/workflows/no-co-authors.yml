@@ -1,0 +1,38 @@
+# Block commits that contain Co-Authored-By trailers.
+#
+# Enforces single-author commits for clear ownership and accountability.
+
+name: "Check: no co-authored commits"
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: No co-authored commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for Co-Authored-By in commits
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+
+          offending=$(git log "$base".."$head" --grep="Co-Authored-By" -i --pretty=format:"%h %s" || true)
+
+          if [ -n "$offending" ]; then
+            echo "::error::Commits with Co-Authored-By são proibidos. Reescreva o histórico removendo o trailer."
+            echo ""
+            echo "Commits com co-autoria:"
+            echo "$offending"
+            exit 1
+          fi
+
+          echo "Nenhum commit com Co-Authored-By encontrado."
