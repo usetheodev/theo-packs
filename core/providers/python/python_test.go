@@ -838,3 +838,130 @@ func TestPythonDetect(t *testing.T) {
 		})
 	}
 }
+
+// --- Phase 2: Python local layer excludes ---
+
+// localLayerExcludes returns the Exclude patterns set on the local-source
+// input of the named step. Helper for asserting our defaults are applied.
+func localLayerExcludes(t *testing.T, ctx *generate.GenerateContext, stepName string) []string {
+	t.Helper()
+	for _, s := range ctx.Steps {
+		if s.Name() != stepName {
+			continue
+		}
+		csb, ok := s.(*generate.CommandStepBuilder)
+		require.True(t, ok)
+		for _, in := range csb.Inputs {
+			if in.Local {
+				return in.Exclude
+			}
+		}
+	}
+	t.Fatalf("no local layer found in step %q", stepName)
+	return nil
+}
+
+func TestPythonDefaultExcludes_Coverage(t *testing.T) {
+	excl := pythonDefaultExcludes()
+	// Locked list — keep order stable for golden determinism. Adding a new
+	// pattern requires updating this test consciously.
+	require.Equal(t, []string{
+		"__pycache__",
+		"*.pyc",
+		"*.pyo",
+		".pytest_cache",
+		".mypy_cache",
+		".ruff_cache",
+		"tests",
+		"test",
+		".venv",
+		"venv",
+		".tox",
+		".coverage",
+		".env",
+		".git",
+	}, excl)
+}
+
+func TestPythonProvider_RequirementsLocalLayerHasExcludes(t *testing.T) {
+	a := createPythonTempApp(t, map[string]string{
+		"requirements.txt": "flask==2.0\n",
+	})
+	ctx := createPythonTestContext(t, a, nil)
+	require.NoError(t, (&PythonProvider{}).Plan(ctx))
+
+	excl := localLayerExcludes(t, ctx, "build")
+	require.Equal(t, pythonDefaultExcludes(), excl)
+}
+
+func TestPythonProvider_PoetryLocalLayerHasExcludes(t *testing.T) {
+	a := createPythonTempApp(t, map[string]string{
+		"pyproject.toml": `[tool.poetry]
+name = "test"
+version = "0.1.0"
+description = ""
+authors = ["x"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+`,
+	})
+	ctx := createPythonTestContext(t, a, nil)
+	require.NoError(t, (&PythonProvider{}).Plan(ctx))
+
+	excl := localLayerExcludes(t, ctx, "build")
+	require.Equal(t, pythonDefaultExcludes(), excl)
+}
+
+func TestPythonProvider_PipfileLocalLayerHasExcludes(t *testing.T) {
+	a := createPythonTempApp(t, map[string]string{
+		"Pipfile": "[packages]\nflask = \"*\"\n",
+	})
+	ctx := createPythonTestContext(t, a, nil)
+	require.NoError(t, (&PythonProvider{}).Plan(ctx))
+
+	excl := localLayerExcludes(t, ctx, "build")
+	require.Equal(t, pythonDefaultExcludes(), excl)
+}
+
+func TestPythonProvider_PyprojectLocalLayerHasExcludes(t *testing.T) {
+	// Generic pyproject.toml (not poetry, not uv) — local layer is on the
+	// install step.
+	a := createPythonTempApp(t, map[string]string{
+		"pyproject.toml": "[project]\nname = \"test\"\nversion = \"0.1.0\"\n",
+	})
+	ctx := createPythonTestContext(t, a, nil)
+	require.NoError(t, (&PythonProvider{}).Plan(ctx))
+
+	excl := localLayerExcludes(t, ctx, "install")
+	require.Equal(t, pythonDefaultExcludes(), excl)
+}
+
+func TestPythonProvider_SetupPyLocalLayerHasExcludes(t *testing.T) {
+	a := createPythonTempApp(t, map[string]string{
+		"setup.py": "from setuptools import setup\nsetup(name='test')\n",
+	})
+	ctx := createPythonTestContext(t, a, nil)
+	require.NoError(t, (&PythonProvider{}).Plan(ctx))
+
+	excl := localLayerExcludes(t, ctx, "install")
+	require.Equal(t, pythonDefaultExcludes(), excl)
+}
+
+func TestPythonProvider_UvWorkspaceLocalLayerHasExcludes(t *testing.T) {
+	a := createPythonTempApp(t, map[string]string{
+		"pyproject.toml": `[project]
+name = "test"
+version = "0.1.0"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+`,
+		"packages/api/pyproject.toml": "[project]\nname = \"api\"\nversion = \"0.1.0\"\n",
+	})
+	ctx := createPythonTestContext(t, a, nil)
+	require.NoError(t, (&PythonProvider{}).Plan(ctx))
+
+	excl := localLayerExcludes(t, ctx, "install")
+	require.Equal(t, pythonDefaultExcludes(), excl)
+}
