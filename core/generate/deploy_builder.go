@@ -31,6 +31,13 @@ type DeployBuilder struct {
 	Variables    map[string]string
 	Paths        []string
 	AptPackages  []string
+
+	// HealthcheckPath sets the HTTP path the runtime HEALTHCHECK should probe
+	// (e.g., "/health"). Empty → no HEALTHCHECK directive is emitted.
+	HealthcheckPath string
+	// HealthcheckPort overrides the default `${PORT:-8080}` used in the
+	// HEALTHCHECK URL when set; usually left empty so frameworks honor PORT.
+	HealthcheckPort string
 }
 
 func NewDeployBuilder() *DeployBuilder {
@@ -90,4 +97,6 @@ func (b *DeployBuilder) Build(p *plan.BuildPlan, options *BuildStepOptions) {
 	p.Deploy.StartCmd = b.StartCmd
 	p.Deploy.Variables = b.Variables
 	p.Deploy.Paths = b.Paths
+	p.Deploy.HealthcheckPath = b.HealthcheckPath
+	p.Deploy.HealthcheckPort = b.HealthcheckPort
 }

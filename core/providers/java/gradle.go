@@ -97,6 +97,11 @@ func configureGradleDeploy(ctx *generate.GenerateContext, version string) {
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"/app/app.jar"}}),
 	})
+	// Spring Boot Actuator ships /actuator/health by default. Apps without
+	// Actuator can override via theopacks.json deploy.healthcheckPath="".
+	if gradleHasSpringBoot(ctx.App) {
+		ctx.Deploy.HealthcheckPath = "/actuator/health"
+	}
 }
 
 // gradleSubprojects parses settings.gradle / settings.gradle.kts and returns

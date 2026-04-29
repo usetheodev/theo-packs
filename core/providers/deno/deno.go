@@ -84,6 +84,13 @@ func (p *DenoProvider) planSimple(ctx *generate.GenerateContext, cfg *DenoConfig
 		}
 	}
 
+	// HEALTHCHECK for HTTP-serving frameworks (Fresh and Hono both serve HTTP
+	// by convention). Generic Deno apps may or may not be HTTP — leave them
+	// without a healthcheck rather than emit a probe that always fails.
+	if fw == FrameworkFresh || fw == FrameworkHono {
+		ctx.Deploy.HealthcheckPath = "/health"
+	}
+
 	configureDenoDeploy(ctx, version, startCmd)
 	return nil
 }

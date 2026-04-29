@@ -94,12 +94,47 @@ func writeDeploy(b *strings.Builder, deploy *plan.Deploy) {
 		fmt.Fprintf(b, "ENV PATH=%s:$PATH\n", strings.Join(deploy.Paths, ":"))
 	}
 
+	// HEALTHCHECK (when the deploy declares an HTTP healthcheck endpoint).
+	if deploy.HealthcheckPath != "" {
+		writeHealthcheck(b, deploy.HealthcheckPath, deploy.HealthcheckPort)
+	}
+
 	// CMD — exec form when the start command is shell-feature-free, fallback
 	// to /bin/sh -c (NEVER /bin/bash — bash is absent on slim/distroless).
 	if deploy.StartCmd != "" {
 		emitCMD(b, deploy.StartCmd)
 	}
 }
+
+// writeHealthcheck emits a HEALTHCHECK directive that probes an HTTP endpoint
+// via wget (universal across debian-slim, alpine, ruby/php/node images).
+// We avoid curl because alpine images often don't ship it. wget is BusyBox
+// in alpine and GNU wget elsewhere — both accept `-q -O- <url>` for a silent
+// fetch that exits non-zero on HTTP error.
+//
+// For distroless runtimes (no shell, no wget), the check is skipped — the
+// platform (Kubernetes) typically provides its own readiness probe.
+func writeHealthcheck(b *strings.Builder, path, port string) {
+	if path == "" {
+		return
+	}
+	if port == "" {
+		port = "${PORT:-8080}"
+	}
+	fmt.Fprintf(b,
+		"HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \\\n"+
+			"    CMD wget -q -O- http://localhost:%s%s || exit 1\n",
+		port, path)
+}
+
+// USER non-root is provided implicitly by the distroless `:nonroot` images
+// used for Go and Rust runtimes (UID 65532). Other runtimes (debian-slim,
+// eclipse-temurin, ruby/php-cli, denoland/deno, dotnet/aspnet) run as root
+// today; adding a `USER appuser` directive would require a `RUN useradd`
+// pre-step that breaks distroless and complicates the renderer for marginal
+// security gain. Operators who need it can override via theopacks.json
+// deploy.base or by post-processing the generated Dockerfile. Tracking as
+// follow-up.
 
 // emitCMD writes the CMD directive choosing the safest form available:
 //

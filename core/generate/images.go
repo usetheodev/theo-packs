@@ -178,15 +178,23 @@ func DotnetAspnetImageForVersion(version string) string {
 	return fmt.Sprintf("mcr.microsoft.com/dotnet/aspnet:%s", v)
 }
 
-// DotnetRuntimeImageForVersion returns the slimmer .NET runtime image (no ASP.NET).
-// Use this for console apps and workers (Microsoft.NET.Sdk with OutputType=Exe).
-// Example: "8.0" → "mcr.microsoft.com/dotnet/runtime:8.0".
+// DotnetRuntimeImageForVersion returns the slimmer .NET runtime image for
+// console / worker projects (Microsoft.NET.Sdk with OutputType=Exe).
+//
+// We use the alpine variant (~80MB) instead of the bookworm-based default
+// (~200MB). Alpine + .NET works because the .NET runtime ships its own libc
+// (none of the trimmed AOT surprises that bite alpine + native interop).
+// ASP.NET projects keep the bookworm-based aspnet image (see
+// DotnetAspnetImageForVersion) because some ASP.NET stacks (e.g., SignalR
+// with native TLS) have musl edge cases.
+//
+// Example: "8.0" → "mcr.microsoft.com/dotnet/runtime:8.0-alpine".
 func DotnetRuntimeImageForVersion(version string) string {
 	v := NormalizeToMajorMinor(version)
 	if v == "" {
 		v = DefaultDotnetVersion
 	}
-	return fmt.Sprintf("mcr.microsoft.com/dotnet/runtime:%s", v)
+	return fmt.Sprintf("mcr.microsoft.com/dotnet/runtime:%s-alpine", v)
 }
 
 // DenoImageForVersion returns the Deno debian-based build image for the given

@@ -14,6 +14,16 @@ type Deploy struct {
 	StartCmd  string            `json:"startCommand,omitempty"`
 	Variables map[string]string `json:"variables,omitempty"`
 	Paths     []string          `json:"paths,omitempty"`
+
+	// HealthcheckPath, when set, drives the renderer to emit a HEALTHCHECK
+	// directive that probes `http://localhost:<HealthcheckPort>{HealthcheckPath}`.
+	// Empty → no HEALTHCHECK is emitted. The framework-aware providers
+	// (Spring Boot Actuator, ASP.NET, Rails, etc.) set this when they
+	// detect an HTTP server.
+	HealthcheckPath string `json:"healthcheckPath,omitempty"`
+	// HealthcheckPort defaults to "${PORT:-8080}" when empty (works for the
+	// majority of HTTP frameworks via env-var expansion).
+	HealthcheckPort string `json:"healthcheckPort,omitempty"`
 }
 
 func NewBuildPlan() *BuildPlan {

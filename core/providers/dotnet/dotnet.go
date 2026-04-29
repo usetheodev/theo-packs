@@ -221,6 +221,8 @@ func (p *DotnetProvider) emitPlan(ctx *generate.GenerateContext, proj *Project, 
 	// Deploy: pick the runtime image based on whether the project is ASP.NET.
 	if proj.IsAspNet() {
 		ctx.Deploy.Base = plan.NewImageLayer(generate.DotnetAspnetImageForVersion(version))
+		// ASP.NET Core ships UseHealthChecks() middleware; convention is /healthz.
+		ctx.Deploy.HealthcheckPath = "/healthz"
 	} else {
 		ctx.Deploy.Base = plan.NewImageLayer(generate.DotnetRuntimeImageForVersion(version))
 	}

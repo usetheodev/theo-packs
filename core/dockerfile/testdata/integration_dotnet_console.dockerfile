@@ -10,7 +10,7 @@ COPY . .
 RUN --mount=type=cache,target=/root/.nuget/packages,sharing=locked \
     sh -c 'dotnet publish dotnet-console.csproj -c Release -o /app/publish --no-restore -p:DebugType=None -p:DebugSymbols=false'
 
-FROM mcr.microsoft.com/dotnet/runtime:8.0
+FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine
 WORKDIR /app
 COPY --from=build /app/publish /app/publish
 CMD ["dotnet", "/app/dotnet-console.dll"]

@@ -90,6 +90,12 @@ func (p *PhpProvider) planSimple(ctx *generate.GenerateContext, composer *Compos
 		))
 	}
 
+	// HEALTHCHECK on /health for HTTP-serving frameworks. theo-stacks
+	// scaffolds ship a /health endpoint as a Sprint 1 contract.
+	if fw == FrameworkLaravel || fw == FrameworkSlim || fw == FrameworkSymfony || fw == FrameworkGeneric {
+		ctx.Deploy.HealthcheckPath = "/health"
+	}
+
 	configurePhpDeploy(ctx, version, startCmd)
 	return nil
 }

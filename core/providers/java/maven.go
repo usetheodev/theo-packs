@@ -67,6 +67,9 @@ func planMaven(ctx *generate.GenerateContext, version string) error {
 
 func configureMavenDeploy(ctx *generate.GenerateContext, version string) {
 	ctx.Deploy.Base = plan.NewImageLayer(generate.JavaJreImageForVersion(version))
+	if mavenHasSpringBoot(ctx.App) {
+		ctx.Deploy.HealthcheckPath = "/actuator/health"
+	}
 	ctx.Deploy.StartCmd = "java -jar /app/app.jar"
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"/app/app.jar"}}),

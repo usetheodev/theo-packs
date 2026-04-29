@@ -80,6 +80,20 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 		))
 	}
 
+	// HEALTHCHECK on /health — convention adopted by theo-stacks templates
+	// (Rule 2 of Sprint 1: every template has /health). Frameworks that
+	// don't ship one will fail the check, signaling unhealthy — that's the
+	// intended behavior.
+	if fw == FrameworkRails || fw == FrameworkSinatra || fw == FrameworkRack {
+		ctx.Deploy.HealthcheckPath = "/health"
+		switch fw {
+		case FrameworkRails:
+			ctx.Deploy.HealthcheckPort = "${PORT:-3000}"
+		case FrameworkSinatra, FrameworkRack:
+			ctx.Deploy.HealthcheckPort = "${PORT:-4567}"
+		}
+	}
+
 	configureRubyDeploy(ctx, version, startCmd)
 	return nil
 }

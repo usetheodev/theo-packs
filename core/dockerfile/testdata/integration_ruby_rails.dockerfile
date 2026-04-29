@@ -15,4 +15,6 @@ WORKDIR /app
 COPY --from=build /app /app
 ENV BUNDLE_DEPLOYMENT="true"
 ENV BUNDLE_WITHOUT="development:test"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O- http://localhost:${PORT:-3000}/health || exit 1
 CMD ["/bin/sh", "-c", "bundle exec rails server -b 0.0.0.0 -p ${PORT:-3000} -e production"]

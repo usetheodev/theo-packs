@@ -18,4 +18,6 @@ RUN sh -c 'php artisan config:cache || true; php artisan route:cache || true; ph
 FROM php:8.2-cli-bookworm
 WORKDIR /app
 COPY --from=build /app /app
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O- http://localhost:${PORT:-8080}/health || exit 1
 CMD ["/bin/sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]

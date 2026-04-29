@@ -282,9 +282,9 @@ func TestDotnetAspnetImageForVersion(t *testing.T) {
 func TestDotnetRuntimeImageForVersion(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "mcr.microsoft.com/dotnet/runtime:8.0", DotnetRuntimeImageForVersion("8.0"))
-	assert.Equal(t, "mcr.microsoft.com/dotnet/runtime:6.0", DotnetRuntimeImageForVersion("6.0"))
-	assert.Equal(t, "mcr.microsoft.com/dotnet/runtime:8.0", DotnetRuntimeImageForVersion(""))
+	assert.Equal(t, "mcr.microsoft.com/dotnet/runtime:8.0-alpine", DotnetRuntimeImageForVersion("8.0"))
+	assert.Equal(t, "mcr.microsoft.com/dotnet/runtime:6.0-alpine", DotnetRuntimeImageForVersion("6.0"))
+	assert.Equal(t, "mcr.microsoft.com/dotnet/runtime:8.0-alpine", DotnetRuntimeImageForVersion(""))
 }
 
 func TestDenoImageForVersion(t *testing.T) {

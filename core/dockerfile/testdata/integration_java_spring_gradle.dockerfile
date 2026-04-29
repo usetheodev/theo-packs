@@ -14,4 +14,6 @@ RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/app.jar /app/app.jar
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O- http://localhost:${PORT:-8080}/actuator/health || exit 1
 CMD ["java", "-jar", "/app/app.jar"]
