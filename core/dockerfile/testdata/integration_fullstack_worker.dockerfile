@@ -9,8 +9,11 @@ WORKDIR /app
 COPY . .
 
 FROM python:3.12-slim-bookworm
+RUN useradd -r -u 1000 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
-COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=build /usr/local/bin /usr/local/bin
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+COPY --from=build --chown=appuser:appuser /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=build --chown=appuser:appuser /usr/local/bin /usr/local/bin
+USER appuser
 CMD ["python", "worker.py"]

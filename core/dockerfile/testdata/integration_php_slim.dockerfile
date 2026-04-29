@@ -15,8 +15,11 @@ WORKDIR /app
 COPY . .
 
 FROM php:8.1-cli-bookworm
+RUN useradd -r -u 1000 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+USER appuser
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q -O- http://localhost:${PORT:-8080}/health || exit 1
 CMD ["/bin/sh", "-c", "php -S 0.0.0.0:${PORT:-8000} -t public"]

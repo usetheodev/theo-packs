@@ -11,8 +11,11 @@ WORKDIR /app
 COPY . .
 
 FROM ruby:3.3-bookworm-slim
+RUN useradd -r -u 1000 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
 ENV BUNDLE_DEPLOYMENT="true"
 ENV BUNDLE_WITHOUT="development:test"
+USER appuser
 CMD ["/bin/sh", "-c", "cd apps/api && bundle exec rackup -p ${PORT:-4567} -o 0.0.0.0"]

@@ -12,7 +12,9 @@ RUN --mount=type=cache,target=/root/.nuget/packages,sharing=locked \
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=build /app/publish /app/publish
+RUN chown app:app /app
+COPY --from=build --chown=app:app /app/publish /app/publish
+USER app
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q -O- http://localhost:${PORT:-8080}/healthz || exit 1
 CMD ["dotnet", "/app/dotnet-aspnet.dll"]

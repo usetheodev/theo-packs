@@ -15,6 +15,9 @@ WORKDIR /app
 COPY . .
 
 FROM php:8.2-cli-bookworm
+RUN useradd -r -u 1000 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+USER appuser
 CMD ["/bin/sh", "-c", "php -S 0.0.0.0:${PORT:-8000} -t apps/api/public"]

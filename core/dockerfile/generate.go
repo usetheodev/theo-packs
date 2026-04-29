@@ -79,11 +79,24 @@ func writeStep(b *strings.Builder, step *plan.Step, p *plan.BuildPlan) error {
 
 func writeDeploy(b *strings.Builder, deploy *plan.Deploy) {
 	writeFrom(b, deploy.Base, "")
+
+	user, userSetup := resolveDeployUser(deploy.Base)
+	if userSetup != "" {
+		b.WriteString(userSetup)
+	}
+
 	b.WriteString("WORKDIR /app\n")
 
-	// COPY --from for each deploy input
+	if user != "" {
+		// /app was created by WORKDIR as root; chown so the eventual `USER`
+		// can write to it (logs, runtime asset gen, sqlite DB, etc.).
+		fmt.Fprintf(b, "RUN chown %s:%s /app\n", user, user)
+	}
+
+	// COPY --from for each deploy input — with --chown when a non-root user is
+	// present so the user can read/write the deployed bundle.
 	for _, input := range deploy.Inputs {
-		writeDeployInput(b, input)
+		writeDeployInputWithUser(b, input, user)
 	}
 
 	// ENV vars
@@ -92,6 +105,10 @@ func writeDeploy(b *strings.Builder, deploy *plan.Deploy) {
 	// PATH
 	if len(deploy.Paths) > 0 {
 		fmt.Fprintf(b, "ENV PATH=%s:$PATH\n", strings.Join(deploy.Paths, ":"))
+	}
+
+	if user != "" {
+		fmt.Fprintf(b, "USER %s\n", user)
 	}
 
 	// HEALTHCHECK (when the deploy declares an HTTP healthcheck endpoint).
@@ -104,6 +121,51 @@ func writeDeploy(b *strings.Builder, deploy *plan.Deploy) {
 	if deploy.StartCmd != "" {
 		emitCMD(b, deploy.StartCmd)
 	}
+}
+
+// resolveDeployUser returns the non-root username to switch to (USER directive)
+// and the RUN setup needed to create that user, given the deploy base layer.
+//
+// Three regimes:
+//
+//  1. Distroless `:nonroot` (Go/Rust runtime): the image already runs as
+//     UID 65532. Empty user + empty setup = no USER directive emitted.
+//
+//  2. mcr.microsoft.com/dotnet/aspnet (any tag): MS ships an `app` user
+//     (UID 1654) by default. Use it without re-creating.
+//
+//  3. Everything else (debian-slim, eclipse-temurin, ruby/php-cli, deno,
+//     dotnet/runtime, nodejs slim, etc.): emit `RUN useradd -r -u 1000 -m
+//     appuser` (works on debian) or `RUN adduser -D -u 1000 appuser` for
+//     alpine variants.
+//
+// Operators who need a different UID/username override
+// theopacks.json deploy.base.
+func resolveDeployUser(base plan.Layer) (user, setup string) {
+	image := base.Image
+	if image == "" {
+		// Step-based deploy bases (rare); leave as-is.
+		return "", ""
+	}
+
+	// Distroless :nonroot runs as UID 65532 with no shell. No USER directive
+	// needed — the image's default already handles it.
+	if strings.Contains(image, ":nonroot") || strings.HasPrefix(image, "gcr.io/distroless/") {
+		return "", ""
+	}
+
+	// MS .NET runtime images ship a built-in `app` user (UID 1654).
+	if strings.Contains(image, "mcr.microsoft.com/dotnet/") {
+		return "app", ""
+	}
+
+	// Alpine variants don't have useradd; use adduser.
+	if strings.Contains(image, "alpine") {
+		return "appuser", "RUN adduser -D -u 1000 appuser\n"
+	}
+
+	// Default debian/glibc-based runtimes.
+	return "appuser", "RUN useradd -r -u 1000 -m appuser\n"
 }
 
 // writeHealthcheck emits a HEALTHCHECK directive that probes an HTTP endpoint
@@ -219,20 +281,27 @@ func writeLayerCopy(b *strings.Builder, layer plan.Layer) {
 	}
 }
 
-func writeDeployInput(b *strings.Builder, layer plan.Layer) {
+// writeDeployInputWithUser emits a COPY --from directive with optional
+// --chown=<user>:<user> when a non-root user is set. The user must already
+// exist (resolveDeployUser's setup handles that before the first COPY).
+func writeDeployInputWithUser(b *strings.Builder, layer plan.Layer, user string) {
 	if layer.Step == "" {
 		return
 	}
 	src := sanitizeStageName(layer.Step)
+	chown := ""
+	if user != "" {
+		chown = fmt.Sprintf("--chown=%s:%s ", user, user)
+	}
 
 	if len(layer.Include) == 0 {
-		fmt.Fprintf(b, "COPY --from=%s /app /app\n", src)
+		fmt.Fprintf(b, "COPY --from=%s %s/app /app\n", src, chown)
 		return
 	}
 
 	for _, inc := range layer.Include {
 		srcPath, destPath := resolveDeployPaths(inc)
-		fmt.Fprintf(b, "COPY --from=%s %s %s\n", src, srcPath, destPath)
+		fmt.Fprintf(b, "COPY --from=%s %s%s %s\n", src, chown, srcPath, destPath)
 	}
 }
 

@@ -11,10 +11,13 @@ WORKDIR /app
 COPY . .
 
 FROM ruby:3.3-bookworm-slim
+RUN useradd -r -u 1000 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
 ENV BUNDLE_DEPLOYMENT="true"
 ENV BUNDLE_WITHOUT="development:test"
+USER appuser
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q -O- http://localhost:${PORT:-4567}/health || exit 1
 CMD ["/bin/sh", "-c", "bundle exec rackup -p ${PORT:-4567} -o 0.0.0.0"]

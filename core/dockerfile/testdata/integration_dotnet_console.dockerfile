@@ -12,5 +12,7 @@ RUN --mount=type=cache,target=/root/.nuget/packages,sharing=locked \
 
 FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine
 WORKDIR /app
-COPY --from=build /app/publish /app/publish
+RUN chown app:app /app
+COPY --from=build --chown=app:app /app/publish /app/publish
+USER app
 CMD ["dotnet", "/app/dotnet-console.dll"]

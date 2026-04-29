@@ -4,6 +4,9 @@ COPY . .
 RUN sh -c 'go build -o /app/server .'
 
 FROM debian:bookworm-slim
+RUN useradd -r -u 1000 -m appuser
 WORKDIR /app
-COPY --from=build /app/server /app/server
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app/server /app/server
+USER appuser
 CMD ["/app/server"]
