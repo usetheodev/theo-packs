@@ -1,5 +1,11 @@
 # syntax=docker/dockerfile:1
 
+# theo-packs: generated for provider "python".
+# Build context: the directory passed as theopacks-generate --source
+# (workspace root for monorepos, app dir otherwise). When invoking
+# docker build, set --file <this-file> and the context to that same
+# directory. Misalignment is the most common cause of "not found" errors.
+
 FROM python:3.12-bookworm AS install
 WORKDIR /app
 COPY Pipfile ./

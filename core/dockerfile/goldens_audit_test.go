@@ -287,3 +287,19 @@ func TestGoldens_NoPerAppNodeModulesCopy_AcceptsCleanOutput(t *testing.T) {
 			"regex must not match clean pattern: %q", line)
 	}
 }
+
+// TestGoldens_HasProviderHeader asserts every golden carries the defensive
+// header comment naming the producing provider. The header is critical for
+// debugging "context not found" errors against monorepo Dockerfiles — see
+// docs/contracts/theo-packs-cli-contract.md.
+func TestGoldens_HasProviderHeader(t *testing.T) {
+	for _, path := range goldenFiles(t) {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			content := readGolden(t, path)
+			require.Contains(t, content, "# theo-packs: generated for provider",
+				"golden %s missing defensive header (T1.1)", filepath.Base(path))
+			require.Contains(t, content, "Build context:",
+				"golden %s missing build-context guidance (T1.1)", filepath.Base(path))
+		})
+	}
+}

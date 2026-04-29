@@ -1,5 +1,11 @@
 # syntax=docker/dockerfile:1
 
+# theo-packs: generated for provider "dotnet".
+# Build context: the directory passed as theopacks-generate --source
+# (workspace root for monorepos, app dir otherwise). When invoking
+# docker build, set --file <this-file> and the context to that same
+# directory. Misalignment is the most common cause of "not found" errors.
+
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS install
 WORKDIR /app
 COPY src/Api/Api.csproj src/Api/Api.csproj
