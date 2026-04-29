@@ -1,13 +1,17 @@
 FROM node:20-bookworm AS install
 WORKDIR /app
 COPY package.json ./
-RUN sh -c 'npm install'
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'npm install'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
 
 FROM node:20-bookworm-slim
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "node server.js"]
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+USER appuser
+CMD ["node", "server.js"]

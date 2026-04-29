@@ -22,8 +22,11 @@ const (
 // Static runtime images. Used by providers whose runtime stage does not embed
 // the language toolchain (Rust static binaries, PHP-CLI fallback, etc.).
 const (
-	// RustRuntimeImage is the runtime base for Rust binaries (static).
-	RustRuntimeImage = "debian:bookworm-slim"
+	// RustRuntimeImage is the Distroless cc-debian12 image for Rust binaries.
+	// Rust by default links dynamically against glibc; cc-debian12 includes
+	// glibc + ca-certificates (~17MB). The :nonroot variant runs as UID 65532
+	// — no USER directive needed.
+	RustRuntimeImage = "gcr.io/distroless/cc-debian12:nonroot"
 
 	// ComposerImage is the multi-stage source for the composer CLI.
 	ComposerImage = "composer:2"
@@ -133,14 +136,35 @@ func MavenImageForJavaVersion(version string) string {
 	return fmt.Sprintf("maven:3-eclipse-temurin-%s", v)
 }
 
-// RubyImageForVersion returns a single Ruby image used for both build and runtime.
-// Example: "3.3" → "ruby:3.3-bookworm-slim".
+// RubyImageForVersion returns the slim runtime image used by the deploy stage.
+// Docker Hub publishes the slim+distro variants as `<version>-slim-<distro>`
+// (slim BEFORE distro). The reverse order does not exist.
+//
+// Example: "3.3" → "ruby:3.3-slim-bookworm".
 func RubyImageForVersion(version string) string {
 	v := NormalizeToMajorMinor(version)
 	if v == "" {
 		v = DefaultRubyVersion
 	}
-	return fmt.Sprintf("ruby:%s-bookworm-slim", v)
+	return fmt.Sprintf("ruby:%s-slim-bookworm", v)
+}
+
+// RubyBuildImageForVersion returns the full Ruby image (non-slim) for build
+// stages. The non-slim image ships with build-essential, libc6-dev, and other
+// tooling needed to compile native gem extensions (puma, nio4r, nokogiri).
+// Doing this avoids a slow `apt-get install build-essential` against Debian
+// mirrors at install time and gives reproducible builds.
+//
+// gems compiled here run unmodified in RubyImageForVersion (deploy) because
+// both images share the same glibc-bookworm base and Ruby version.
+//
+// Example: "3.3" → "ruby:3.3-bookworm".
+func RubyBuildImageForVersion(version string) string {
+	v := NormalizeToMajorMinor(version)
+	if v == "" {
+		v = DefaultRubyVersion
+	}
+	return fmt.Sprintf("ruby:%s-bookworm", v)
 }
 
 // PhpImageForVersion returns a single PHP CLI image used for both build and runtime.
@@ -175,44 +199,50 @@ func DotnetAspnetImageForVersion(version string) string {
 	return fmt.Sprintf("mcr.microsoft.com/dotnet/aspnet:%s", v)
 }
 
-// DotnetRuntimeImageForVersion returns the slimmer .NET runtime image (no ASP.NET).
-// Use this for console apps and workers (Microsoft.NET.Sdk with OutputType=Exe).
-// Example: "8.0" → "mcr.microsoft.com/dotnet/runtime:8.0".
+// DotnetRuntimeImageForVersion returns the slimmer .NET runtime image for
+// console / worker projects (Microsoft.NET.Sdk with OutputType=Exe).
+//
+// We use the alpine variant (~80MB) instead of the bookworm-based default
+// (~200MB). Alpine + .NET works because the .NET runtime ships its own libc
+// (none of the trimmed AOT surprises that bite alpine + native interop).
+// ASP.NET projects keep the bookworm-based aspnet image (see
+// DotnetAspnetImageForVersion) because some ASP.NET stacks (e.g., SignalR
+// with native TLS) have musl edge cases.
+//
+// Example: "8.0" → "mcr.microsoft.com/dotnet/runtime:8.0-alpine".
 func DotnetRuntimeImageForVersion(version string) string {
 	v := NormalizeToMajorMinor(version)
 	if v == "" {
 		v = DefaultDotnetVersion
 	}
-	return fmt.Sprintf("mcr.microsoft.com/dotnet/runtime:%s", v)
+	return fmt.Sprintf("mcr.microsoft.com/dotnet/runtime:%s-alpine", v)
 }
 
-// DenoImageForVersion returns the Deno debian-based build image for the given
-// major version. The "denoland/deno:bin-<v>" tag we used earlier turned out
-// not to exist on Docker Hub (only specific patch tags + "bin" without version
-// suffix are published). The bare "denoland/deno:<v>" tag is the canonical
-// debian variant.
+// DenoImageForVersion returns the Deno debian-based build image.
 //
-// Example: "2" → "denoland/deno:2".
+// denoland/deno publishes variant tags (`debian`, `alpine`, `bin`, `distroless`)
+// and patch-specific tags (e.g., `debian-2.0.5`). It does NOT publish major-only
+// (`:2`) or major.minor (`:debian-2.1`) tags. So we use the rolling `:debian`
+// for empty/major/major.minor inputs, and only emit `:debian-<full>` when the
+// caller pins a full patch version.
+//
+// Examples:
+//   - empty/major/major.minor → "denoland/deno:debian"
+//   - "2.0.5"                 → "denoland/deno:debian-2.0.5"
 func DenoImageForVersion(version string) string {
-	v := NormalizeToMajor(version)
-	if v == "" {
-		v = DefaultDenoVersion
+	v := cleanVersionPrefix(version)
+	parts := strings.Split(v, ".")
+	if len(parts) >= 3 && parts[2] != "" {
+		return fmt.Sprintf("denoland/deno:debian-%s.%s.%s", parts[0], parts[1], parts[2])
 	}
-	return fmt.Sprintf("denoland/deno:%s", v)
+	return "denoland/deno:debian"
 }
 
-// DenoRuntimeImageForVersion returns the runtime image for the given major
-// version. We use the same debian-based image as build for now; switching to
-// a smaller variant would need verification that the user's app's permissions
-// still work in distroless.
-//
-// Example: "2" → "denoland/deno:2".
+// DenoRuntimeImageForVersion returns the runtime image. Same scheme as
+// DenoImageForVersion — rolling `:debian` for major-only / unspecified, and
+// `:debian-<minor>` for pinned versions.
 func DenoRuntimeImageForVersion(version string) string {
-	v := NormalizeToMajor(version)
-	if v == "" {
-		v = DefaultDenoVersion
-	}
-	return fmt.Sprintf("denoland/deno:%s", v)
+	return DenoImageForVersion(version)
 }
 
 // normalizeRustVersion preserves the level of precision the user gave (major, major.minor,
@@ -269,6 +299,16 @@ func cleanVersionPrefix(version string) string {
 				return strings.TrimSpace(v)
 			}
 		}
+	}
+
+	// Pessimistic / twiddle-wakka notation common in bundler/Cargo:
+	//   "~> 3.3"     → "3.3"
+	//   "~> 3.3.0"   → "3.3.0"
+	// We keep the "~> " separator handling separate from the bare "~" prefix
+	// because the space matters: TrimPrefix("~") on "~> 3.3" yields "> 3.3"
+	// (broken). The block below normalizes both forms.
+	if strings.HasPrefix(version, "~>") {
+		version = strings.TrimSpace(strings.TrimPrefix(version, "~>"))
 	}
 
 	// Caret: "^14.3.2" → "14.3.2" (caller decides precision)

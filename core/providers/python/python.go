@@ -78,6 +78,7 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 func (p *PythonProvider) planRequirements(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cache/pip", "")
 	installStep.AddCommand(plan.NewCopyCommand("requirements.txt", "./"))
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir -r requirements.txt"))
 
@@ -98,6 +99,7 @@ func (p *PythonProvider) planRequirements(ctx *generate.GenerateContext, version
 func (p *PythonProvider) planPoetry(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cache/pip", "")
 
 	// Copy manifests first for caching
 	installStep.AddCommand(plan.NewCopyCommand("pyproject.toml", "./"))
@@ -123,6 +125,7 @@ func (p *PythonProvider) planPoetry(ctx *generate.GenerateContext, version strin
 func (p *PythonProvider) planPipfile(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cache/pip", "")
 
 	// Copy manifests first for caching
 	installStep.AddCommand(plan.NewCopyCommand("Pipfile", "./"))
@@ -148,6 +151,7 @@ func (p *PythonProvider) planPipfile(ctx *generate.GenerateContext, version stri
 func (p *PythonProvider) planPyproject(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cache/pip", "")
 	installStep.AddInput(ctx.NewLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir ."))
 
@@ -163,6 +167,7 @@ func (p *PythonProvider) planPyproject(ctx *generate.GenerateContext, version st
 func (p *PythonProvider) planSetupPy(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cache/pip", "")
 	installStep.AddInput(ctx.NewLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir ."))
 
@@ -180,6 +185,7 @@ func (p *PythonProvider) planSetupPy(ctx *generate.GenerateContext, version stri
 func (p *PythonProvider) planUvWorkspace(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cache/pip", "")
 	installStep.AddInput(ctx.NewLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir uv && uv sync --all-packages --no-dev"))
 

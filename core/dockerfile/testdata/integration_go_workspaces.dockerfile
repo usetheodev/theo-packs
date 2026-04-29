@@ -7,9 +7,11 @@ COPY shared/go.mod shared/
 FROM install AS build
 WORKDIR /app
 COPY . .
-RUN sh -c 'go build -o /app/server ./api'
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
+    sh -c 'go build -ldflags="-s -w" -trimpath -o /app/server ./api'
 
-FROM debian:bookworm-slim
+FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=build /app/server /app/server
-CMD ["/bin/bash", "-c", "/app/server"]
+CMD ["/app/server"]

@@ -3,13 +3,17 @@ WORKDIR /app
 COPY package.json ./
 COPY packages/api/package.json packages/api/
 COPY packages/shared/package.json packages/shared/
-RUN sh -c 'npm install'
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'npm install'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
 
 FROM node:20-bookworm-slim
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "npm start"]
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+USER appuser
+CMD ["npm", "start"]

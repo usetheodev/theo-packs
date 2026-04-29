@@ -41,6 +41,7 @@ func mavenHasSpringBoot(a *app.App) bool {
 func planMaven(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.MavenImageForJavaVersion(version)))
+	installStep.AddCacheMount("/root/.m2", "")
 	installStep.AddCommand(plan.NewCopyCommand("pom.xml", "./"))
 	for _, wrapper := range []string{"mvnw", "mvnw.cmd", ".mvn"} {
 		if ctx.App.HasFile(wrapper) {
@@ -52,9 +53,12 @@ func planMaven(ctx *generate.GenerateContext, version string) error {
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.m2", "")
 	buildStep.AddCommand(plan.NewExecShellCommand("mvn -B -DskipTests package"))
+	// Renderer wraps in sh -c once based on CommandKindShell. Pre-wrap here
+	// used to produce nested sh -c. Pass bare body.
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		"sh -c 'set -e; jar=$(ls target/*.jar | grep -v -- \"-sources\\.jar$\\|-javadoc\\.jar$\\|original-\" | head -n1); cp \"$jar\" /app/app.jar'",
+		"set -e; jar=$(ls target/*.jar | grep -v -- \"-sources\\.jar$\\|-javadoc\\.jar$\\|original-\" | head -n1); cp \"$jar\" /app/app.jar",
 	))
 
 	configureMavenDeploy(ctx, version)
@@ -63,6 +67,9 @@ func planMaven(ctx *generate.GenerateContext, version string) error {
 
 func configureMavenDeploy(ctx *generate.GenerateContext, version string) {
 	ctx.Deploy.Base = plan.NewImageLayer(generate.JavaJreImageForVersion(version))
+	if mavenHasSpringBoot(ctx.App) {
+		ctx.Deploy.HealthcheckPath = "/actuator/health"
+	}
 	ctx.Deploy.StartCmd = "java -jar /app/app.jar"
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"/app/app.jar"}}),
@@ -106,6 +113,7 @@ func planMavenWorkspace(ctx *generate.GenerateContext, version string, modules [
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.MavenImageForJavaVersion(version)))
+	installStep.AddCacheMount("/root/.m2", "")
 	installStep.AddCommand(plan.NewCopyCommand("pom.xml", "./"))
 	for _, mod := range modules {
 		installStep.AddCommand(plan.NewCopyCommand(mod+"/pom.xml", mod+"/"))
@@ -114,11 +122,12 @@ func planMavenWorkspace(ctx *generate.GenerateContext, version string, modules [
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.m2", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("mvn -B -DskipTests -pl %s -am package", target),
 	))
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		fmt.Sprintf("sh -c 'set -e; jar=$(ls %s/target/*.jar | grep -v -- \"-sources\\.jar$\\|-javadoc\\.jar$\\|original-\" | head -n1); cp \"$jar\" /app/app.jar'", target),
+		fmt.Sprintf("set -e; jar=$(ls %s/target/*.jar | grep -v -- \"-sources\\.jar$\\|-javadoc\\.jar$\\|original-\" | head -n1); cp \"$jar\" /app/app.jar", target),
 	))
 
 	configureMavenDeploy(ctx, version)

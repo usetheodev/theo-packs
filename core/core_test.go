@@ -376,7 +376,6 @@ func TestGenerateConfigFromEnvironment(t *testing.T) {
 							{ "src": ".", "dest": "." },
 							"npm install"
 						],
-						"secrets": ["*"],
 						"assets": {},
 						"variables": {}
 					},
@@ -386,7 +385,6 @@ func TestGenerateConfigFromEnvironment(t *testing.T) {
 							{ "src": ".", "dest": "." },
 							"npm run build"
 						],
-						"secrets": ["*"],
 						"assets": {},
 						"variables": {}
 					}

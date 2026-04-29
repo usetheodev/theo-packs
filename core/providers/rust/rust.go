@@ -66,17 +66,34 @@ func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoTom
 	// Install step: copy manifests and warm up dependency cache.
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.RustBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cargo/registry", "")
+	installStep.AddCacheMount("/root/.cargo/git", "")
 	installStep.AddCommand(plan.NewCopyCommand("Cargo.toml", "./"))
 	if ctx.App.HasFile("Cargo.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Cargo.lock", "./"))
 	}
-	installStep.AddCommand(plan.NewExecShellCommand("cargo fetch"))
+	// We deliberately do NOT run `cargo fetch` here. Cargo refuses to parse
+	// a manifest without a target (no src/main.rs, no [lib], no [[bin]] with
+	// path), and the install step intentionally has no source yet — that's
+	// the whole point of layer caching. The build step downloads everything
+	// it needs anyway, and the registry cache mount makes the fetch fast on
+	// rebuild.
 
 	// Build step: copy source and compile in offline mode (deps already fetched).
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
-	buildStep.AddCommand(plan.NewExecShellCommand("cargo build --release --offline"))
+	buildStep.AddCacheMount("/root/.cargo/registry", "")
+	buildStep.AddCacheMount("/root/.cargo/git", "")
+	buildStep.AddCacheMount("/app/target", "")
+	// RUSTFLAGS=-C strip=symbols strips debug info from the release binary
+	// (~30% smaller). Cargo applies it via the build environment without
+	// needing a Cargo.toml profile mutation.
+	buildStep.AddEnvVars(map[string]string{"RUSTFLAGS": "-C strip=symbols"})
+	// `--offline` was removed when we dropped the install-step `cargo fetch`
+	// (manifest-without-source can't be parsed). The cargo registry/git cache
+	// mounts on this step keep rebuilds fast.
+	buildStep.AddCommand(plan.NewExecShellCommand("cargo build --release"))
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("cp target/release/%s /app/server", shellEscape(bin.Name)),
 	))
@@ -104,6 +121,8 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	// at root, plus member Cargo.toml files) so cargo can resolve the workspace.
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.RustBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cargo/registry", "")
+	installStep.AddCacheMount("/root/.cargo/git", "")
 	installStep.AddCommand(plan.NewCopyCommand("Cargo.toml", "./"))
 	if ctx.App.HasFile("Cargo.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Cargo.lock", "./"))
@@ -111,14 +130,19 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	for _, memberPath := range ws.MemberPaths {
 		installStep.AddCommand(plan.NewCopyCommand(memberPath+"/Cargo.toml", memberPath+"/"))
 	}
-	installStep.AddCommand(plan.NewExecShellCommand("cargo fetch"))
+	// No `cargo fetch` here — see explanation in planSimple. Same reasoning
+	// applies more strongly for workspaces because each member's Cargo.toml
+	// references a src that isn't present at this stage.
 
 	// Build step.
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.cargo/registry", "")
+	buildStep.AddCacheMount("/root/.cargo/git", "")
+	buildStep.AddCacheMount("/app/target", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		fmt.Sprintf("cargo build --release --offline -p %s", shellEscape(name)),
+		fmt.Sprintf("cargo build --release -p %s", shellEscape(name)),
 	))
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("cp target/release/%s /app/server", shellEscape(name)),
@@ -128,12 +152,15 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	return nil
 }
 
-// configureDeploy sets the runtime image, runtime apt packages, the start
-// command, and the binary copy filter. Both single-crate and workspace flows
-// produce a binary at /app/server, so the deploy block is shared.
+// configureDeploy sets the runtime image, the start command, and the binary
+// copy filter. Both single-crate and workspace flows produce a binary at
+// /app/server, so the deploy block is shared.
+//
+// The runtime image (RustRuntimeImage = distroless/cc-debian12:nonroot) ships
+// with glibc + ca-certificates already, so we don't need an apt step like
+// the previous debian-slim base did.
 func configureDeploy(ctx *generate.GenerateContext) {
 	ctx.Deploy.Base = plan.NewImageLayer(generate.RustRuntimeImage)
-	ctx.Deploy.AddAptPackages([]string{"ca-certificates"})
 	ctx.Deploy.StartCmd = "/app/server"
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"/app/server"}}),

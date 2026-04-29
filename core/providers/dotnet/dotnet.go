@@ -193,6 +193,7 @@ func (p *DotnetProvider) emitPlan(ctx *generate.GenerateContext, proj *Project, 
 	// changes.
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.DotnetSdkImageForVersion(version)))
+	installStep.AddCacheMount("/root/.nuget/packages", "")
 	installStep.AddCommand(plan.NewCopyCommand(projPath, projPath))
 	if ctx.App.HasFile("global.json") {
 		installStep.AddCommand(plan.NewCopyCommand("global.json", "./"))
@@ -208,13 +209,20 @@ func (p *DotnetProvider) emitPlan(ctx *generate.GenerateContext, proj *Project, 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.nuget/packages", "")
+	// -p:DebugType=None -p:DebugSymbols=false strips PDB files (~25% smaller publish).
+	// -p:PublishTrimmed and AOT are NOT enabled by default because they break
+	// reflection-heavy code (EF Core, AutoMapper). Users can opt in via
+	// theopacks.json buildArgs once we support that.
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		fmt.Sprintf("dotnet publish %s -c Release -o /app/publish --no-restore", shellSafe(projPath)),
+		fmt.Sprintf("dotnet publish %s -c Release -o /app/publish --no-restore -p:DebugType=None -p:DebugSymbols=false", shellSafe(projPath)),
 	))
 
 	// Deploy: pick the runtime image based on whether the project is ASP.NET.
 	if proj.IsAspNet() {
 		ctx.Deploy.Base = plan.NewImageLayer(generate.DotnetAspnetImageForVersion(version))
+		// ASP.NET Core ships UseHealthChecks() middleware; convention is /healthz.
+		ctx.Deploy.HealthcheckPath = "/healthz"
 	} else {
 		ctx.Deploy.Base = plan.NewImageLayer(generate.DotnetRuntimeImageForVersion(version))
 	}

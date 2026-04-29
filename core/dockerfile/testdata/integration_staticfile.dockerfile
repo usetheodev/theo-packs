@@ -3,6 +3,9 @@ WORKDIR /app
 COPY . ./
 
 FROM python:3.12-slim-bookworm
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "python -m http.server 8080"]
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+USER appuser
+CMD ["python", "-m", "http.server", "8080"]

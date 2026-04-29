@@ -52,6 +52,7 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	// Install step — copy manifests first for layer caching
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.NodeBuildImageForVersion(version)))
+	addNodeCacheMounts(installStep, pm)
 
 	if setup := SetupCommand(pm); setup != "" {
 		installStep.AddCommand(plan.NewExecShellCommand(setup))
@@ -86,6 +87,7 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	addNodeCacheMounts(buildStep, pm)
 
 	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
 	appPath, _ := ctx.Env.GetConfigVariable("APP_PATH")
@@ -267,4 +269,19 @@ func runCommand(pm PackageManager, script string) string {
 // npm start reads scripts.start from package.json, which is package-manager agnostic.
 func startCommand() string {
 	return "npm start"
+}
+
+// addNodeCacheMounts attaches per-PM BuildKit cache mounts to a step. We
+// mount each PM's local cache as well as ~/.npm so a hybrid project (e.g.
+// pnpm at the workspace root, npm in a subpackage) still gets full reuse.
+func addNodeCacheMounts(step *generate.CommandStepBuilder, pm PackageManager) {
+	step.AddCacheMount("/root/.npm", "")
+	switch pm {
+	case PackageManagerPnpm:
+		step.AddCacheMount("/root/.local/share/pnpm/store", "")
+	case PackageManagerYarn:
+		step.AddCacheMount("/usr/local/share/.cache/yarn", "")
+	case PackageManagerBun:
+		step.AddCacheMount("/root/.bun/install/cache", "")
+	}
 }

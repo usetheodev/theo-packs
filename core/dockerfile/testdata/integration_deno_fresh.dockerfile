@@ -1,15 +1,22 @@
-FROM denoland/deno:2 AS install
+FROM denoland/deno:debian AS install
 WORKDIR /app
 COPY deno.json ./
 COPY main.ts ./
-RUN sh -c 'deno cache main.ts'
+RUN --mount=type=cache,target=/deno-dir,sharing=locked \
+    sh -c 'deno cache main.ts'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
-RUN sh -c 'deno task build'
+RUN --mount=type=cache,target=/deno-dir,sharing=locked \
+    sh -c 'deno task build'
 
-FROM denoland/deno:2
+FROM denoland/deno:debian
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "deno task start"]
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+USER appuser
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O- http://localhost:${PORT:-8080}/health || exit 1
+CMD ["deno", "task", "start"]
