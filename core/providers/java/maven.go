@@ -118,6 +118,10 @@ func planMavenWorkspace(ctx *generate.GenerateContext, version string, modules [
 	for _, mod := range modules {
 		installStep.AddCommand(plan.NewCopyCommand(mod+"/pom.xml", mod+"/"))
 	}
+	// Warm the Maven local repo from the multi-module poms — same rationale
+	// as planMaven. Maven resolves dependencies from the pom graph alone, no
+	// source files needed.
+	installStep.AddCommand(plan.NewExecShellCommand("mvn -B -DskipTests dependency:go-offline"))
 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))

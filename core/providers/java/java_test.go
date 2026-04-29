@@ -13,6 +13,7 @@ import (
 	"github.com/usetheo/theopacks/core/config"
 	"github.com/usetheo/theopacks/core/generate"
 	"github.com/usetheo/theopacks/core/logger"
+	"github.com/usetheo/theopacks/core/plan"
 )
 
 func createTempApp(t *testing.T, files map[string]string) *app.App {
@@ -343,5 +344,85 @@ func TestPlanMavenWorkspace_BadAppName(t *testing.T) {
 	err := (&JavaProvider{}).Plan(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no module named")
+}
+
+// --- Phase 3: install-step dep cache warmup ---
+
+// installStepCommands returns the rendered command bodies of the install
+// step in order. Used to assert dependency-warming is in place.
+func installStepCommands(t *testing.T, ctx *generate.GenerateContext) []string {
+	t.Helper()
+	for _, s := range ctx.Steps {
+		if s.Name() != "install" {
+			continue
+		}
+		csb, ok := s.(*generate.CommandStepBuilder)
+		require.True(t, ok)
+		out := make([]string, 0, len(csb.Commands))
+		for _, c := range csb.Commands {
+			ec, ok := c.(plan.ExecCommand)
+			if !ok {
+				continue
+			}
+			out = append(out, ec.Cmd)
+		}
+		return out
+	}
+	t.Fatal("no install step found")
+	return nil
+}
+
+func TestPlanGradle_InstallWarmsDeps(t *testing.T) {
+	a := createTempApp(t, map[string]string{
+		"build.gradle.kts":       springGradleKts,
+		"settings.gradle.kts":    `rootProject.name = "demo"`,
+		"src/main/java/App.java": "public class App {}",
+	})
+	ctx := createTestContext(t, a, nil)
+	require.NoError(t, (&JavaProvider{}).Plan(ctx))
+
+	cmds := installStepCommands(t, ctx)
+	require.Contains(t, cmds, "gradle dependencies --no-daemon --refresh-dependencies")
+}
+
+func TestPlanGradleWorkspace_InstallWarmsDeps(t *testing.T) {
+	a := createTempApp(t, map[string]string{
+		"build.gradle.kts":          springGradleKts,
+		"settings.gradle.kts":       `include(":apps:api")`,
+		"apps/api/build.gradle.kts": "plugins{}",
+	})
+	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	require.NoError(t, (&JavaProvider{}).Plan(ctx))
+
+	cmds := installStepCommands(t, ctx)
+	require.Contains(t, cmds, "gradle dependencies --no-daemon --refresh-dependencies")
+}
+
+func TestPlanMaven_InstallWarmsDeps(t *testing.T) {
+	a := createTempApp(t, map[string]string{
+		"pom.xml":                springPomXml,
+		"src/main/java/App.java": "public class App {}",
+	})
+	ctx := createTestContext(t, a, nil)
+	require.NoError(t, (&JavaProvider{}).Plan(ctx))
+
+	cmds := installStepCommands(t, ctx)
+	require.Contains(t, cmds, "mvn -B -DskipTests dependency:go-offline")
+}
+
+func TestPlanMavenWorkspace_InstallWarmsDeps(t *testing.T) {
+	a := createTempApp(t, map[string]string{
+		"pom.xml": `<?xml version="1.0"?><project>
+<modelVersion>4.0.0</modelVersion>
+<groupId>x</groupId><artifactId>p</artifactId><version>1.0</version>
+<packaging>pom</packaging>
+<modules><module>apps/api</module></modules></project>`,
+		"apps/api/pom.xml": springPomXml,
+	})
+	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	require.NoError(t, (&JavaProvider{}).Plan(ctx))
+
+	cmds := installStepCommands(t, ctx)
+	require.Contains(t, cmds, "mvn -B -DskipTests dependency:go-offline")
 }
 

@@ -74,6 +74,13 @@ func planGradle(ctx *generate.GenerateContext, version string) error {
 			installStep.AddCommand(plan.NewCopyCommand(wrapper, "./"))
 		}
 	}
+	// Warm the Gradle dep cache from manifests only — `gradle dependencies`
+	// resolves and downloads every artifact without compiling source. Now the
+	// install layer's hash depends only on the manifests, so cold builds reuse
+	// the Docker layer cache when only application code changes.
+	// `--refresh-dependencies` invalidates SNAPSHOT metadata; `--no-daemon`
+	// matches the build step.
+	installStep.AddCommand(plan.NewExecShellCommand("gradle dependencies --no-daemon --refresh-dependencies"))
 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
@@ -165,6 +172,8 @@ func planGradleWorkspace(ctx *generate.GenerateContext, version string, subproje
 			installStep.AddCommand(plan.NewCopyCommand(manifest, "./"))
 		}
 	}
+	// Warm the Gradle dep cache — see planGradle for rationale.
+	installStep.AddCommand(plan.NewExecShellCommand("gradle dependencies --no-daemon --refresh-dependencies"))
 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
