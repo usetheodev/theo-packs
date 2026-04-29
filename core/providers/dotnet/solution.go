@@ -19,7 +19,8 @@ type SolutionEntry struct {
 }
 
 // Visual Studio solution file format. Sample:
-//   Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyApi", "src\MyApi\MyApi.csproj", "{B2A7...}"
+//
+//	Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyApi", "src\MyApi\MyApi.csproj", "{B2A7...}"
 var solutionLineRe = regexp.MustCompile(`(?m)^Project\("\{[^}]+\}"\)\s*=\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"\{[^}]+\}"`)
 
 // parseSolution parses a .sln file and returns its project entries. Only

@@ -52,9 +52,9 @@ func TestDetectWorkspace_GlobMembers(t *testing.T) {
 		"Cargo.toml": `[workspace]
 members = ["apps/*", "packages/*"]
 `,
-		"apps/api/Cargo.toml":         `[package]` + "\n" + `name = "api"` + "\n",
-		"apps/web/Cargo.toml":         `[package]` + "\n" + `name = "web"` + "\n",
-		"packages/shared/Cargo.toml":  `[package]` + "\n" + `name = "shared"` + "\n",
+		"apps/api/Cargo.toml":        `[package]` + "\n" + `name = "api"` + "\n",
+		"apps/web/Cargo.toml":        `[package]` + "\n" + `name = "web"` + "\n",
+		"packages/shared/Cargo.toml": `[package]` + "\n" + `name = "shared"` + "\n",
 	})
 
 	ws := DetectWorkspace(a, logger.NewLogger())

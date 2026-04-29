@@ -258,3 +258,119 @@ func TestE2E_GoWorkspace_BuildsImage(t *testing.T) {
 	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
 	require.NoError(t, err, "go workspace binary missing: %s", string(output))
 }
+
+// runE2EBuild is a small helper for the simpler "build & assert exists" cases
+// to keep new-language tests succinct. It lets each test focus on the assertion
+// that's specific to that language.
+func runE2EBuild(t *testing.T, exampleName, tag string, env map[string]string) string {
+	t.Helper()
+	if !dockerAvailable() {
+		t.Skip("Docker not available")
+	}
+	dir := filepath.Join(examplesDir(t), exampleName)
+	df := generateDockerfile(t, dir, env)
+	t.Cleanup(func() { removeImage(tag) })
+	buildImage(t, dir, df, tag)
+	require.True(t, imageExists(tag))
+	return dir
+}
+
+func TestE2E_RustAxum_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-rust-axum:test"
+	runE2EBuild(t, "rust-axum", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
+	require.NoError(t, err, "rust binary missing: %s", string(output))
+}
+
+func TestE2E_RustWorkspace_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-rust-workspace:test"
+	runE2EBuild(t, "rust-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
+	require.NoError(t, err, "rust workspace binary missing: %s", string(output))
+}
+
+func TestE2E_JavaSpringGradle_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-java-spring-gradle:test"
+	runE2EBuild(t, "java-spring-gradle", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/app.jar").CombinedOutput()
+	require.NoError(t, err, "fat JAR missing: %s", string(output))
+}
+
+func TestE2E_JavaGradleWorkspace_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-java-gradle-workspace:test"
+	runE2EBuild(t, "java-gradle-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/app.jar").CombinedOutput()
+	require.NoError(t, err, "workspace fat JAR missing: %s", string(output))
+}
+
+func TestE2E_DotnetAspnet_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-dotnet-aspnet:test"
+	runE2EBuild(t, "dotnet-aspnet", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/publish").CombinedOutput()
+	require.NoError(t, err, "publish output missing: %s", string(output))
+	require.Contains(t, string(output), "dotnet-aspnet.dll")
+}
+
+func TestE2E_DotnetSolution_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-dotnet-solution:test"
+	runE2EBuild(t, "dotnet-solution", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/publish").CombinedOutput()
+	require.NoError(t, err, "solution publish missing: %s", string(output))
+}
+
+func TestE2E_RubySinatra_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-ruby-sinatra:test"
+	runE2EBuild(t, "ruby-sinatra", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "bundle", "exec", "ruby", "-rsinatra", "-e", "puts Sinatra::VERSION").CombinedOutput()
+	require.NoError(t, err, "sinatra not installed: %s", string(output))
+	require.NotEmpty(t, strings.TrimSpace(string(output)))
+}
+
+func TestE2E_RubyMonorepo_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-ruby-monorepo:test"
+	runE2EBuild(t, "ruby-monorepo", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/config.ru").CombinedOutput()
+	require.NoError(t, err, "monorepo source missing: %s", string(output))
+}
+
+func TestE2E_PhpSlim_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-php-slim:test"
+	runE2EBuild(t, "php-slim", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "php", "--version").CombinedOutput()
+	require.NoError(t, err, "php not present: %s", string(output))
+	require.Contains(t, string(output), "PHP")
+}
+
+func TestE2E_PhpMonorepo_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-php-monorepo:test"
+	runE2EBuild(t, "php-monorepo", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/public/index.php").CombinedOutput()
+	require.NoError(t, err, "monorepo entry missing: %s", string(output))
+}
+
+func TestE2E_DenoHono_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-deno-hono:test"
+	runE2EBuild(t, "deno-hono", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "deno", "--version").CombinedOutput()
+	require.NoError(t, err, "deno not present: %s", string(output))
+	require.Contains(t, string(output), "deno")
+}
+
+func TestE2E_DenoWorkspace_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-deno-workspace:test"
+	runE2EBuild(t, "deno-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/main.ts").CombinedOutput()
+	require.NoError(t, err, "workspace member entry missing: %s", string(output))
+}

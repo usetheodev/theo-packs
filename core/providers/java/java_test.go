@@ -230,8 +230,8 @@ func TestMavenHasSpringBoot_Plain(t *testing.T) {
 
 func TestPlanGradle_SpringBoot(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"build.gradle.kts": springGradleKts,
-		"settings.gradle.kts": `rootProject.name = "demo"`,
+		"build.gradle.kts":       springGradleKts,
+		"settings.gradle.kts":    `rootProject.name = "demo"`,
 		"src/main/java/App.java": "public class App {}",
 	})
 	ctx := createTestContext(t, a, nil)
@@ -293,9 +293,9 @@ func TestGradleSubprojects(t *testing.T) {
 		"settings.gradle.kts": `rootProject.name = "monorepo"
 include(":apps:api", ":apps:worker", ":packages:shared")
 `,
-		"apps/api/build.gradle.kts":         "plugins{}",
-		"apps/worker/build.gradle.kts":      "plugins{}",
-		"packages/shared/build.gradle.kts":  "plugins{}",
+		"apps/api/build.gradle.kts":        "plugins{}",
+		"apps/worker/build.gradle.kts":     "plugins{}",
+		"packages/shared/build.gradle.kts": "plugins{}",
 	})
 	got := gradleSubprojects(a)
 	require.ElementsMatch(t, []string{"apps/api", "apps/worker", "packages/shared"}, got)
@@ -310,7 +310,7 @@ func TestGradleSubprojects_NoSettings(t *testing.T) {
 
 func TestGradleSubprojects_FiltersMissing(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"settings.gradle.kts": `include(":apps:api", ":apps:nope")`,
+		"settings.gradle.kts":       `include(":apps:api", ":apps:nope")`,
 		"apps/api/build.gradle.kts": "plugins{}",
 		// apps/nope has no build.gradle*.
 	})
@@ -320,8 +320,8 @@ func TestGradleSubprojects_FiltersMissing(t *testing.T) {
 
 func TestPlanGradleWorkspace_SelectsApp(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"build.gradle.kts": springGradleKts,
-		"settings.gradle.kts": `include(":apps:api", ":apps:worker")`,
+		"build.gradle.kts":             springGradleKts,
+		"settings.gradle.kts":          `include(":apps:api", ":apps:worker")`,
 		"apps/api/build.gradle.kts":    `plugins { id("org.springframework.boot") }`,
 		"apps/worker/build.gradle.kts": `plugins { id("org.springframework.boot") }`,
 	})
@@ -332,8 +332,8 @@ func TestPlanGradleWorkspace_SelectsApp(t *testing.T) {
 
 func TestPlanGradleWorkspace_AmbiguousNoEnv(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"build.gradle.kts": springGradleKts,
-		"settings.gradle.kts": `include(":apps:api", ":apps:worker")`,
+		"build.gradle.kts":             springGradleKts,
+		"settings.gradle.kts":          `include(":apps:api", ":apps:worker")`,
 		"apps/api/build.gradle.kts":    "plugins{}",
 		"apps/worker/build.gradle.kts": "plugins{}",
 	})
@@ -345,8 +345,8 @@ func TestPlanGradleWorkspace_AmbiguousNoEnv(t *testing.T) {
 
 func TestPlanGradleWorkspace_BadAppName(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"build.gradle.kts": springGradleKts,
-		"settings.gradle.kts": `include(":apps:api")`,
+		"build.gradle.kts":          springGradleKts,
+		"settings.gradle.kts":       `include(":apps:api")`,
 		"apps/api/build.gradle.kts": "plugins{}",
 	})
 	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "ghost"})
@@ -398,7 +398,7 @@ func TestPlanMavenWorkspace(t *testing.T) {
 
 func TestPlanMavenWorkspace_BadAppName(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"pom.xml": `<project><modules><module>apps/api</module></modules></project>`,
+		"pom.xml":          `<project><modules><module>apps/api</module></modules></project>`,
 		"apps/api/pom.xml": springPomXml,
 	})
 	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "ghost"})
