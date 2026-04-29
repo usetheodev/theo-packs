@@ -1,20 +1,28 @@
 #!/usr/bin/env bash
-# Opens the multi-language-providers PR against usetheodev/theo-packs.
+# Opens a pull request against usetheodev/theo-packs via the GitHub REST API.
 #
-# Why this exists: the sandbox where this branch was authored has neither
+# Why this exists: sandboxes that author branches frequently have neither
 # `gh` authenticated nor an interactive shell to run `gh auth login`. The
-# branch is pushed; only the PR creation needs a credential. Any of the
-# following invocations is sufficient.
+# branch is pushed; only the PR creation needs a credential.
 #
-# Usage:
-#   GH_TOKEN=<personal-access-token> ./scripts/open-multi-language-pr.sh
+# All four PR fields default to the multi-language-providers PR but can be
+# overridden via env vars to reuse this script for any subsequent PR.
 #
-# Or with gh (which already covers this — but kept here for parity):
-#   gh pr create \
-#     --base main \
-#     --head feat/add-six-language-providers \
-#     --title 'feat: add Rust, Java, .NET, Ruby, PHP, and Deno language providers' \
-#     --body-file docs/plans/PR_DESCRIPTION.md
+# Usage examples
+# --------------
+# Multi-language providers PR (defaults):
+#   GH_TOKEN=<pat> ./scripts/open-pr.sh
+#
+# Dockerfile correctness + efficiency PR:
+#   GH_TOKEN=<pat> \
+#     HEAD_BRANCH=feat/dockerfile-correctness-and-efficiency \
+#     BASE_BRANCH=develop \
+#     TITLE='fix(dockerfile): correctness + efficiency (11 audit findings)' \
+#     BODY_FILE=docs/plans/PR_DESCRIPTION_DOCKERFILE_FIX.md \
+#     ./scripts/open-pr.sh
+#
+# Or with gh (covers this case too):
+#   gh pr create --base develop --head <branch> --title '<title>' --body-file <file>
 #
 # The PAT needs `repo` scope (Classic) or `Pull requests: write` +
 # `Contents: read` (fine-grained, scoped to usetheodev/theo-packs).
