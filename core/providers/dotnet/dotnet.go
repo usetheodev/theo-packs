@@ -193,6 +193,7 @@ func (p *DotnetProvider) emitPlan(ctx *generate.GenerateContext, proj *Project, 
 	// changes.
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.DotnetSdkImageForVersion(version)))
+	installStep.AddCacheMount("/root/.nuget/packages", "")
 	installStep.AddCommand(plan.NewCopyCommand(projPath, projPath))
 	if ctx.App.HasFile("global.json") {
 		installStep.AddCommand(plan.NewCopyCommand("global.json", "./"))
@@ -208,6 +209,7 @@ func (p *DotnetProvider) emitPlan(ctx *generate.GenerateContext, proj *Project, 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.nuget/packages", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("dotnet publish %s -c Release -o /app/publish --no-restore", shellSafe(projPath)),
 	))

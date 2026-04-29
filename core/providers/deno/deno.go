@@ -63,6 +63,7 @@ func (p *DenoProvider) planSimple(ctx *generate.GenerateContext, cfg *DenoConfig
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.DenoImageForVersion(version)))
+	installStep.AddCacheMount("/deno-dir", "")
 	for _, name := range []string{"deno.json", "deno.jsonc", "deno.lock", "import_map.json"} {
 		if ctx.App.HasFile(name) {
 			installStep.AddCommand(plan.NewCopyCommand(name, "./"))
@@ -76,6 +77,7 @@ func (p *DenoProvider) planSimple(ctx *generate.GenerateContext, cfg *DenoConfig
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/deno-dir", "")
 	if cfg != nil {
 		if _, ok := cfg.Tasks["build"]; ok {
 			buildStep.AddCommand(plan.NewExecShellCommand("deno task build"))
@@ -103,6 +105,7 @@ func (p *DenoProvider) planWorkspace(ctx *generate.GenerateContext, cfg *DenoCon
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.DenoImageForVersion(version)))
+	installStep.AddCacheMount("/deno-dir", "")
 	for _, root := range []string{"deno.json", "deno.jsonc", "deno.lock"} {
 		if ctx.App.HasFile(root) {
 			installStep.AddCommand(plan.NewCopyCommand(root, "./"))
@@ -117,6 +120,7 @@ func (p *DenoProvider) planWorkspace(ctx *generate.GenerateContext, cfg *DenoCon
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/deno-dir", "")
 
 	startCmd := procfileWebCommand(ctx.App)
 	if startCmd == "" {

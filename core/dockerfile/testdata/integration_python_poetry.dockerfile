@@ -2,7 +2,8 @@ FROM python:3.12-bookworm AS install
 WORKDIR /app
 COPY pyproject.toml ./
 COPY poetry.lock ./
-RUN sh -c 'pip install --no-cache-dir poetry && poetry config virtualenvs.create false && poetry install --no-root --no-interaction --no-ansi'
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    sh -c 'pip install --no-cache-dir poetry && poetry config virtualenvs.create false && poetry install --no-root --no-interaction --no-ansi'
 
 FROM install AS build
 WORKDIR /app

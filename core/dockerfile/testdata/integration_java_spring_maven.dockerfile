@@ -1,13 +1,16 @@
 FROM maven:3-eclipse-temurin-21 AS install
 WORKDIR /app
 COPY pom.xml ./
-RUN sh -c 'mvn -B -DskipTests dependency:go-offline'
+RUN --mount=type=cache,target=/root/.m2,sharing=locked \
+    sh -c 'mvn -B -DskipTests dependency:go-offline'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
-RUN sh -c 'mvn -B -DskipTests package'
-RUN sh -c 'set -e; jar=$(ls target/*.jar | grep -v -- "-sources\.jar$\|-javadoc\.jar$\|original-" | head -n1); cp "$jar" /app/app.jar'
+RUN --mount=type=cache,target=/root/.m2,sharing=locked \
+    sh -c 'mvn -B -DskipTests package'
+RUN --mount=type=cache,target=/root/.m2,sharing=locked \
+    sh -c 'set -e; jar=$(ls target/*.jar | grep -v -- "-sources\.jar$\|-javadoc\.jar$\|original-" | head -n1); cp "$jar" /app/app.jar'
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app

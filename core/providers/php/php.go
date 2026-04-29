@@ -61,10 +61,12 @@ func (p *PhpProvider) planSimple(ctx *generate.GenerateContext, composer *Compos
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PhpImageForVersion(version)))
-	// Bring composer in via multi-stage. We embed the COPY into a shell
-	// command that also runs composer; theo-packs' plan model doesn't have
-	// first-class multi-stage tool stamping, so we use the cached binary
-	// from the composer:2 image and copy it in.
+	installStep.AddCacheMount("/var/cache/apt", "")
+	installStep.AddCacheMount("/var/lib/apt/lists", "")
+	installStep.AddCacheMount("/root/.composer/cache", "")
+	// Bring composer in via the official installer. theo-packs renders each
+	// command through `sh -c`, so we must NOT wrap our own `sh -c '...'`
+	// around it (double-wrapping breaks quoting and apt-get sees no args).
 	installStep.AddCommand(plan.NewExecShellCommand(
 		"apt-get update && apt-get install -y --no-install-recommends git unzip ca-certificates && rm -rf /var/lib/apt/lists/* && curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer",
 	))
@@ -105,6 +107,9 @@ func (p *PhpProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspace
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PhpImageForVersion(version)))
+	installStep.AddCacheMount("/var/cache/apt", "")
+	installStep.AddCacheMount("/var/lib/apt/lists", "")
+	installStep.AddCacheMount("/root/.composer/cache", "")
 	installStep.AddCommand(plan.NewExecShellCommand(
 		"apt-get update && apt-get install -y --no-install-recommends git unzip ca-certificates && rm -rf /var/lib/apt/lists/* && curl -fsSL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer",
 	))

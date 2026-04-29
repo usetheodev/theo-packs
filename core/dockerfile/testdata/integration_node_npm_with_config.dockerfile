@@ -1,7 +1,8 @@
 FROM node:20-bookworm AS install
 WORKDIR /app
 COPY package.json ./
-RUN sh -c 'npm install'
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'npm install'
 
 FROM install AS build
 WORKDIR /app

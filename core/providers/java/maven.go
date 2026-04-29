@@ -41,6 +41,7 @@ func mavenHasSpringBoot(a *app.App) bool {
 func planMaven(ctx *generate.GenerateContext, version string) error {
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.MavenImageForJavaVersion(version)))
+	installStep.AddCacheMount("/root/.m2", "")
 	installStep.AddCommand(plan.NewCopyCommand("pom.xml", "./"))
 	for _, wrapper := range []string{"mvnw", "mvnw.cmd", ".mvn"} {
 		if ctx.App.HasFile(wrapper) {
@@ -52,6 +53,7 @@ func planMaven(ctx *generate.GenerateContext, version string) error {
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.m2", "")
 	buildStep.AddCommand(plan.NewExecShellCommand("mvn -B -DskipTests package"))
 	// Renderer wraps in sh -c once based on CommandKindShell. Pre-wrap here
 	// used to produce nested sh -c. Pass bare body.
@@ -108,6 +110,7 @@ func planMavenWorkspace(ctx *generate.GenerateContext, version string, modules [
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.MavenImageForJavaVersion(version)))
+	installStep.AddCacheMount("/root/.m2", "")
 	installStep.AddCommand(plan.NewCopyCommand("pom.xml", "./"))
 	for _, mod := range modules {
 		installStep.AddCommand(plan.NewCopyCommand(mod+"/pom.xml", mod+"/"))
@@ -116,6 +119,7 @@ func planMavenWorkspace(ctx *generate.GenerateContext, version string, modules [
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.m2", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("mvn -B -DskipTests -pl %s -am package", target),
 	))

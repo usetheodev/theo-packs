@@ -4,13 +4,21 @@ COPY Cargo.toml ./
 COPY apps/api/Cargo.toml apps/api/
 COPY apps/worker/Cargo.toml apps/worker/
 COPY packages/shared/Cargo.toml packages/shared/
-RUN sh -c 'cargo fetch'
+RUN --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+    sh -c 'cargo fetch'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
-RUN sh -c 'cargo build --release --offline -p api'
-RUN sh -c 'cp target/release/api /app/server'
+RUN --mount=type=cache,target=/app/target,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+    sh -c 'cargo build --release --offline -p api'
+RUN --mount=type=cache,target=/app/target,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+    sh -c 'cp target/release/api /app/server'
 
 FROM debian:bookworm-slim AS packages-apt-runtime
 WORKDIR /app

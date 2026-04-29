@@ -1,8 +1,10 @@
 FROM ruby:3.3-bookworm-slim AS install
 WORKDIR /app
 COPY Gemfile ./
-RUN sh -c 'bundle config set --local without development:test'
-RUN sh -c 'bundle install --jobs 4 --retry 3'
+RUN --mount=type=cache,target=/usr/local/bundle,sharing=locked \
+    sh -c 'bundle config set --local without development:test'
+RUN --mount=type=cache,target=/usr/local/bundle,sharing=locked \
+    sh -c 'bundle install --jobs 4 --retry 3'
 
 FROM install AS build
 WORKDIR /app

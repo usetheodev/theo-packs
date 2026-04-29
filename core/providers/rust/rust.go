@@ -66,6 +66,8 @@ func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoTom
 	// Install step: copy manifests and warm up dependency cache.
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.RustBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cargo/registry", "")
+	installStep.AddCacheMount("/root/.cargo/git", "")
 	installStep.AddCommand(plan.NewCopyCommand("Cargo.toml", "./"))
 	if ctx.App.HasFile("Cargo.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Cargo.lock", "./"))
@@ -76,6 +78,9 @@ func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoTom
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.cargo/registry", "")
+	buildStep.AddCacheMount("/root/.cargo/git", "")
+	buildStep.AddCacheMount("/app/target", "")
 	buildStep.AddCommand(plan.NewExecShellCommand("cargo build --release --offline"))
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("cp target/release/%s /app/server", shellEscape(bin.Name)),
@@ -104,6 +109,8 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	// at root, plus member Cargo.toml files) so cargo can resolve the workspace.
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.RustBuildImageForVersion(version)))
+	installStep.AddCacheMount("/root/.cargo/registry", "")
+	installStep.AddCacheMount("/root/.cargo/git", "")
 	installStep.AddCommand(plan.NewCopyCommand("Cargo.toml", "./"))
 	if ctx.App.HasFile("Cargo.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Cargo.lock", "./"))
@@ -117,6 +124,9 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.cargo/registry", "")
+	buildStep.AddCacheMount("/root/.cargo/git", "")
+	buildStep.AddCacheMount("/app/target", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("cargo build --release --offline -p %s", shellEscape(name)),
 	))

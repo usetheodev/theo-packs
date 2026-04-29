@@ -57,6 +57,7 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.RubyImageForVersion(version)))
+	installStep.AddCacheMount("/usr/local/bundle", "")
 	installStep.AddCommand(plan.NewCopyCommand("Gemfile", "./"))
 	if ctx.App.HasFile("Gemfile.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Gemfile.lock", "./"))
@@ -95,6 +96,7 @@ func (p *RubyProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspac
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.RubyImageForVersion(version)))
+	installStep.AddCacheMount("/usr/local/bundle", "")
 	installStep.AddCommand(plan.NewCopyCommand("Gemfile", "./"))
 	if ctx.App.HasFile("Gemfile.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Gemfile.lock", "./"))

@@ -1,13 +1,21 @@
 FROM rust:1-bookworm AS install
 WORKDIR /app
 COPY Cargo.toml ./
-RUN sh -c 'cargo fetch'
+RUN --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+    sh -c 'cargo fetch'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
-RUN sh -c 'cargo build --release --offline'
-RUN sh -c 'cp target/release/rust-axum-example /app/server'
+RUN --mount=type=cache,target=/app/target,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+    sh -c 'cargo build --release --offline'
+RUN --mount=type=cache,target=/app/target,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+    sh -c 'cp target/release/rust-axum-example /app/server'
 
 FROM debian:bookworm-slim AS packages-apt-runtime
 WORKDIR /app

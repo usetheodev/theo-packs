@@ -3,7 +3,8 @@ WORKDIR /app
 COPY package.json ./
 COPY packages/api/package.json packages/api/
 COPY packages/shared/package.json packages/shared/
-RUN sh -c 'npm install'
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'npm install'
 
 FROM install AS build
 WORKDIR /app

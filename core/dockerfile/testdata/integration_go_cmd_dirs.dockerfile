@@ -1,12 +1,16 @@
 FROM golang:1.22-bookworm AS install
 WORKDIR /app
 COPY go.mod ./
-RUN sh -c 'go mod download'
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
+    sh -c 'go mod download'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
-RUN sh -c 'go build -o /app/server ./cmd/server'
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
+    sh -c 'go build -o /app/server ./cmd/server'
 
 FROM debian:bookworm-slim
 WORKDIR /app

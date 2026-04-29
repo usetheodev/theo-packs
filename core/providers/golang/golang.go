@@ -46,6 +46,8 @@ func (p *GoProvider) planSimple(ctx *generate.GenerateContext, version string) e
 	// Install step: copy manifests and download deps (cacheable layer)
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.GoBuildImageForVersion(version)))
+	installStep.AddCacheMount("/go/pkg/mod", "")
+	installStep.AddCacheMount("/root/.cache/go-build", "")
 	installStep.AddCommand(plan.NewCopyCommand("go.mod", "./"))
 	if ctx.App.HasFile("go.sum") {
 		installStep.AddCommand(plan.NewCopyCommand("go.sum", "./"))
@@ -56,6 +58,8 @@ func (p *GoProvider) planSimple(ctx *generate.GenerateContext, version string) e
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/go/pkg/mod", "")
+	buildStep.AddCacheMount("/root/.cache/go-build", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -o /app/server %s", target)))
 
 	// Go compiles to a static binary, so the runtime image is always debian slim
@@ -82,6 +86,8 @@ func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext, version string
 	// Install step: copy workspace manifests and download deps
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.GoBuildImageForVersion(version)))
+	installStep.AddCacheMount("/go/pkg/mod", "")
+	installStep.AddCacheMount("/root/.cache/go-build", "")
 
 	installStep.AddCommand(plan.NewCopyCommand("go.work", "./"))
 	if ctx.App.HasFile("go.work.sum") {
@@ -115,6 +121,8 @@ func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext, version string
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/go/pkg/mod", "")
+	buildStep.AddCacheMount("/root/.cache/go-build", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -o /app/server ./%s", target)))
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.GoRuntimeImage)

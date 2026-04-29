@@ -7,7 +7,8 @@ COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/ui/package.json packages/ui/
 COPY packages/utils/package.json packages/utils/
-RUN sh -c 'npm ci'
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'npm ci'
 
 FROM install AS build
 WORKDIR /app

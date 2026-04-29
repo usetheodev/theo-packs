@@ -1,7 +1,8 @@
 FROM python:3.12-bookworm AS install
 WORKDIR /app
 COPY . .
-RUN sh -c 'pip install --no-cache-dir .'
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    sh -c 'pip install --no-cache-dir .'
 
 FROM python:3.12-slim-bookworm
 WORKDIR /app

@@ -1,7 +1,8 @@
 FROM python:3.12-bookworm AS install
 WORKDIR /app
 COPY Pipfile ./
-RUN sh -c 'pip install --no-cache-dir pipenv && pipenv requirements > requirements-pipfile.txt && pip install --no-cache-dir -r requirements-pipfile.txt'
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    sh -c 'pip install --no-cache-dir pipenv && pipenv requirements > requirements-pipfile.txt && pip install --no-cache-dir -r requirements-pipfile.txt'
 
 FROM install AS build
 WORKDIR /app

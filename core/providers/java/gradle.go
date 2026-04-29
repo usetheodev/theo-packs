@@ -60,6 +60,7 @@ func planGradle(ctx *generate.GenerateContext, version string) error {
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.GradleImageForJavaVersion(version)))
+	installStep.AddCacheMount("/root/.gradle", "")
 	for _, manifest := range []string{"build.gradle.kts", "build.gradle", "settings.gradle.kts", "settings.gradle", "gradle.properties"} {
 		if ctx.App.HasFile(manifest) {
 			installStep.AddCommand(plan.NewCopyCommand(manifest, "./"))
@@ -77,6 +78,7 @@ func planGradle(ctx *generate.GenerateContext, version string) error {
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.gradle", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(buildCmd))
 	// Renderer adds `sh -c '...'` once based on CommandKindShell. Pre-wrapping
 	// here used to produce `RUN sh -c 'sh -c '...''` which broke quoting. Pass
@@ -152,6 +154,7 @@ func planGradleWorkspace(ctx *generate.GenerateContext, version string, subproje
 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.GradleImageForJavaVersion(version)))
+	installStep.AddCacheMount("/root/.gradle", "")
 	for _, manifest := range []string{"build.gradle.kts", "build.gradle", "settings.gradle.kts", "settings.gradle", "gradle.properties"} {
 		if ctx.App.HasFile(manifest) {
 			installStep.AddCommand(plan.NewCopyCommand(manifest, "./"))
@@ -161,6 +164,7 @@ func planGradleWorkspace(ctx *generate.GenerateContext, version string, subproje
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddCacheMount("/root/.gradle", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(buildCmd))
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("set -e; jar=$(ls %s/build/libs/*.jar | grep -v -- \"-plain\\.jar$\" | head -n1); cp \"$jar\" /app/app.jar", target),
