@@ -2,14 +2,19 @@ FROM node:20-bookworm AS install
 WORKDIR /app
 COPY package.json ./
 COPY package-lock.json ./
-RUN sh -c 'npm ci'
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'npm ci'
 
 FROM install AS build
 WORKDIR /app
 COPY . .
-RUN sh -c 'npm run build'
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'npm run build'
 
 FROM node:20-bookworm-slim
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "npm start"]
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+USER appuser
+CMD ["npm", "start"]

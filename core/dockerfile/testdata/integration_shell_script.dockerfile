@@ -3,6 +3,9 @@ WORKDIR /app
 COPY . ./
 
 FROM debian:bookworm-slim
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
-COPY --from=build /app /app
-CMD ["/bin/bash", "-c", "bash start.sh"]
+RUN chown appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app /app
+USER appuser
+CMD ["bash", "start.sh"]

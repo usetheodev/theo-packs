@@ -20,15 +20,21 @@ The Dockerfile is consumed by the downstream Theo build pipeline (Argo Workflow 
 
 ## Supported Languages
 
-| Language | Detection | Package Managers | Version Sources |
-|----------|-----------|------------------|-----------------|
+| Language | Detection | Build / Frameworks | Version Sources |
+|----------|-----------|--------------------|-----------------|
 | **Go** | `go.mod`, `go.work` | Go modules, workspaces | `go.mod`, `THEOPACKS_GO_VERSION` |
-| **Node.js** | `package.json` | npm, yarn, pnpm, bun | `engines.node`, `.nvmrc`, `.node-version`, `THEOPACKS_NODE_VERSION` |
+| **Rust** | `Cargo.toml` | cargo, Cargo workspaces (`-p <pkg>`), static-binary runtime | `rust-toolchain.toml`, `Cargo.toml` `rust-version`, `THEOPACKS_RUST_VERSION` |
+| **Java** | `build.gradle.kts`, `build.gradle`, `pom.xml` | Gradle (Kotlin DSL + Groovy), Maven, multi-module/subprojects, Spring Boot auto-detect, JRE runtime | `.java-version`, `gradle.properties`, build script toolchain, `pom.xml`, `THEOPACKS_JAVA_VERSION` |
+| **.NET** | `*.csproj`, `*.fsproj`, `*.vbproj`, `*.sln` | dotnet CLI, solutions, ASP.NET vs console runtime routing | `global.json`, `<TargetFramework>`, `THEOPACKS_DOTNET_VERSION` |
+| **Ruby** | `Gemfile` | Bundler, Rails / Sinatra / Rack auto-detect, `apps/+packages/` monorepo | `.ruby-version`, Gemfile `ruby` directive, `THEOPACKS_RUBY_VERSION` |
+| **PHP** | `composer.json` | Composer, Laravel / Slim / Symfony auto-detect, `apps/+packages/` monorepo | `.php-version`, `composer.json` `require.php`, `THEOPACKS_PHP_VERSION` |
 | **Python** | `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py` | pip, poetry, pipenv, uv | `.python-version`, `runtime.txt`, `THEOPACKS_PYTHON_VERSION` |
+| **Deno** | `deno.json`, `deno.jsonc` | Deno 2 runtime, `workspace` arrays, Fresh / Hono auto-detect | `deno.json`, `THEOPACKS_DENO_VERSION` |
+| **Node.js** | `package.json` | npm, yarn, pnpm, bun, npm/pnpm/yarn workspaces, Turbo | `engines.node`, `.nvmrc`, `.node-version`, `THEOPACKS_NODE_VERSION` |
 | **Static files** | `index.html` | -- | -- |
 | **Shell** | `*.sh` | -- | -- |
 
-Detection order is fixed (first match wins): Go → Python → Node.js → Static → Shell. Override with `theopacks.json` → `{ "provider": "node" }`.
+Detection order is fixed (first match wins): **Go → Rust → Java → .NET → Ruby → PHP → Python → Deno → Node → Static → Shell**. Deno is intentionally placed before Node so projects shipping both `deno.json` and a npm-compat `package.json` route to Deno. Override with `theopacks.json` → `{ "provider": "node" }`.
 
 ## Project Structure
 
@@ -45,7 +51,7 @@ theo-packs/
 ├── cmd/theopacks-generate/     # CLI binary used by the Theo build cluster
 ├── internal/utils/             # Shared internal helpers
 ├── e2e/                        # End-to-end tests (build tag `e2e`, real Docker)
-├── examples/                   # 30+ reference projects (Go, Node, Python, shell, static)
+├── examples/                   # 50+ reference projects (Go, Node, Python, Rust, Java, .NET, Ruby, PHP, Deno, shell, static)
 ├── mise.toml                   # Tasks: test, check, tidy
 └── Dockerfile.generate         # Container image that ships the CLI
 ```
@@ -167,12 +173,18 @@ THEOPACKS_GO_VERSION=1.21             # → FROM golang:1.21-bookworm
 | `THEOPACKS_NODE_VERSION` | Override Node.js version for base image |
 | `THEOPACKS_PYTHON_VERSION` | Override Python version for base image |
 | `THEOPACKS_GO_VERSION` | Override Go version for base image |
+| `THEOPACKS_RUST_VERSION` | Override Rust version for build image |
+| `THEOPACKS_JAVA_VERSION` | Override Java major version (build + JRE runtime) |
+| `THEOPACKS_DOTNET_VERSION` | Override .NET SDK major.minor version |
+| `THEOPACKS_RUBY_VERSION` | Override Ruby major.minor version |
+| `THEOPACKS_PHP_VERSION` | Override PHP major.minor version |
+| `THEOPACKS_DENO_VERSION` | Override Deno major version |
 | `THEOPACKS_BUILD_APT_PACKAGES` | Extra apt packages for build |
 | `THEOPACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime |
 | `THEOPACKS_CONFIG_FILE` | Custom config file path (relative to app root) |
 | `THEOPACKS_GO_MODULE` | Go workspace: which module to build |
-| `THEOPACKS_APP_NAME` | Workspace-aware build: app name (set automatically by the CLI on monorepo detection) |
-| `THEOPACKS_APP_PATH` | Workspace-aware build: app path inside workspace (set automatically by the CLI) |
+| `THEOPACKS_APP_NAME` | Workspace-aware build: app/member/subproject name (Rust Cargo workspaces, Java Gradle subprojects / Maven modules, .NET solutions, Ruby/PHP `apps/+packages/`, Deno workspaces) |
+| `THEOPACKS_APP_PATH` | Workspace-aware build: app path inside workspace (set automatically by the CLI on Node monorepo detection; manually for other languages) |
 
 ## Development
 
@@ -187,9 +199,11 @@ THEOPACKS_GO_VERSION=1.21             # → FROM golang:1.21-bookworm
 All Mise tasks are defined in `mise.toml` at the repo root and run from the root.
 
 ```bash
-mise run test     # go test ./core/... ./cmd/...
-mise run check    # go vet + go fmt + golangci-lint
-mise run tidy     # go mod tidy
+mise run test                   # go test ./core/... ./cmd/...
+mise run test-e2e               # go test -tags e2e ./e2e/ -timeout 1500s (Docker)
+mise run test-update-snapshots  # UPDATE_GOLDEN=true go test ./core/dockerfile/...
+mise run check                  # go vet + go fmt + golangci-lint
+mise run tidy                   # go mod tidy
 ```
 
 ### End-to-End Tests

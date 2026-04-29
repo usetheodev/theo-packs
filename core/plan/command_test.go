@@ -15,15 +15,18 @@ func TestCommandMarshalUnmarshal(t *testing.T) {
 		unmarshalString string
 	}{
 		{
+			// CommandKindShell (=0) is omitempty so it doesn't appear in
+			// JSON; the body is now stored bare (renderer adds `sh -c '...'`
+			// at emit time).
 			name:            "exec command without custom name",
 			command:         NewExecShellCommand("echo hello", ExecOptions{CustomName: "echo hello"}),
-			expectedJSON:    `{"cmd":"sh -c 'echo hello'","customName":"echo hello"}`,
+			expectedJSON:    `{"cmd":"echo hello","customName":"echo hello"}`,
 			unmarshalString: "echo hello",
 		},
 		{
 			name:            "exec command with custom name",
 			command:         NewExecShellCommand("echo hello", ExecOptions{CustomName: "Say Hello"}),
-			expectedJSON:    `{"cmd":"sh -c 'echo hello'","customName":"Say Hello"}`,
+			expectedJSON:    `{"cmd":"echo hello","customName":"Say Hello"}`,
 			unmarshalString: "RUN#Say Hello:echo hello",
 		},
 		{

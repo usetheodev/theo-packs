@@ -14,7 +14,11 @@ const (
 	NodeBuildImage   = "node:20-bookworm"
 	PythonBuildImage = "python:3.12-bookworm"
 
-	GoRuntimeImage         = DefaultRuntimeImage // Go compiles to static binary
+	// GoRuntimeImage is the Distroless static-debian12 image for Go binaries.
+	// Go produces fully static binaries by default (CGO disabled), so the
+	// minimal distroless static base (~2MB) is sufficient. The :nonroot
+	// variant runs as UID 65532 — no USER directive is needed for Go.
+	GoRuntimeImage         = "gcr.io/distroless/static-debian12:nonroot"
 	NodeRuntimeImage       = "node:20-bookworm-slim"
 	PythonRuntimeImage     = "python:3.12-slim-bookworm"
 	StaticfileRuntimeImage = PythonRuntimeImage // provides python for http.server
@@ -27,6 +31,13 @@ type DeployBuilder struct {
 	Variables    map[string]string
 	Paths        []string
 	AptPackages  []string
+
+	// HealthcheckPath sets the HTTP path the runtime HEALTHCHECK should probe
+	// (e.g., "/health"). Empty → no HEALTHCHECK directive is emitted.
+	HealthcheckPath string
+	// HealthcheckPort overrides the default `${PORT:-8080}` used in the
+	// HEALTHCHECK URL when set; usually left empty so frameworks honor PORT.
+	HealthcheckPort string
 }
 
 func NewDeployBuilder() *DeployBuilder {
@@ -86,4 +97,6 @@ func (b *DeployBuilder) Build(p *plan.BuildPlan, options *BuildStepOptions) {
 	p.Deploy.StartCmd = b.StartCmd
 	p.Deploy.Variables = b.Variables
 	p.Deploy.Paths = b.Paths
+	p.Deploy.HealthcheckPath = b.HealthcheckPath
+	p.Deploy.HealthcheckPort = b.HealthcheckPort
 }

@@ -1,11 +1,12 @@
 FROM debian:bookworm-slim AS install
 WORKDIR /app
 COPY . .
-RUN --mount=type=secret,id=API_KEY \
-    --mount=type=secret,id=DATABASE_URL \
-    sh -c 'pip install -r requirements.txt'
+RUN sh -c 'pip install -r requirements.txt'
 
 FROM debian:bookworm-slim
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
-COPY --from=install /app /app
-CMD ["/bin/bash", "-c", "python app.py"]
+RUN chown appuser:appuser /app
+COPY --from=install --chown=appuser:appuser /app /app
+USER appuser
+CMD ["python", "app.py"]

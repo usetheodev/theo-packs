@@ -5,21 +5,28 @@ import (
 )
 
 type Step struct {
-	Name      string            `json:"name,omitempty"`
-	Inputs    []Layer           `json:"inputs,omitempty"`
-	Commands  []Command         `json:"commands,omitempty"`
-	Secrets   []string          `json:"secrets,omitempty"`
-	Assets    map[string]string `json:"assets,omitempty"`
-	Variables map[string]string `json:"variables,omitempty"`
-	Caches    []string          `json:"caches,omitempty"`
+	Name           string               `json:"name,omitempty"`
+	Inputs         []Layer              `json:"inputs,omitempty"`
+	Commands       []Command            `json:"commands,omitempty"`
+	Secrets        []string             `json:"secrets,omitempty"`
+	Assets         map[string]string    `json:"assets,omitempty"`
+	Variables      map[string]string    `json:"variables,omitempty"`
+	Caches         []string             `json:"caches,omitempty"`
+	BuildKitCaches []BuildKitCacheMount `json:"buildKitCaches,omitempty"`
 }
 
+// NewStep creates an empty Step with safe defaults. Notably:
+//
+//   - Secrets defaults to nil (empty), NOT ["*"]. The renderer auto-detects
+//     secret references via substring match and mounts only the relevant
+//     ones; providers that genuinely need every secret can opt in by setting
+//     Secrets = []string{"*"}.
 func NewStep(name string) *Step {
 	return &Step{
 		Name:      name,
 		Assets:    make(map[string]string),
 		Variables: make(map[string]string),
-		Secrets:   []string{"*"},
+		Secrets:   nil,
 	}
 }
 
