@@ -1,9 +1,6 @@
 FROM rust:1-bookworm AS install
 WORKDIR /app
 COPY Cargo.toml ./
-RUN --mount=type=cache,target=/root/.cargo/git,sharing=locked \
-    --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
-    sh -c 'cargo fetch'
 
 FROM install AS build
 WORKDIR /app
@@ -12,7 +9,7 @@ ENV RUSTFLAGS="-C strip=symbols"
 RUN --mount=type=cache,target=/app/target,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
-    sh -c 'cargo build --release --offline'
+    sh -c 'cargo build --release'
 RUN --mount=type=cache,target=/app/target,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/root/.cargo/registry,sharing=locked \

@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/.m2,sharing=locked \
     sh -c 'set -e; jar=$(ls target/*.jar | grep -v -- "-sources\.jar$\|-javadoc\.jar$\|original-" | head -n1); cp "$jar" /app/app.jar'
 
 FROM eclipse-temurin:21-jre
-RUN useradd -r -u 1000 -m appuser
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 COPY --from=build --chown=appuser:appuser /app/app.jar /app/app.jar

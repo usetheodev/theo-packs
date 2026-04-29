@@ -4,9 +4,6 @@ COPY Cargo.toml ./
 COPY apps/api/Cargo.toml apps/api/
 COPY apps/worker/Cargo.toml apps/worker/
 COPY packages/shared/Cargo.toml packages/shared/
-RUN --mount=type=cache,target=/root/.cargo/git,sharing=locked \
-    --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
-    sh -c 'cargo fetch'
 
 FROM install AS build
 WORKDIR /app
@@ -14,7 +11,7 @@ COPY . .
 RUN --mount=type=cache,target=/app/target,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
-    sh -c 'cargo build --release --offline -p api'
+    sh -c 'cargo build --release -p api'
 RUN --mount=type=cache,target=/app/target,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/root/.cargo/registry,sharing=locked \

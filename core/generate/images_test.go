@@ -212,10 +212,10 @@ func TestRubyImageForVersion(t *testing.T) {
 		version string
 		want    string
 	}{
-		{"3.3", "3.3", "ruby:3.3-bookworm-slim"},
-		{"3.2.5", "3.2.5", "ruby:3.2-bookworm-slim"},
-		{"3.4", "3.4", "ruby:3.4-bookworm-slim"},
-		{"empty uses default", "", "ruby:3.3-bookworm-slim"},
+		{"3.3", "3.3", "ruby:3.3-slim-bookworm"},
+		{"3.2.5", "3.2.5", "ruby:3.2-slim-bookworm"},
+		{"3.4", "3.4", "ruby:3.4-slim-bookworm"},
+		{"empty uses default", "", "ruby:3.3-slim-bookworm"},
 	}
 
 	for _, tt := range tests {
@@ -295,10 +295,13 @@ func TestDenoImageForVersion(t *testing.T) {
 		version string
 		want    string
 	}{
-		{"major", "2", "denoland/deno:2"},
-		{"semver", "2.1.5", "denoland/deno:2"},
-		{"v prefix", "v1", "denoland/deno:1"},
-		{"empty uses default", "", "denoland/deno:2"},
+		// Major-only / major.minor / empty fall back to the rolling :debian
+		// variant tag. Only fully-pinned patches map to :debian-<major.minor.patch>.
+		{"major only falls back to debian", "2", "denoland/deno:debian"},
+		{"major.minor falls back to debian", "2.1", "denoland/deno:debian"},
+		{"semver pinned", "2.1.5", "denoland/deno:debian-2.1.5"},
+		{"v prefix major", "v1", "denoland/deno:debian"},
+		{"empty uses debian", "", "denoland/deno:debian"},
 	}
 
 	for _, tt := range tests {
@@ -312,9 +315,10 @@ func TestDenoImageForVersion(t *testing.T) {
 func TestDenoRuntimeImageForVersion(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "denoland/deno:2", DenoRuntimeImageForVersion("2"))
-	assert.Equal(t, "denoland/deno:1", DenoRuntimeImageForVersion("1"))
-	assert.Equal(t, "denoland/deno:2", DenoRuntimeImageForVersion(""))
+	assert.Equal(t, "denoland/deno:debian", DenoRuntimeImageForVersion("2"))
+	assert.Equal(t, "denoland/deno:debian", DenoRuntimeImageForVersion("1"))
+	assert.Equal(t, "denoland/deno:debian", DenoRuntimeImageForVersion(""))
+	assert.Equal(t, "denoland/deno:debian-2.1.5", DenoRuntimeImageForVersion("2.1.5"))
 }
 
 // Sanity check: the new default constants must not be empty (otherwise image strings

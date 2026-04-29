@@ -4,7 +4,7 @@ COPY . .
 RUN sh -c 'pip install -r requirements.txt'
 
 FROM debian:bookworm-slim
-RUN useradd -r -u 1000 -m appuser
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 COPY --from=install --chown=appuser:appuser /app /app

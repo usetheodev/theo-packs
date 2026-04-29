@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     sh -c 'set -e; jar=$(ls apps/api/build/libs/*.jar | grep -v -- "-plain\.jar$" | head -n1); cp "$jar" /app/app.jar'
 
 FROM eclipse-temurin:21-jre
-RUN useradd -r -u 1000 -m appuser
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 COPY --from=build --chown=appuser:appuser /app/app.jar /app/app.jar

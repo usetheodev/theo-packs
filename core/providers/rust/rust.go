@@ -72,7 +72,12 @@ func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoTom
 	if ctx.App.HasFile("Cargo.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("Cargo.lock", "./"))
 	}
-	installStep.AddCommand(plan.NewExecShellCommand("cargo fetch"))
+	// We deliberately do NOT run `cargo fetch` here. Cargo refuses to parse
+	// a manifest without a target (no src/main.rs, no [lib], no [[bin]] with
+	// path), and the install step intentionally has no source yet — that's
+	// the whole point of layer caching. The build step downloads everything
+	// it needs anyway, and the registry cache mount makes the fetch fast on
+	// rebuild.
 
 	// Build step: copy source and compile in offline mode (deps already fetched).
 	buildStep := ctx.NewCommandStep("build")
@@ -85,7 +90,10 @@ func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoTom
 	// (~30% smaller). Cargo applies it via the build environment without
 	// needing a Cargo.toml profile mutation.
 	buildStep.AddEnvVars(map[string]string{"RUSTFLAGS": "-C strip=symbols"})
-	buildStep.AddCommand(plan.NewExecShellCommand("cargo build --release --offline"))
+	// `--offline` was removed when we dropped the install-step `cargo fetch`
+	// (manifest-without-source can't be parsed). The cargo registry/git cache
+	// mounts on this step keep rebuilds fast.
+	buildStep.AddCommand(plan.NewExecShellCommand("cargo build --release"))
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("cp target/release/%s /app/server", shellEscape(bin.Name)),
 	))
@@ -122,7 +130,9 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	for _, memberPath := range ws.MemberPaths {
 		installStep.AddCommand(plan.NewCopyCommand(memberPath+"/Cargo.toml", memberPath+"/"))
 	}
-	installStep.AddCommand(plan.NewExecShellCommand("cargo fetch"))
+	// No `cargo fetch` here — see explanation in planSimple. Same reasoning
+	// applies more strongly for workspaces because each member's Cargo.toml
+	// references a src that isn't present at this stage.
 
 	// Build step.
 	buildStep := ctx.NewCommandStep("build")
@@ -132,7 +142,7 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	buildStep.AddCacheMount("/root/.cargo/git", "")
 	buildStep.AddCacheMount("/app/target", "")
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		fmt.Sprintf("cargo build --release --offline -p %s", shellEscape(name)),
+		fmt.Sprintf("cargo build --release -p %s", shellEscape(name)),
 	))
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("cp target/release/%s /app/server", shellEscape(name)),

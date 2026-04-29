@@ -1,4 +1,4 @@
-FROM ruby:3.3-bookworm-slim AS install
+FROM ruby:3.3-slim-bookworm AS install
 WORKDIR /app
 COPY Gemfile ./
 RUN --mount=type=cache,target=/usr/local/bundle,sharing=locked \
@@ -10,8 +10,8 @@ FROM install AS build
 WORKDIR /app
 COPY . .
 
-FROM ruby:3.3-bookworm-slim
-RUN useradd -r -u 1000 -m appuser
+FROM ruby:3.3-slim-bookworm
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 COPY --from=build --chown=appuser:appuser /app /app

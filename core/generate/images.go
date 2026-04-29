@@ -137,13 +137,16 @@ func MavenImageForJavaVersion(version string) string {
 }
 
 // RubyImageForVersion returns a single Ruby image used for both build and runtime.
-// Example: "3.3" → "ruby:3.3-bookworm-slim".
+// Docker Hub publishes the slim+distro variants as `<version>-slim-<distro>`
+// (slim BEFORE distro). The reverse order does not exist.
+//
+// Example: "3.3" → "ruby:3.3-slim-bookworm".
 func RubyImageForVersion(version string) string {
 	v := NormalizeToMajorMinor(version)
 	if v == "" {
 		v = DefaultRubyVersion
 	}
-	return fmt.Sprintf("ruby:%s-bookworm-slim", v)
+	return fmt.Sprintf("ruby:%s-slim-bookworm", v)
 }
 
 // PhpImageForVersion returns a single PHP CLI image used for both build and runtime.
@@ -197,33 +200,31 @@ func DotnetRuntimeImageForVersion(version string) string {
 	return fmt.Sprintf("mcr.microsoft.com/dotnet/runtime:%s-alpine", v)
 }
 
-// DenoImageForVersion returns the Deno debian-based build image for the given
-// major version. The "denoland/deno:bin-<v>" tag we used earlier turned out
-// not to exist on Docker Hub (only specific patch tags + "bin" without version
-// suffix are published). The bare "denoland/deno:<v>" tag is the canonical
-// debian variant.
+// DenoImageForVersion returns the Deno debian-based build image.
 //
-// Example: "2" → "denoland/deno:2".
+// denoland/deno publishes variant tags (`debian`, `alpine`, `bin`, `distroless`)
+// and patch-specific tags (e.g., `debian-2.0.5`). It does NOT publish major-only
+// (`:2`) or major.minor (`:debian-2.1`) tags. So we use the rolling `:debian`
+// for empty/major/major.minor inputs, and only emit `:debian-<full>` when the
+// caller pins a full patch version.
+//
+// Examples:
+//   - empty/major/major.minor → "denoland/deno:debian"
+//   - "2.0.5"                 → "denoland/deno:debian-2.0.5"
 func DenoImageForVersion(version string) string {
-	v := NormalizeToMajor(version)
-	if v == "" {
-		v = DefaultDenoVersion
+	v := cleanVersionPrefix(version)
+	parts := strings.Split(v, ".")
+	if len(parts) >= 3 && parts[2] != "" {
+		return fmt.Sprintf("denoland/deno:debian-%s.%s.%s", parts[0], parts[1], parts[2])
 	}
-	return fmt.Sprintf("denoland/deno:%s", v)
+	return "denoland/deno:debian"
 }
 
-// DenoRuntimeImageForVersion returns the runtime image for the given major
-// version. We use the same debian-based image as build for now; switching to
-// a smaller variant would need verification that the user's app's permissions
-// still work in distroless.
-//
-// Example: "2" → "denoland/deno:2".
+// DenoRuntimeImageForVersion returns the runtime image. Same scheme as
+// DenoImageForVersion — rolling `:debian` for major-only / unspecified, and
+// `:debian-<minor>` for pinned versions.
 func DenoRuntimeImageForVersion(version string) string {
-	v := NormalizeToMajor(version)
-	if v == "" {
-		v = DefaultDenoVersion
-	}
-	return fmt.Sprintf("denoland/deno:%s", v)
+	return DenoImageForVersion(version)
 }
 
 // normalizeRustVersion preserves the level of precision the user gave (major, major.minor,

@@ -9,7 +9,7 @@ WORKDIR /app
 COPY . .
 
 FROM python:3.12-slim-bookworm
-RUN useradd -r -u 1000 -m appuser
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 COPY --from=build --chown=appuser:appuser /app /app

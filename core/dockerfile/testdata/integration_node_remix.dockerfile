@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     sh -c 'npm run build'
 
 FROM node:20-bookworm-slim
-RUN useradd -r -u 1000 -m appuser
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 COPY --from=build --chown=appuser:appuser /app /app

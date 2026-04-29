@@ -5,7 +5,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     sh -c 'pip install --no-cache-dir uv && uv sync --all-packages --no-dev'
 
 FROM python:3.12-slim-bookworm
-RUN useradd -r -u 1000 -m appuser
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 COPY --from=install --chown=appuser:appuser /app /app

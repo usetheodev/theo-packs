@@ -159,13 +159,16 @@ func resolveDeployUser(base plan.Layer) (user, setup string) {
 		return "app", ""
 	}
 
-	// Alpine variants don't have useradd; use adduser.
+	// Alpine variants don't have useradd; use adduser. UID 10001 to avoid
+	// conflicts with image-shipped users.
 	if strings.Contains(image, "alpine") {
-		return "appuser", "RUN adduser -D -u 1000 appuser\n"
+		return "appuser", "RUN adduser -D -u 10001 appuser\n"
 	}
 
-	// Default debian/glibc-based runtimes.
-	return "appuser", "RUN useradd -r -u 1000 -m appuser\n"
+	// Default debian/glibc-based runtimes. UID 10001 avoids conflicts with
+	// image-shipped users that already claim 1000 (e.g., `node` in node:20-*,
+	// `ubuntu` in eclipse-temurin:21).
+	return "appuser", "RUN useradd -r -u 10001 -m appuser\n"
 }
 
 // writeHealthcheck emits a HEALTHCHECK directive that probes an HTTP endpoint

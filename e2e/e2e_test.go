@@ -91,6 +91,27 @@ func removeImage(tag string) {
 }
 
 // imageExists checks if a Docker image exists.
+// requireBinaryAt verifies a path exists inside an image even when the image
+// has no shell or `ls` (e.g., distroless). It uses `docker create` + `docker
+// cp` to materialize the file on the host — succeeds iff the file exists in
+// the image.
+func requireBinaryAt(t *testing.T, tag, path string) {
+	t.Helper()
+	cid, err := exec.Command("docker", "create", tag).Output()
+	require.NoError(t, err, "docker create failed for %s", tag)
+	containerID := strings.TrimSpace(string(cid))
+	defer func() { _ = exec.Command("docker", "rm", "-f", containerID).Run() }()
+
+	tmp := filepath.Join(t.TempDir(), "binary")
+	out, err := exec.Command("docker", "cp", containerID+":"+path, tmp).CombinedOutput()
+	require.NoError(t, err, "binary missing at %s in image %s: %s", path, tag, string(out))
+
+	info, err := os.Stat(tmp)
+	require.NoError(t, err)
+	require.False(t, info.IsDir(), "expected %s to be a file, got directory", path)
+	require.Greater(t, info.Size(), int64(0), "%s is empty", path)
+}
+
 func imageExists(tag string) bool {
 	cmd := exec.Command("docker", "image", "inspect", tag)
 	return cmd.Run() == nil
@@ -108,11 +129,10 @@ func TestE2E_GoSimple_BuildsImage(t *testing.T) {
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
-
-	// Verify the binary exists in the image
-	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
-	require.NoError(t, err, "binary not found: %s", string(output))
-	require.Contains(t, string(output), "/app/server")
+	// Distroless runtime has no `ls`. The COPY --from=build /app/server step
+	// in the Dockerfile already fails the build if the binary is missing, so
+	// `imageExists` is sufficient proof that /app/server is in the image.
+	requireBinaryAt(t, tag, "/app/server")
 }
 
 func TestE2E_NodeNpm_BuildsImage(t *testing.T) {
@@ -210,8 +230,8 @@ func TestE2E_FullstackMixed_AllServicesBuild(t *testing.T) {
 			subdir: "services/api",
 			env:    nil,
 			verify: func(t *testing.T, tag string) {
-				output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
-				require.NoError(t, err, "go binary missing: %s", string(output))
+				// Go runtime is now distroless (no shell) — use docker cp.
+				requireBinaryAt(t, tag, "/app/server")
 			},
 		},
 		{
@@ -259,9 +279,7 @@ func TestE2E_GoWorkspace_BuildsImage(t *testing.T) {
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
-
-	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
-	require.NoError(t, err, "go workspace binary missing: %s", string(output))
+	requireBinaryAt(t, tag, "/app/server")
 }
 
 // runE2EBuild is a small helper for the simpler "build & assert exists" cases
@@ -283,17 +301,13 @@ func runE2EBuild(t *testing.T, exampleName, tag string, env map[string]string) s
 func TestE2E_RustAxum_BuildsImage(t *testing.T) {
 	tag := "theopacks-e2e-rust-axum:test"
 	runE2EBuild(t, "rust-axum", tag, nil)
-
-	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
-	require.NoError(t, err, "rust binary missing: %s", string(output))
+	requireBinaryAt(t, tag, "/app/server")
 }
 
 func TestE2E_RustWorkspace_BuildsImage(t *testing.T) {
 	tag := "theopacks-e2e-rust-workspace:test"
 	runE2EBuild(t, "rust-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
-
-	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
-	require.NoError(t, err, "rust workspace binary missing: %s", string(output))
+	requireBinaryAt(t, tag, "/app/server")
 }
 
 func TestE2E_JavaSpringGradle_BuildsImage(t *testing.T) {

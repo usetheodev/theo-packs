@@ -1,4 +1,4 @@
-FROM denoland/deno:2 AS install
+FROM denoland/deno:debian AS install
 WORKDIR /app
 COPY deno.json ./
 COPY main.ts ./
@@ -11,8 +11,8 @@ COPY . .
 RUN --mount=type=cache,target=/deno-dir,sharing=locked \
     sh -c 'deno task build'
 
-FROM denoland/deno:2
-RUN useradd -r -u 1000 -m appuser
+FROM denoland/deno:debian
+RUN useradd -r -u 10001 -m appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 COPY --from=build --chown=appuser:appuser /app /app
