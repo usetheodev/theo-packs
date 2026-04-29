@@ -1,22 +1,75 @@
 package providers
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
+// expectedOrder locks the provider detection order. Any change here is a
+// behavior change (first-match-wins detection) and MUST be intentional.
+// See ADR D3 in docs/plans/add-six-language-providers-plan.md.
+var expectedOrder = []string{
+	"go",
+	"rust",
+	"java",
+	"dotnet",
+	"ruby",
+	"php",
+	"python",
+	"deno",
+	"node",
+	"staticfile",
+	"shell",
+}
+
 func TestGetLanguageProviders(t *testing.T) {
 	providers := GetLanguageProviders()
 	require.NotEmpty(t, providers)
-	require.Len(t, providers, 5)
+	require.Len(t, providers, len(expectedOrder))
 
 	names := make([]string, len(providers))
 	for i, p := range providers {
 		names[i] = p.Name()
 	}
 
-	require.Equal(t, []string{"go", "python", "node", "staticfile", "shell"}, names)
+	require.Equal(t, expectedOrder, names)
+}
+
+// TestRegistrationOrder is the single source of truth for ADR D3. It pins
+// the provider order and asserts the Deno-before-Node invariant explicitly
+// so a future reordering surfaces as a clear test failure with rationale.
+func TestRegistrationOrder(t *testing.T) {
+	providers := GetLanguageProviders()
+	names := make([]string, len(providers))
+	for i, p := range providers {
+		names[i] = p.Name()
+	}
+
+	require.Equal(t, expectedOrder, names, "provider order is part of the public contract")
+
+	denoIdx := slices.Index(names, "deno")
+	nodeIdx := slices.Index(names, "node")
+	require.NotEqual(t, -1, denoIdx, "deno must be registered")
+	require.NotEqual(t, -1, nodeIdx, "node must be registered")
+	require.Less(t, denoIdx, nodeIdx,
+		"Deno must be detected BEFORE Node so projects with both deno.json and package.json route to Deno (ADR D3)")
+}
+
+func TestRegistrationCount(t *testing.T) {
+	require.Len(t, GetLanguageProviders(), 11,
+		"theo-packs registers 11 providers: 5 original (go, python, node, staticfile, shell) + 6 new (rust, java, dotnet, ruby, php, deno)")
+}
+
+func TestNamesAreUnique(t *testing.T) {
+	providers := GetLanguageProviders()
+	seen := make(map[string]bool, len(providers))
+	for _, p := range providers {
+		name := p.Name()
+		require.False(t, seen[name], "duplicate provider name: %s", name)
+		seen[name] = true
+	}
 }
 
 func TestGetProvider(t *testing.T) {
@@ -26,11 +79,17 @@ func TestGetProvider(t *testing.T) {
 		found    bool
 	}{
 		{name: "go provider", provider: "go", found: true},
+		{name: "rust provider", provider: "rust", found: true},
+		{name: "java provider", provider: "java", found: true},
+		{name: "dotnet provider", provider: "dotnet", found: true},
+		{name: "ruby provider", provider: "ruby", found: true},
+		{name: "php provider", provider: "php", found: true},
 		{name: "python provider", provider: "python", found: true},
+		{name: "deno provider", provider: "deno", found: true},
 		{name: "node provider", provider: "node", found: true},
 		{name: "staticfile provider", provider: "staticfile", found: true},
 		{name: "shell provider", provider: "shell", found: true},
-		{name: "unknown provider", provider: "ruby", found: false},
+		{name: "unknown provider", provider: "elixir", found: false},
 		{name: "empty name", provider: "", found: false},
 	}
 
