@@ -165,12 +165,18 @@ theo-packs/
 Providers are checked in this order (first match wins) — defined in `core/providers/provider.go` → `GetLanguageProviders()`:
 
 1. **Go** — `go.mod` or `go.work`
-2. **Python** — `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py`
-3. **Node.js** — `package.json`
-4. **Static files** — `index.html`
-5. **Shell** — `*.sh` files
+2. **Rust** — `Cargo.toml`
+3. **Java** — `build.gradle.kts`, `build.gradle`, or `pom.xml`
+4. **.NET** — `*.csproj`, `*.fsproj`, `*.vbproj`, or `*.sln` (root or any subtree)
+5. **Ruby** — `Gemfile`
+6. **PHP** — `composer.json`
+7. **Python** — `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py`
+8. **Deno** — `deno.json` or `deno.jsonc` (intentionally before Node so projects with both deno.json and a npm-compat package.json route to Deno)
+9. **Node.js** — `package.json`
+10. **Static files** — `index.html`
+11. **Shell** — `*.sh` files
 
-Order matters. Override via `theopacks.json`:
+Order matters. The Deno-before-Node invariant is locked by `TestRegistrationOrder` in `core/providers/provider_test.go`. Override via `theopacks.json`:
 ```json
 { "provider": "node" }
 ```
@@ -215,8 +221,14 @@ Key environment variables:
 | `THEOPACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime |
 | `THEOPACKS_CONFIG_FILE` | Custom config file path |
 | `THEOPACKS_GO_MODULE` | Go workspace: which module to build |
-| `THEOPACKS_APP_NAME` | Workspace-aware build: app name (set by CLI on monorepo detection) |
-| `THEOPACKS_APP_PATH` | Workspace-aware build: app path inside workspace |
+| `THEOPACKS_RUST_VERSION` | Rust toolchain version |
+| `THEOPACKS_JAVA_VERSION` | Java major version (drives JDK build image + JRE runtime) |
+| `THEOPACKS_DOTNET_VERSION` | .NET SDK version (major.minor) |
+| `THEOPACKS_RUBY_VERSION` | Ruby version (major.minor) |
+| `THEOPACKS_PHP_VERSION` | PHP version (major.minor) |
+| `THEOPACKS_DENO_VERSION` | Deno major version |
+| `THEOPACKS_APP_NAME` | Workspace-aware build target — Cargo workspace member, Gradle subproject / Maven module leaf, .NET solution project, Ruby/PHP `apps/<name>`, Deno workspace member. Set automatically by the CLI on Node monorepo detection; manual for the others. |
+| `THEOPACKS_APP_PATH` | Workspace-aware build path (Node monorepo only — auto-set by CLI) |
 
 ### Layer Special Values
 
