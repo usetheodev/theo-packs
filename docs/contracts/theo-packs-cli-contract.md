@@ -8,6 +8,27 @@
 
 ---
 
+## Single source of truth
+
+theo-packs is the **only** producer of Dockerfiles consumed by the Theo build pipeline. A user-supplied Dockerfile inside the analyzed app directory (`<source>/<app-path>/Dockerfile`) is a contract violation: the CLI rejects the build with **exit code 2** and an error message naming the offending path. There is no override flag, no warning mode, no env var. The contract is unambiguous — one path, one source of truth.
+
+If a user wants to ship a hand-tuned Dockerfile, they should not invoke theo-packs at all and use a different deployment pipeline. theo-packs does not co-exist with user Dockerfiles by design.
+
+**A Dockerfile at the workspace root (`<source>/Dockerfile`) is NOT checked** — that file may legitimately exist for local development outside Theo (e.g., `docker compose up` reading a top-level Dockerfile unrelated to the app being deployed). theo-packs only rejects within the app path it analyzes.
+
+The exact stderr message the CLI emits on rejection:
+
+```
+[theopacks] ERROR: user-supplied Dockerfile found at <path>.
+
+theo-packs is the single source of truth for Dockerfile generation.
+Remove the file and rerun. To opt out of generation entirely, do not
+invoke theo-packs — declare your build via a different mechanism in
+your deployment pipeline.
+```
+
+---
+
 ## Scope
 
 This contract covers `cmd/theopacks-generate/main.go` and the public library entry point `core.GenerateBuildPlan`. Provider-specific details (which manifest files trigger which provider, version-detection priority, framework auto-detection) live in `CLAUDE.md`. Deploy-stage size optimizations and `.dockerignore` template content live in `README.md` and `core/dockerignore/templates.go`.
@@ -80,18 +101,11 @@ The defensive header at the top of every generated Dockerfile states this invari
 
 ---
 
-## User-Dockerfile precedence
+## User-Dockerfile rejection
 
-If `<source>/<app-path>/Dockerfile` exists, the CLI:
+The CLI checks for `<source>/<app-path>/Dockerfile` immediately after flag parsing. If the file exists, the CLI exits with **code 2** and the stderr message documented in the "Single source of truth" preamble. No further action — no plan generation, no `.dockerignore` write, no output file.
 
-1. Logs to stderr: `User-provided Dockerfile found at <path> — skipping generation`.
-2. Copies the user file verbatim to `--output`.
-3. Echoes its contents to stdout (for log capture).
-4. Exits successfully **without invoking the library**.
-
-theo-packs makes **no claim** about the user's Dockerfile correctness. Bugs in user-supplied Dockerfiles are the user's responsibility (or, when the file lives in a template like theo-stacks, the template maintainer's).
-
-This precedence is **load-bearing**: many users carry hand-tuned Dockerfiles. theo-packs must not fight them.
+The check is scoped to the app path being analyzed. A `Dockerfile` at the workspace root (`<source>/Dockerfile`, when `--app-path` is a subdir) is NOT examined and does NOT trigger rejection. This permits local development workflows (e.g., `docker compose up` against a top-level Dockerfile unrelated to Theo deployment).
 
 ---
 
@@ -161,17 +175,19 @@ The product team is tracking this as F6 in the dogfood report: a `build_context:
 
 theo-packs has **no in-repo workaround** for this gap. Adding a path-rewriting flag would create two source-of-truth places for the build-context decision and confuse the contract. The fix lives in the product.
 
+**The product orchestrator MUST surface the exit-code-2 rejection to the user**, not retry without theo-packs or fall back to a different generator. The single-source-of-truth contract requires that a user Dockerfile is treated as a hard error, not a routing signal.
+
 ---
 
 ## Failure modes
 
 | Symptom | Cause | Resolution |
 |---|---|---|
+| CLI exits with code 2 and the stderr line `user-supplied Dockerfile found at <path>` | Contract violation: a Dockerfile exists at `<source>/<app-path>/Dockerfile` | Delete the Dockerfile. theo-packs generates it; do not commit one. See "Single source of truth" preamble. |
 | `docker build` fails with `"/<some-path>": not found` | Build context doesn't match what the generated Dockerfile expects | Set `docker build` context to the directory passed as `theopacks-generate --source`. Read the generated Dockerfile's header comment. |
 | theo-packs errors with `set THEOPACKS_APP_NAME to one of: ...` | Multi-app workspace; `--app-name` was not passed | Pass `--app-name=<one-of-the-listed-apps>` to the CLI. |
 | `bundle install` / `npm ci` fails because lockfile missing | Provider-specific contract — most providers require a lockfile for reproducible builds | Commit the lockfile. Per-provider details in `CLAUDE.md`. |
 | Generated `.dockerignore` excludes a file the user needs at runtime | The default template is opinionated | Override by writing your own `.dockerignore`. The CLI never overwrites a user-supplied file. |
-| `User-provided Dockerfile found at ...` log when you didn't expect a user file | A `Dockerfile` exists at `<source>/<app-path>/Dockerfile` and takes precedence over generation | Delete or rename that file. |
 
 ---
 
@@ -183,9 +199,13 @@ This contract is stable across minor versions. Specifically:
 - New env vars may be bridged.
 - The generated Dockerfile shape (slim/distroless runtime, BuildKit cache mounts, USER directive, HEALTHCHECK, etc.) may change in ways that improve image size or build correctness without breaking `docker build`.
 
-Breaking changes that ship in a major version include: removing a flag, removing a documented env-var bridge, changing the meaning of `--source` / `--app-path` / `--app-name`, or removing user-Dockerfile precedence.
+Breaking changes that ship in a major version include: removing a flag, removing a documented env-var bridge, changing the meaning of `--source` / `--app-path` / `--app-name`, or changing what causes a build to be rejected.
 
 When a breaking change ships, `CHANGELOG.md` carries a `### Changed` entry under the new major version explicitly naming what consumers must migrate.
+
+### Breaking changes since v1
+
+- **User-Dockerfile precedence removed.** Pre-v1 (and the v1 PR that introduced this contract document) treated a user-supplied Dockerfile at `<source>/<app-path>/Dockerfile` as taking precedence over generation: the CLI would copy the user file to `--output` and exit successfully. As of `[Unreleased]` (next major), the same condition causes exit code 2 with a rejection message. There is no override flag. Rationale: pre-release window with no external users; eliminates the entire class of "buggy template Dockerfile blamed on theo-packs" misdiagnosis (see `docs/plans/single-source-of-truth-plan.md`).
 
 ---
 
