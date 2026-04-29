@@ -50,6 +50,8 @@ func TestNormalizeToMajorMinor(t *testing.T) {
 		{"major only", "3", "3"},
 		{"caret", "^3.11.2", "3.11"},
 		{"tilde", "~1.23.1", "1.23"},
+		{"twiddle-wakka", "~> 3.3", "3.3"},
+		{"twiddle-wakka semver", "~> 3.3.0", "3.3"},
 		{"v prefix", "v1.22", "1.22"},
 		{"range", ">=3.10 <3.12", "3.10"},
 		{"empty", "", ""},

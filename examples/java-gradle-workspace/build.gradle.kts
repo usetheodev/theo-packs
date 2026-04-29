@@ -6,7 +6,10 @@ plugins {
 subprojects {
     apply(plugin = "java")
 
-    java {
+    // `apply(plugin = "java")` doesn't bring the type-safe `java {}` accessor
+    // into the subprojects DSL scope; use configure<JavaPluginExtension> to
+    // hit the same extension imperatively.
+    configure<org.gradle.api.plugins.JavaPluginExtension> {
         toolchain {
             languageVersion = JavaLanguageVersion.of(21)
         }

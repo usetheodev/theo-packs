@@ -283,6 +283,16 @@ func cleanVersionPrefix(version string) string {
 		}
 	}
 
+	// Pessimistic / twiddle-wakka notation common in bundler/Cargo:
+	//   "~> 3.3"     → "3.3"
+	//   "~> 3.3.0"   → "3.3.0"
+	// We keep the "~> " separator handling separate from the bare "~" prefix
+	// because the space matters: TrimPrefix("~") on "~> 3.3" yields "> 3.3"
+	// (broken). The block below normalizes both forms.
+	if strings.HasPrefix(version, "~>") {
+		version = strings.TrimSpace(strings.TrimPrefix(version, "~>"))
+	}
+
 	// Caret: "^14.3.2" → "14.3.2" (caller decides precision)
 	version = strings.TrimPrefix(version, "^")
 	version = strings.TrimPrefix(version, "~")
