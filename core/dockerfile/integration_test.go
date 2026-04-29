@@ -83,6 +83,10 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"python-uv-workspace", map[string]string{"THEOPACKS_START_CMD": "python main.py"}},
 		{"python-streamlit", map[string]string{"THEOPACKS_START_CMD": "streamlit run app.py --server.port 8501 --server.address 0.0.0.0"}},
 		{"python-gradio", map[string]string{"THEOPACKS_START_CMD": "python app.py"}},
+		// Rust
+		{"rust-axum", nil},
+		{"rust-cli", nil},
+		{"rust-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static
