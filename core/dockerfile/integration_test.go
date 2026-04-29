@@ -103,6 +103,10 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"php-slim", nil},
 		{"php-laravel", nil},
 		{"php-monorepo", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		// Deno
+		{"deno-fresh", nil},
+		{"deno-hono", nil},
+		{"deno-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
 		// Shell
 		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
 		// Static
