@@ -89,16 +89,16 @@ func (p *DenoProvider) planSimple(ctx *generate.GenerateContext, cfg *DenoConfig
 func (p *DenoProvider) planWorkspace(ctx *generate.GenerateContext, cfg *DenoConfig, version string) error {
 	ws := DetectWorkspace(ctx.App, ctx.Logger)
 	if ws == nil || len(ws.Members) == 0 {
-		return fmt.Errorf("Deno workspace declares members but none could be resolved")
+		return fmt.Errorf("deno workspace declares members but none could be resolved")
 	}
 
 	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
 	name, path, ok := ws.SelectMember(appName)
 	if !ok {
 		if appName == "" {
-			return fmt.Errorf("Deno workspace has multiple members; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.MemberNames(), ", "))
+			return fmt.Errorf("deno workspace has multiple members; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.MemberNames(), ", "))
 		}
-		return fmt.Errorf("Deno workspace has no member named %q; available: %s", appName, strings.Join(ws.MemberNames(), ", "))
+		return fmt.Errorf("deno workspace has no member named %q; available: %s", appName, strings.Join(ws.MemberNames(), ", "))
 	}
 
 	installStep := ctx.NewCommandStep("install")

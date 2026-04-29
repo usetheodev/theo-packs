@@ -85,9 +85,9 @@ func (p *RubyProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspac
 	name, path, ok := ws.SelectApp(appName)
 	if !ok {
 		if appName == "" {
-			return fmt.Errorf("Ruby workspace has multiple apps; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.AppNames(), ", "))
+			return fmt.Errorf("ruby workspace has multiple apps; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.AppNames(), ", "))
 		}
-		return fmt.Errorf("Ruby workspace has no app named %q; available: %s", appName, strings.Join(ws.AppNames(), ", "))
+		return fmt.Errorf("ruby workspace has no app named %q; available: %s", appName, strings.Join(ws.AppNames(), ", "))
 	}
 
 	installStep := ctx.NewCommandStep("install")
