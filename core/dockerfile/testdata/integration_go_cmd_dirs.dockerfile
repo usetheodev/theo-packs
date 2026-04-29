@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
     sh -c 'go build -o /app/server ./cmd/server'
 
-FROM debian:bookworm-slim
+FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=build /app/server /app/server
 CMD ["/app/server"]

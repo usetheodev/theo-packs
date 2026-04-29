@@ -14,7 +14,11 @@ const (
 	NodeBuildImage   = "node:20-bookworm"
 	PythonBuildImage = "python:3.12-bookworm"
 
-	GoRuntimeImage         = DefaultRuntimeImage // Go compiles to static binary
+	// GoRuntimeImage is the Distroless static-debian12 image for Go binaries.
+	// Go produces fully static binaries by default (CGO disabled), so the
+	// minimal distroless static base (~2MB) is sufficient. The :nonroot
+	// variant runs as UID 65532 — no USER directive is needed for Go.
+	GoRuntimeImage         = "gcr.io/distroless/static-debian12:nonroot"
 	NodeRuntimeImage       = "node:20-bookworm-slim"
 	PythonRuntimeImage     = "python:3.12-slim-bookworm"
 	StaticfileRuntimeImage = PythonRuntimeImage // provides python for http.server

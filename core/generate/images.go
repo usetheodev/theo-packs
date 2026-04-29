@@ -22,8 +22,11 @@ const (
 // Static runtime images. Used by providers whose runtime stage does not embed
 // the language toolchain (Rust static binaries, PHP-CLI fallback, etc.).
 const (
-	// RustRuntimeImage is the runtime base for Rust binaries (static).
-	RustRuntimeImage = "debian:bookworm-slim"
+	// RustRuntimeImage is the Distroless cc-debian12 image for Rust binaries.
+	// Rust by default links dynamically against glibc; cc-debian12 includes
+	// glibc + ca-certificates (~17MB). The :nonroot variant runs as UID 65532
+	// — no USER directive needed.
+	RustRuntimeImage = "gcr.io/distroless/cc-debian12:nonroot"
 
 	// ComposerImage is the multi-stage source for the composer CLI.
 	ComposerImage = "composer:2"

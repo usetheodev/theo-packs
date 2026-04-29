@@ -138,12 +138,15 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	return nil
 }
 
-// configureDeploy sets the runtime image, runtime apt packages, the start
-// command, and the binary copy filter. Both single-crate and workspace flows
-// produce a binary at /app/server, so the deploy block is shared.
+// configureDeploy sets the runtime image, the start command, and the binary
+// copy filter. Both single-crate and workspace flows produce a binary at
+// /app/server, so the deploy block is shared.
+//
+// The runtime image (RustRuntimeImage = distroless/cc-debian12:nonroot) ships
+// with glibc + ca-certificates already, so we don't need an apt step like
+// the previous debian-slim base did.
 func configureDeploy(ctx *generate.GenerateContext) {
 	ctx.Deploy.Base = plan.NewImageLayer(generate.RustRuntimeImage)
-	ctx.Deploy.AddAptPackages([]string{"ca-certificates"})
 	ctx.Deploy.StartCmd = "/app/server"
 	ctx.Deploy.AddInputs([]plan.Layer{
 		plan.NewStepLayer("build", plan.Filter{Include: []string{"/app/server"}}),

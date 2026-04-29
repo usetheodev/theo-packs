@@ -328,6 +328,6 @@ func TestDefaultVersionsNonEmpty(t *testing.T) {
 	assert.NotEmpty(t, DefaultPhpVersion)
 	assert.NotEmpty(t, DefaultDotnetVersion)
 	assert.NotEmpty(t, DefaultDenoVersion)
-	assert.Equal(t, "debian:bookworm-slim", RustRuntimeImage)
+	assert.Equal(t, "gcr.io/distroless/cc-debian12:nonroot", RustRuntimeImage)
 	assert.Equal(t, "composer:2", ComposerImage)
 }

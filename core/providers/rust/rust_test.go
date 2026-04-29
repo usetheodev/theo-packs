@@ -106,7 +106,9 @@ func TestRustProvider_PlanSimple(t *testing.T) {
 	require.Len(t, ctx.Steps, 2)
 	require.Equal(t, "install", ctx.Steps[0].Name())
 	require.Equal(t, "build", ctx.Steps[1].Name())
-	require.Contains(t, ctx.Deploy.AptPackages, "ca-certificates")
+	// Rust now deploys to gcr.io/distroless/cc-debian12:nonroot which already
+	// ships glibc + ca-certificates; no apt step needed.
+	require.NotContains(t, ctx.Deploy.AptPackages, "ca-certificates")
 }
 
 func TestRustProvider_PlanSimple_WithCargoLock(t *testing.T) {
