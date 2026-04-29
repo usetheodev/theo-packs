@@ -14,6 +14,7 @@ package dockerfile
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -197,5 +198,92 @@ func TestGoldens_PackageManagerStepsHaveCacheMounts(t *testing.T) {
 			require.Contains(t, content, c.mount,
 				"%s missing expected cache mount (T3.x)", c.golden)
 		})
+	}
+}
+
+// perAppNodeModulesPattern matches `<anything>/(apps|packages)/<name>/node_modules`.
+// Such COPY lines fail in production because npm/pnpm/yarn workspaces hoist
+// dependencies to the workspace root by default. A per-app `node_modules`
+// only exists when there is a version conflict — common in synthetic
+// fixtures, never reliable for templates that actually ship.
+//
+// Forbidden because:
+//
+//	COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+//
+// fails with "/apps/api/node_modules: not found" when deps were hoisted.
+//
+// Allowed:
+//
+//	COPY --from=build /app /app             (whole workspace, hoisting preserved)
+//	COPY --from=build /app/node_modules ... (root node_modules; OK)
+var perAppNodeModulesPattern = regexp.MustCompile(`(apps|packages)/[^/\s]+/node_modules\b`)
+
+// TestGoldens_NoPerAppNodeModulesCopy locks the assertion that no Node
+// workspace golden COPYs a per-app `node_modules` directory. F5 in the
+// dogfood report claimed theo-packs emitted such a pattern; manual
+// reproduction against the real upstream theo-stacks template proved this
+// was false. This test guards against a future regression.
+//
+// The bug in the dogfood report came from a user-provided Dockerfile in
+// `theo-stacks/templates/monorepo-turbo/apps/api/Dockerfile` that
+// theo-packs passes through unchanged per the user-Dockerfile-precedence
+// contract documented in docs/contracts/theo-packs-cli-contract.md.
+func TestGoldens_NoPerAppNodeModulesCopy(t *testing.T) {
+	for _, path := range goldenFiles(t) {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			content := readGolden(t, path)
+			// Fast path — most goldens don't even mention node_modules.
+			if !strings.Contains(content, "node_modules") {
+				return
+			}
+			loc := perAppNodeModulesPattern.FindStringIndex(content)
+			if loc == nil {
+				return
+			}
+			// Surface the offending line so the failure is actionable.
+			lineStart := strings.LastIndex(content[:loc[0]], "\n") + 1
+			lineEnd := loc[1]
+			if nl := strings.Index(content[loc[1]:], "\n"); nl >= 0 {
+				lineEnd = loc[1] + nl
+			}
+			t.Fatalf(
+				"%s contains per-app node_modules pattern (forbidden — npm/pnpm hoist deps to root):\n  %s",
+				filepath.Base(path), content[lineStart:lineEnd],
+			)
+		})
+	}
+}
+
+// TestGoldens_NoPerAppNodeModulesCopy_DetectsBadPattern verifies the
+// regex actually catches the forbidden shape. Without this, the audit
+// test could silently pass against a corpus that's clean today but
+// contain a broken regex that misses tomorrow's regression.
+func TestGoldens_NoPerAppNodeModulesCopy_DetectsBadPattern(t *testing.T) {
+	bad := []string{
+		"COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules",
+		"COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules",
+	}
+	for _, line := range bad {
+		require.True(t,
+			perAppNodeModulesPattern.MatchString(line),
+			"regex must match forbidden pattern: %q", line)
+	}
+}
+
+// TestGoldens_NoPerAppNodeModulesCopy_AcceptsCleanOutput verifies the
+// regex does NOT flag the patterns the current generator emits.
+func TestGoldens_NoPerAppNodeModulesCopy_AcceptsCleanOutput(t *testing.T) {
+	clean := []string{
+		"COPY --from=build --chown=appuser:appuser /app /app",
+		"COPY --from=build /app/node_modules /app/node_modules",
+		"COPY apps/api/package.json apps/api/",
+		"COPY packages/shared/package.json packages/shared/",
+		"WORKDIR /app",
+	}
+	for _, line := range clean {
+		require.False(t,
+			perAppNodeModulesPattern.MatchString(line),
+			"regex must not match clean pattern: %q", line)
 	}
 }
