@@ -2,6 +2,14 @@
 description = "Run unit tests"
 run = "go test ./core/... ./cmd/..."
 
+[tasks.test-e2e]
+description = "Run end-to-end tests (requires Docker)"
+run = "go test -tags e2e ./e2e/ -timeout 1500s"
+
+[tasks.test-update-snapshots]
+description = "Regenerate golden Dockerfiles in core/dockerfile/testdata/"
+run = "UPDATE_GOLDEN=true go test ./core/dockerfile/..."
+
 [tasks.check]
 description = "Lint, format, and static analysis"
 run = ["go vet ./...", "go fmt ./...", "golangci-lint run"]
