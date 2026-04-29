@@ -347,9 +347,13 @@ func TestE2E_RubySinatra_BuildsImage(t *testing.T) {
 	tag := "theopacks-e2e-ruby-sinatra:test"
 	runE2EBuild(t, "ruby-sinatra", tag, nil)
 
-	output, err := exec.Command("docker", "run", "--rm", tag, "bundle", "exec", "ruby", "-rsinatra", "-e", "puts Sinatra::VERSION").CombinedOutput()
+	// `bundle info sinatra` prints gem metadata without loading sinatra's
+	// code. We can't `require "sinatra"` here because Sinatra's classic-style
+	// main.rb registers an at_exit hook that starts the web server when the
+	// process exits — that would hang docker run indefinitely.
+	output, err := exec.Command("docker", "run", "--rm", tag, "bundle", "info", "sinatra").CombinedOutput()
 	require.NoError(t, err, "sinatra not installed: %s", string(output))
-	require.NotEmpty(t, strings.TrimSpace(string(output)))
+	require.Contains(t, string(output), "sinatra")
 }
 
 func TestE2E_RubyMonorepo_BuildsImage(t *testing.T) {
