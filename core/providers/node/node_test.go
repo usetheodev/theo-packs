@@ -10,6 +10,7 @@ import (
 	"github.com/usetheo/theopacks/core/config"
 	"github.com/usetheo/theopacks/core/generate"
 	"github.com/usetheo/theopacks/core/logger"
+	"github.com/usetheo/theopacks/core/plan"
 )
 
 func TestNodeDetect(t *testing.T) {
@@ -262,4 +263,99 @@ func TestDetectPackageManager_ConflictingLockFiles(t *testing.T) {
 		"pnpm-lock.yaml":  "lockfileVersion: 6",
 	})
 	require.Equal(t, PackageManagerPnpm, DetectPackageManager(a))
+}
+
+// --- Build-step prune (Phase 1: drop devDependencies before deploy) ---
+
+// buildStepCommandStrings returns the rendered command bodies for the build
+// step, in order. Helper for asserting prune lands at the right place.
+func buildStepCommandStrings(t *testing.T, ctx *generate.GenerateContext) []string {
+	t.Helper()
+	for _, s := range ctx.Steps {
+		if s.Name() != "build" {
+			continue
+		}
+		csb, ok := s.(*generate.CommandStepBuilder)
+		require.True(t, ok, "build step must be a CommandStepBuilder")
+		out := make([]string, 0, len(csb.Commands))
+		for _, c := range csb.Commands {
+			ec, ok := c.(plan.ExecCommand)
+			if !ok {
+				continue
+			}
+			out = append(out, ec.Cmd)
+		}
+		return out
+	}
+	t.Fatal("no build step found")
+	return nil
+}
+
+func TestNodeProvider_BuildStepHasPrune_Npm(t *testing.T) {
+	a := createNodeTempApp(t, map[string]string{
+		"package.json":      `{"name": "test", "scripts": {"build": "echo build"}}`,
+		"package-lock.json": "{}",
+	})
+	ctx := createNodeTestContext(t, a, nil)
+	require.NoError(t, (&NodeProvider{}).Plan(ctx))
+
+	cmds := buildStepCommandStrings(t, ctx)
+	require.NotEmpty(t, cmds)
+	require.Equal(t, "npm prune --omit=dev", cmds[len(cmds)-1])
+}
+
+func TestNodeProvider_BuildStepHasPrune_Pnpm(t *testing.T) {
+	a := createNodeTempApp(t, map[string]string{
+		"package.json":   `{"name": "test", "scripts": {"build": "echo build"}}`,
+		"pnpm-lock.yaml": "lockfileVersion: 6",
+	})
+	ctx := createNodeTestContext(t, a, nil)
+	require.NoError(t, (&NodeProvider{}).Plan(ctx))
+
+	cmds := buildStepCommandStrings(t, ctx)
+	require.NotEmpty(t, cmds)
+	require.Equal(t, "pnpm prune --prod", cmds[len(cmds)-1])
+}
+
+func TestNodeProvider_BuildStepHasPrune_Yarn(t *testing.T) {
+	a := createNodeTempApp(t, map[string]string{
+		"package.json": `{"name": "test", "scripts": {"build": "echo build"}}`,
+		"yarn.lock":    "# yarn",
+	})
+	ctx := createNodeTestContext(t, a, nil)
+	require.NoError(t, (&NodeProvider{}).Plan(ctx))
+
+	cmds := buildStepCommandStrings(t, ctx)
+	require.NotEmpty(t, cmds)
+	require.Equal(t, "yarn install --production --ignore-scripts --prefer-offline", cmds[len(cmds)-1])
+}
+
+func TestNodeProvider_BunBuildStepHasNoPrune(t *testing.T) {
+	a := createNodeTempApp(t, map[string]string{
+		"package.json": `{"name": "test", "scripts": {"build": "echo build"}}`,
+		"bun.lockb":    "",
+	})
+	ctx := createNodeTestContext(t, a, nil)
+	require.NoError(t, (&NodeProvider{}).Plan(ctx))
+
+	cmds := buildStepCommandStrings(t, ctx)
+	for _, c := range cmds {
+		require.NotContains(t, c, "prune", "bun has no prune subcommand; we must skip it")
+		require.NotContains(t, c, "--production", "no production reinstall for bun either")
+	}
+}
+
+func TestNodeProvider_PruneRunsEvenWithoutBuildScript(t *testing.T) {
+	// A package.json without a `build` script must still get the prune line —
+	// devDependencies are still installed by the install step and should not
+	// ship to deploy regardless of whether a build script ran.
+	a := createNodeTempApp(t, map[string]string{
+		"package.json":      `{"name": "test", "version": "1.0.0"}`,
+		"package-lock.json": "{}",
+	})
+	ctx := createNodeTestContext(t, a, nil)
+	require.NoError(t, (&NodeProvider{}).Plan(ctx))
+
+	cmds := buildStepCommandStrings(t, ctx)
+	require.Contains(t, cmds, "npm prune --omit=dev")
 }

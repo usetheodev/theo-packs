@@ -227,3 +227,21 @@ func TestManifestFiles_Pnpm(t *testing.T) {
 	require.Contains(t, files, "pnpm-workspace.yaml")
 	require.Contains(t, files, "packages/pkg-a/package.json")
 }
+
+// --- PruneCommand ---
+
+func TestPruneCommand_Npm(t *testing.T) {
+	require.Equal(t, "npm prune --omit=dev", PruneCommand(PackageManagerNpm))
+}
+
+func TestPruneCommand_Pnpm(t *testing.T) {
+	require.Equal(t, "pnpm prune --prod", PruneCommand(PackageManagerPnpm))
+}
+
+func TestPruneCommand_Yarn(t *testing.T) {
+	require.Equal(t, "yarn install --production --ignore-scripts --prefer-offline", PruneCommand(PackageManagerYarn))
+}
+
+func TestPruneCommand_Bun(t *testing.T) {
+	require.Equal(t, "", PruneCommand(PackageManagerBun))
+}

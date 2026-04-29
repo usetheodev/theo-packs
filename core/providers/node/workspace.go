@@ -118,6 +118,30 @@ func InstallCommand(pm PackageManager, hasLockfile bool) string {
 	}
 }
 
+// PruneCommand returns the command that drops devDependencies from an
+// already-installed node_modules tree. Run AFTER `<pm> run build` in the
+// build stage so the build can use dev tooling (typescript, vitest, etc.)
+// but the deploy stage's COPY of /app carries only production deps.
+//
+// Bun has no built-in prune subcommand and its hardlinked store is already
+// lean — we return "" and the caller emits no extra RUN line.
+//
+// For yarn classic, `yarn install --production` reinstalls without dev
+// deps (yarn 1 lacks a true prune). `--ignore-scripts --prefer-offline`
+// keeps the reinstall fast and safe given the install-step cache is warm.
+func PruneCommand(pm PackageManager) string {
+	switch pm {
+	case PackageManagerPnpm:
+		return "pnpm prune --prod"
+	case PackageManagerYarn:
+		return "yarn install --production --ignore-scripts --prefer-offline"
+	case PackageManagerBun:
+		return ""
+	default:
+		return "npm prune --omit=dev"
+	}
+}
+
 // LockfileName returns the lock file name for the package manager.
 func LockfileName(pm PackageManager) string {
 	switch pm {

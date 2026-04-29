@@ -16,6 +16,9 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 FROM install AS build
 WORKDIR /app
 COPY . .
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
+    sh -c 'yarn install --production --ignore-scripts --prefer-offline'
 
 FROM node:20-bookworm-slim
 RUN useradd -r -u 10001 -m appuser
