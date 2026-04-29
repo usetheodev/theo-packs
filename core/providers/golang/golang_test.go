@@ -306,7 +306,7 @@ func TestFindBuildTarget_EnvVarNonExistentModule(t *testing.T) {
 func TestFindSimpleBuildTarget_MultipleCmdDirs(t *testing.T) {
 	// Multiple cmd/*/main.go should pick deterministically (first sorted)
 	a := createTempApp(t, map[string]string{
-		"go.mod":           "module test\ngo 1.22",
+		"go.mod":            "module test\ngo 1.22",
 		"cmd/alpha/main.go": "package main\nfunc main() {}",
 		"cmd/beta/main.go":  "package main\nfunc main() {}",
 	})

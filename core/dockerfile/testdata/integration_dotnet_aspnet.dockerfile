@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS install
 WORKDIR /app
 COPY dotnet-aspnet.csproj dotnet-aspnet.csproj

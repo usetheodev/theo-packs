@@ -39,6 +39,7 @@ import (
 	"github.com/usetheo/theopacks/core"
 	"github.com/usetheo/theopacks/core/app"
 	"github.com/usetheo/theopacks/core/dockerfile"
+	"github.com/usetheo/theopacks/core/dockerignore"
 	"github.com/usetheo/theopacks/core/providers/node"
 )
 
@@ -115,6 +116,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "[theopacks] Start command: %s\n", meta)
 	}
 
+	// Write a default .dockerignore tailored to the detected provider IF the
+	// user has not supplied one. User-provided files are NEVER overwritten
+	// (D3 in build-correctness-and-speed-v2 plan). Failures are logged but
+	// don't abort — Dockerfile writing still happens on read-only sources.
+	if len(result.DetectedProviders) > 0 {
+		writeDefaultDockerignore(analyzeDir, result.DetectedProviders[0])
+	}
+
 	// Generate Dockerfile from build plan
 	dockerfileContent, err := dockerfile.Generate(result.Plan)
 	if err != nil {
@@ -133,4 +142,42 @@ func main() {
 	fmt.Printf("--- Generated Dockerfile for %s ---\n", *appName)
 	fmt.Print(dockerfileContent)
 	fmt.Println("--- End Dockerfile ---")
+}
+
+// writeDefaultDockerignore writes a per-language .dockerignore template to
+// dir/.dockerignore when the file does not already exist. User-supplied
+// files are NEVER overwritten or merged with the default.
+//
+// Failures are logged to stderr and the function returns without aborting:
+// (a) a read-only source mount in CI is a legitimate scenario where we
+// should still produce the Dockerfile, and (b) a missing .dockerignore is a
+// performance optimization, not a correctness requirement.
+func writeDefaultDockerignore(dir, providerName string) {
+	path := filepath.Join(dir, ".dockerignore")
+
+	if _, err := os.Stat(path); err == nil {
+		fmt.Fprintf(os.Stderr,
+			"[theopacks] User-provided .dockerignore found at %s — skipping default generation\n",
+			path)
+		return
+	} else if !os.IsNotExist(err) {
+		// Stat failed for a reason other than "file does not exist" (permission
+		// denied, IO error). Don't try to write — we may be on a read-only
+		// mount. Log and continue.
+		fmt.Fprintf(os.Stderr,
+			"[theopacks] Could not stat %s (%v) — skipping default .dockerignore generation\n",
+			path, err)
+		return
+	}
+
+	content := dockerignore.DefaultFor(providerName)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		fmt.Fprintf(os.Stderr,
+			"[theopacks] Failed to write default .dockerignore to %s: %v (continuing)\n",
+			path, err)
+		return
+	}
+	fmt.Fprintf(os.Stderr,
+		"[theopacks] Wrote default .dockerignore for provider %q to %s\n",
+		providerName, path)
 }

@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM maven:3-eclipse-temurin-21 AS install
 WORKDIR /app
 COPY pom.xml ./

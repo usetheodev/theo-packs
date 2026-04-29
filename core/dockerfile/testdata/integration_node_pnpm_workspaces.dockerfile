@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM node:20-bookworm AS install
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
@@ -15,6 +17,9 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
 FROM install AS build
 WORKDIR /app
 COPY . .
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
+    --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'pnpm prune --prod'
 
 FROM node:20-bookworm-slim
 RUN useradd -r -u 10001 -m appuser

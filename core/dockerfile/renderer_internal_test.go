@@ -74,21 +74,21 @@ func TestNeedsShell_PlainCommand(t *testing.T) {
 
 func TestNeedsShell_DetectsAllSpecialChars(t *testing.T) {
 	tests := []string{
-		"echo $PORT",     // var expansion
-		"a; b",           // sequence
-		"a && b",         // and
-		"a || b",         // or
-		"a | b",          // pipe
-		"foo > bar",      // redirect
-		"foo < bar",      // redirect
-		"$(pwd)",         // command substitution
-		"foo {a,b}",      // brace expansion
-		`echo "hi"`,      // double quote
-		"echo 'hi'",      // single quote
-		"`pwd`",          // backtick
-		"foo*",           // glob
-		"foo?",           // glob
-		"foo\\bar",       // escape
+		"echo $PORT", // var expansion
+		"a; b",       // sequence
+		"a && b",     // and
+		"a || b",     // or
+		"a | b",      // pipe
+		"foo > bar",  // redirect
+		"foo < bar",  // redirect
+		"$(pwd)",     // command substitution
+		"foo {a,b}",  // brace expansion
+		`echo "hi"`,  // double quote
+		"echo 'hi'",  // single quote
+		"`pwd`",      // backtick
+		"foo*",       // glob
+		"foo?",       // glob
+		"foo\\bar",   // escape
 	}
 	for _, cmd := range tests {
 		require.True(t, needsShell(cmd), "should flag %q as needing shell", cmd)

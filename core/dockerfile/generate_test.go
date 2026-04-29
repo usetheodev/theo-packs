@@ -312,6 +312,31 @@ func TestGenerate_NilPlan(t *testing.T) {
 	require.Contains(t, err.Error(), "no steps")
 }
 
+func TestGenerate_SyntaxDirective(t *testing.T) {
+	p := buildGoPlan()
+	got, err := Generate(p)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(got, "# syntax=docker/dockerfile:1\n\n"),
+		"output must start with the BuildKit frontend pin so cache mounts are honored on every builder")
+}
+
+func TestGenerate_SyntaxDirectiveBeforeFROM(t *testing.T) {
+	p := buildNodePlan()
+	got, err := Generate(p)
+	require.NoError(t, err)
+	syntaxIdx := strings.Index(got, "# syntax=docker/dockerfile:1")
+	fromIdx := strings.Index(got, "FROM ")
+	require.GreaterOrEqual(t, syntaxIdx, 0, "syntax directive must be present")
+	require.Greater(t, fromIdx, syntaxIdx, "FROM must come after the syntax directive")
+}
+
+func TestGenerate_SyntaxDirective_OnlyOnNonEmptyPlan(t *testing.T) {
+	// Empty plan still errors before the directive is written; we never want
+	// a Dockerfile that is JUST `# syntax=...` with no body.
+	_, err := Generate(plan.NewBuildPlan())
+	require.Error(t, err)
+}
+
 func TestGenerate_NoStartCommand(t *testing.T) {
 	p := plan.NewBuildPlan()
 

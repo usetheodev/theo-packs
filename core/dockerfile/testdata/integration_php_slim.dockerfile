@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM php:8.1-cli-bookworm AS install
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.composer/cache,sharing=locked \

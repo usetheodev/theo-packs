@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM denoland/deno:debian AS install
 WORKDIR /app
 COPY deno.json ./
