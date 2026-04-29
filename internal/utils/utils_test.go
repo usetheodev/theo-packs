@@ -15,7 +15,6 @@ func TestRemoveDuplicates(t *testing.T) {
 	require.Equal(t, []string{"a"}, RemoveDuplicates([]string{"a", "a", "a"}))
 }
 
-
 func TestCapitalizeFirst(t *testing.T) {
 	require.Equal(t, "Hello", CapitalizeFirst("hello"))
 	require.Equal(t, "Go", CapitalizeFirst("go"))
@@ -110,11 +109,11 @@ func TestMergeStructs(t *testing.T) {
 		Value string
 	}
 	type TestStruct struct {
-		Name    string
-		Count   int
-		Tags    []string
-		Data    map[string]string
-		Inner   *Inner
+		Name  string
+		Count int
+		Tags  []string
+		Data  map[string]string
+		Inner *Inner
 	}
 
 	t.Run("merge basic fields", func(t *testing.T) {

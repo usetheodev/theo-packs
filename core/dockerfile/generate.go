@@ -9,6 +9,13 @@ import (
 	"github.com/usetheo/theopacks/core/plan"
 )
 
+// SyntaxDirective is the BuildKit dockerfile-frontend pin emitted at the top
+// of every generated Dockerfile. Pinning the frontend version ensures that
+// `--mount=type=cache` (and any future feature we adopt) is parsed even when
+// the build host's default frontend is older or has BuildKit explicitly
+// disabled. The bare `1` tag resolves to the latest stable v1.x at build time.
+const SyntaxDirective = "# syntax=docker/dockerfile:1\n\n"
+
 // Generate converts a BuildPlan into a Dockerfile string.
 // Each Step becomes a named multi-stage build stage.
 // The Deploy section becomes the final (unnamed) stage.
@@ -18,6 +25,7 @@ func Generate(p *plan.BuildPlan) (string, error) {
 	}
 
 	var b strings.Builder
+	b.WriteString(SyntaxDirective)
 
 	for i, step := range p.Steps {
 		if i > 0 {

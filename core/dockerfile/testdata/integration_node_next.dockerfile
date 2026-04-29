@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM node:20-bookworm AS install
 WORKDIR /app
 COPY package.json ./
@@ -10,6 +12,8 @@ WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     sh -c 'npm run build'
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    sh -c 'npm prune --omit=dev'
 
 FROM node:20-bookworm-slim
 RUN useradd -r -u 10001 -m appuser

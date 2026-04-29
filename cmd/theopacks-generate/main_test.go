@@ -43,11 +43,41 @@ func projectRoot(t *testing.T) string {
 	return root
 }
 
+// copyExampleToTemp copies examples/<name>/ to a fresh temp dir and returns
+// the destination path. Tests use this to isolate CLI side effects (the CLI
+// writes .dockerignore into the source dir, which would otherwise pollute
+// the working tree).
+func copyExampleToTemp(t *testing.T, name string) string {
+	t.Helper()
+	src := filepath.Join(projectRoot(t), "examples", name)
+	dst := t.TempDir()
+
+	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
+	require.NoError(t, err, "failed to copy example %q", name)
+	return dst
+}
+
 func TestGenerateNodeNpm(t *testing.T) {
 	// Arrange
 	bin := buildBinary(t)
-	root := projectRoot(t)
-	source := filepath.Join(root, "examples", "node-npm")
+	source := copyExampleToTemp(t, "node-npm")
 	outputDir := t.TempDir()
 	outputFile := filepath.Join(outputDir, "Dockerfile")
 
@@ -83,8 +113,7 @@ func TestGenerateNodeNpm(t *testing.T) {
 func TestGenerateGoMod(t *testing.T) {
 	// Arrange
 	bin := buildBinary(t)
-	root := projectRoot(t)
-	source := filepath.Join(root, "examples", "go-simple")
+	source := copyExampleToTemp(t, "go-simple")
 	outputDir := t.TempDir()
 	outputFile := filepath.Join(outputDir, "Dockerfile")
 
@@ -168,8 +197,7 @@ func TestFailsWithActionableMessageForMissingSource(t *testing.T) {
 func TestOutputGoesToStdout(t *testing.T) {
 	// Arrange
 	bin := buildBinary(t)
-	root := projectRoot(t)
-	source := filepath.Join(root, "examples", "node-npm")
+	source := copyExampleToTemp(t, "node-npm")
 	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
 
 	// Act: capture stdout separately from stderr
@@ -212,4 +240,184 @@ func extractCMDLine(dockerfile string) string {
 		}
 	}
 	return ""
+}
+
+// --- Phase 4: .dockerignore default generation ---
+
+func TestCLI_WritesDockerignore_WhenAbsent(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "node-npm")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	// Sanity: the temp copy starts WITHOUT a .dockerignore.
+	_, err := os.Stat(filepath.Join(source, ".dockerignore"))
+	require.True(t, os.IsNotExist(err), ".dockerignore must not exist before CLI runs")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "node-npm",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "binary failed: %s", string(out))
+
+	// CLI must have written a Node-flavored .dockerignore.
+	content, err := os.ReadFile(filepath.Join(source, ".dockerignore"))
+	require.NoError(t, err, "CLI did not write .dockerignore")
+	require.Contains(t, string(content), "node_modules/")
+	require.Contains(t, string(content), ".git/")
+
+	// stderr should announce the write.
+	require.Contains(t, string(out), "Wrote default .dockerignore")
+}
+
+func TestCLI_PreservesUserDockerignore(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "node-npm")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	userIgnore := "# user-controlled\n!important.txt\n"
+	err := os.WriteFile(filepath.Join(source, ".dockerignore"), []byte(userIgnore), 0644)
+	require.NoError(t, err)
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "node-npm",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "binary failed: %s", string(out))
+
+	// User content must be untouched.
+	content, err := os.ReadFile(filepath.Join(source, ".dockerignore"))
+	require.NoError(t, err)
+	require.Equal(t, userIgnore, string(content))
+
+	// stderr should announce the skip.
+	require.Contains(t, string(out), "User-provided .dockerignore found")
+}
+
+func TestCLI_HandlesReadonlySourceGracefully(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "node-npm")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	// Make the source dir read-only AFTER copying. CLI should log but still
+	// produce the Dockerfile.
+	require.NoError(t, os.Chmod(source, 0555))
+	t.Cleanup(func() { _ = os.Chmod(source, 0755) })
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "node-npm",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+
+	// Read-only dir means the Dockerfile-write attempt to source/Dockerfile
+	// might also fail — but our CLI writes to --output (a separate temp dir).
+	// The .dockerignore write is the only thing that touches source/. Either
+	// the binary succeeded with a logged warning OR it succeeded silently
+	// (file simply wasn't written). We just confirm no .dockerignore was
+	// written and the binary did produce a Dockerfile in --output.
+	require.NoError(t, err, "binary should not abort on .dockerignore write failure: %s", string(out))
+
+	_, statErr := os.Stat(filepath.Join(source, ".dockerignore"))
+	require.True(t, os.IsNotExist(statErr), "no .dockerignore should have been written to read-only source")
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "FROM")
+}
+
+// --- --app-name → THEOPACKS_APP_NAME bridge for non-Node workspaces ---
+
+// TestCLI_BridgesAppNameToCargoWorkspace verifies the regression path: a
+// Cargo workspace previously failed because --app-name was only bridged to
+// THEOPACKS_APP_NAME for Node-shaped workspaces. With the bridge unified,
+// rust/ruby/php/dotnet/deno workspaces all work the same way Node does.
+func TestCLI_BridgesAppNameToCargoWorkspace(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "rust-workspace")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "api",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Cargo workspace should accept --app-name=api: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "cargo build --release -p api",
+		"Dockerfile must build the selected workspace member")
+}
+
+func TestCLI_BridgesAppNameToRubyMonorepo(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "ruby-monorepo")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "api",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Ruby monorepo should accept --app-name=api: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "apps/api",
+		"Dockerfile must reference the selected app")
+}
+
+func TestCLI_BridgesAppNameToPhpMonorepo(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "php-monorepo")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		"--app-name", "api",
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "PHP monorepo should accept --app-name=api: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "apps/api",
+		"Dockerfile must reference the selected app")
+}
+
+// TestCLI_NoBridgeWhenAppNameEmpty asserts the empty-default behavior: a
+// single-app project (no monorepo) with no --app-name flag is unaffected,
+// because we don't bridge an empty string into THEOPACKS_APP_NAME (which
+// would otherwise look for a literal app named "").
+func TestCLI_NoBridgeWhenAppNameEmpty(t *testing.T) {
+	bin := buildBinary(t)
+	source := copyExampleToTemp(t, "go-simple")
+	outputFile := filepath.Join(t.TempDir(), "Dockerfile")
+
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", ".",
+		// no --app-name
+		"--output", outputFile,
+	)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "single-app project should not require --app-name: %s", string(out))
+
+	df, readErr := os.ReadFile(outputFile)
+	require.NoError(t, readErr)
+	require.Contains(t, string(df), "FROM")
 }

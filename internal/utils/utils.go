@@ -21,7 +21,6 @@ func RemoveDuplicates[T comparable](sliceList []T) []T {
 	return list
 }
 
-
 func CapitalizeFirst(s string) string {
 	if s == "" {
 		return ""

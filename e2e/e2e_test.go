@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -117,6 +118,21 @@ func imageExists(tag string) bool {
 	return cmd.Run() == nil
 }
 
+// requireSizeLessThan asserts the named image is smaller than maxMB megabytes.
+// Reports the actual size in MB on failure. Caps are intentionally loose
+// (D6: absolute bounds beat ratios because base images drift across Debian
+// point releases — generous bounds won't flake within a 12-month horizon).
+func requireSizeLessThan(t *testing.T, tag string, maxMB int) {
+	t.Helper()
+	out, err := exec.Command("docker", "image", "inspect", tag, "--format", "{{.Size}}").Output()
+	require.NoError(t, err, "docker image inspect failed for %s", tag)
+	sizeBytes, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	require.NoError(t, err, "could not parse image size %q", string(out))
+	sizeMB := int(sizeBytes / (1024 * 1024))
+	require.LessOrEqual(t, sizeMB, maxMB,
+		"image %s is %d MB, expected <= %d MB — devDependencies likely shipping to runtime", tag, sizeMB, maxMB)
+}
+
 func TestE2E_GoSimple_BuildsImage(t *testing.T) {
 	if !dockerAvailable() {
 		t.Skip("Docker not available")
@@ -152,6 +168,11 @@ func TestE2E_NodeNpm_BuildsImage(t *testing.T) {
 	output, err := exec.Command("docker", "run", "--rm", tag, "node", "-e", "console.log('ok')").CombinedOutput()
 	require.NoError(t, err, "node not working: %s", string(output))
 	require.Contains(t, string(output), "ok")
+
+	// Phase 6: lock the size win from npm prune --omit=dev. node:20-bookworm-slim
+	// is ~210 MB; a hello-world app + prod-only deps should fit comfortably
+	// under 280 MB. If devDependencies leaked through, we'd see ~150 MB more.
+	requireSizeLessThan(t, tag, 280)
 }
 
 func TestE2E_PythonFlask_BuildsImage(t *testing.T) {
@@ -174,6 +195,11 @@ func TestE2E_PythonFlask_BuildsImage(t *testing.T) {
 		"python", "-c", "import flask; print(flask.__version__)").CombinedOutput()
 	require.NoError(t, err, "flask not installed: %s", string(output))
 	require.NotEmpty(t, strings.TrimSpace(string(output)))
+
+	// Phase 6: python:3.12-slim-bookworm is ~125 MB; flask + gunicorn add a
+	// modest amount. Cap at 280 MB to catch regressions where __pycache__
+	// or .venv start leaking into the runtime image.
+	requireSizeLessThan(t, tag, 280)
 }
 
 func TestE2E_StaticFile_BuildsImage(t *testing.T) {

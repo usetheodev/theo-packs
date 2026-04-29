@@ -259,6 +259,15 @@ Behavior:
 4. Run `core.GenerateBuildPlan` → `dockerfile.Generate` → write to `--output`.
 5. Echo the Dockerfile to stdout for Loki/Promtail capture.
 
+#### Generated artifacts (CLI is the single writer)
+
+The CLI writes two artifacts; the library is read-only against the source tree.
+
+- **Dockerfile** at `--output` (or copied from a user-provided `<source>/<app-path>/Dockerfile` when present).
+- **`.dockerignore`** at `<source>/.dockerignore` — only when the file does not already exist. User-supplied files are never overwritten or merged. Templates are per-language via `core/dockerignore/DefaultFor(providerName)`. Read-only sources fail gracefully with a logged warning; the Dockerfile write still happens.
+
+Generated Dockerfiles always start with `# syntax=docker/dockerfile:1` (renderer-emitted, not provider-emitted) so BuildKit cache mounts are honored on every host. Node deploy stages drop devDependencies via `<pm> prune`. Java install steps warm the dep cache via `gradle dependencies` / `mvn dependency:go-offline`. Don't undo these defaults without coordinating — they're load-bearing for image size and rebuild speed in the PaaS.
+
 ---
 
 ## Testing
@@ -389,8 +398,9 @@ func (p *MyProvider) Plan(ctx *generate.GenerateContext) error {
 | `core/app/environment.go` | `Environment` — `THEOPACKS_*` variable access |
 | `core/config/config.go` | Config structure + merging logic |
 | `core/providers/provider.go` | `Provider` interface + registry |
-| `core/providers/node/workspace.go` | Node monorepo detection (turbo/pnpm/npm workspaces) |
-| `cmd/theopacks-generate/main.go` | CLI entry point used by Argo Workflow |
+| `core/providers/node/workspace.go` | Node monorepo detection (turbo/pnpm/npm workspaces) + `PruneCommand` per PM |
+| `core/dockerignore/templates.go` | Per-language `.dockerignore` defaults; `DefaultFor(providerName)` |
+| `cmd/theopacks-generate/main.go` | CLI entry point used by Argo Workflow; writes Dockerfile + (when missing) `.dockerignore` |
 | `e2e/e2e_test.go` | E2E suite (build tag `e2e`) |
 | `mise.toml` | Development tasks (root) |
 | `Dockerfile.generate` | Container image that ships `theopacks-generate` |

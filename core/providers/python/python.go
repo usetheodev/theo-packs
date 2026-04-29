@@ -19,6 +19,52 @@ func pythonDeployIncludes(pythonVersion string) []string {
 	}
 }
 
+// pythonDefaultExcludes lists patterns that should never be carried from the
+// build context into a Python build stage. Order is stable for golden-test
+// determinism. Patterns use gitignore-style matching (recursive directory
+// names without leading slash match anywhere).
+//
+// Categories:
+//   - Bytecode: regenerated at runtime, dropping is free
+//   - Tooling caches (pytest/mypy/ruff/tox): never used at runtime
+//   - Coverage artifacts: tooling output, never runtime
+//   - User virtualenvs (.venv/venv): runtime uses /usr/local/lib/...,
+//     never a build-time venv
+//   - .env: security-positive default — committed credentials should not
+//     ship to runtime images. Runtime config goes through THEOPACKS_* env
+//     vars or a secrets backend.
+//   - .git: never relevant to runtime; can be hundreds of MB.
+//   - tests/test: production code shouldn't import from a tests dir; if
+//     it does, the user can override via .dockerignore (negation: !tests/data.json).
+func pythonDefaultExcludes() []string {
+	return []string{
+		"__pycache__",
+		"*.pyc",
+		"*.pyo",
+		".pytest_cache",
+		".mypy_cache",
+		".ruff_cache",
+		"tests",
+		"test",
+		".venv",
+		"venv",
+		".tox",
+		".coverage",
+		".env",
+		".git",
+	}
+}
+
+// pythonLocalLayer returns plan.NewLocalLayer() with Python-specific default
+// excludes applied. Used by every plan path so all Python flavors get the
+// same hygiene baseline. User-supplied .dockerignore continues to take
+// precedence (merged via plan.DockerignoreContext at higher level).
+func pythonLocalLayer() plan.Layer {
+	l := plan.NewLocalLayer()
+	l.Exclude = pythonDefaultExcludes()
+	return l
+}
+
 type PythonProvider struct{}
 
 func (p *PythonProvider) Name() string {
@@ -84,7 +130,7 @@ func (p *PythonProvider) planRequirements(ctx *generate.GenerateContext, version
 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
-	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddInput(pythonLocalLayer())
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
@@ -111,7 +157,7 @@ func (p *PythonProvider) planPoetry(ctx *generate.GenerateContext, version strin
 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
-	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddInput(pythonLocalLayer())
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
@@ -137,7 +183,7 @@ func (p *PythonProvider) planPipfile(ctx *generate.GenerateContext, version stri
 
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
-	buildStep.AddInput(ctx.NewLocalLayer())
+	buildStep.AddInput(pythonLocalLayer())
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
 	ctx.Deploy.AddInputs([]plan.Layer{
@@ -152,7 +198,7 @@ func (p *PythonProvider) planPyproject(ctx *generate.GenerateContext, version st
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 	installStep.AddCacheMount("/root/.cache/pip", "")
-	installStep.AddInput(ctx.NewLocalLayer())
+	installStep.AddInput(pythonLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir ."))
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
@@ -168,7 +214,7 @@ func (p *PythonProvider) planSetupPy(ctx *generate.GenerateContext, version stri
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 	installStep.AddCacheMount("/root/.cache/pip", "")
-	installStep.AddInput(ctx.NewLocalLayer())
+	installStep.AddInput(pythonLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir ."))
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))
@@ -186,7 +232,7 @@ func (p *PythonProvider) planUvWorkspace(ctx *generate.GenerateContext, version 
 	installStep := ctx.NewCommandStep("install")
 	installStep.AddInput(plan.NewImageLayer(generate.PythonBuildImageForVersion(version)))
 	installStep.AddCacheMount("/root/.cache/pip", "")
-	installStep.AddInput(ctx.NewLocalLayer())
+	installStep.AddInput(pythonLocalLayer())
 	installStep.AddCommand(plan.NewExecShellCommand("pip install --no-cache-dir uv && uv sync --all-packages --no-dev"))
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.PythonRuntimeImageForVersion(version))

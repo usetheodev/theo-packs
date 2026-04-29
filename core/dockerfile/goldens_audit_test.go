@@ -52,7 +52,7 @@ func TestGoldens_NoBashCMD(t *testing.T) {
 	}
 }
 
-// TestGoldens_NoDoubleShC prevents the `sh -c 'sh -c '...''` quoting
+// TestGoldens_NoDoubleShC prevents the `sh -c 'sh -c '...”` quoting
 // collision that bit Java/Ruby/PHP. The renderer wraps in sh -c via
 // CommandKindShell exactly once; pre-wrapping in providers would
 // re-introduce the bug.

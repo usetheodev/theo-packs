@@ -1,7 +1,11 @@
+# syntax=docker/dockerfile:1
+
 FROM gradle:8-jdk21 AS install
 WORKDIR /app
 COPY build.gradle.kts ./
 COPY settings.gradle.kts ./
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
+    sh -c 'gradle dependencies --no-daemon --refresh-dependencies'
 
 FROM install AS build
 WORKDIR /app

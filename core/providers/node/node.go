@@ -99,6 +99,14 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 		}
 	}
 
+	// Drop devDependencies from node_modules so the deploy stage's COPY of
+	// /app carries only production deps. The prune RUN reuses the same cache
+	// mounts attached above (addNodeCacheMounts), so no network round-trip.
+	// Bun has no prune subcommand → PruneCommand returns "" and we skip.
+	if pruneCmd := PruneCommand(pm); pruneCmd != "" {
+		buildStep.AddCommand(plan.NewExecShellCommand(pruneCmd))
+	}
+
 	// Deploy — use start script from package.json if available
 	ctx.Deploy.Base = plan.NewImageLayer(generate.NodeRuntimeImageForVersion(version))
 
