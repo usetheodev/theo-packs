@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `# syntax=docker/dockerfile:1` directive at the top of every generated Dockerfile so cache mounts are honored on every BuildKit-capable host regardless of the default frontend version (#NNN)
+- Per-language default `.dockerignore` written to `<source>/.dockerignore` when none exists. Covers `.git/`, language-specific build outputs (`node_modules/`, `target/`, `__pycache__/`, etc.), tooling caches, and OS noise. User-supplied files are never overwritten or merged (#NNN)
+- New public package `core/dockerignore/` with `DefaultFor(providerName) string` for library consumers (#NNN)
+- E2E image-size assertions: `requireSizeLessThan(t, tag, maxMB)` helper, wired into the Node and Python E2E tests with a 280 MB cap to lock the v2 size gains (#NNN)
+
+### Changed
+- **Node deploy stages now drop devDependencies** via `npm prune --omit=dev` (and `pnpm prune --prod` / `yarn install --production --ignore-scripts --prefer-offline`). Bun has no built-in prune subcommand and is unchanged (its hardlinked store is already lean). Estimated runtime image size reduction: 2-3× on typical apps (#NNN)
+- **Java install step now warms the dep cache** via `gradle dependencies --no-daemon --refresh-dependencies` (Gradle) or `mvn -B -DskipTests dependency:go-offline` (Maven). Cold builds reuse the Docker layer cache when only application code changes between rebuilds (#NNN)
+- Python local layer annotated with default excludes (`__pycache__`, `*.pyc`, `.pytest_cache`, `tests`, `.venv`, `.env`, `.git`, etc.). Effective via the generated `.dockerignore`; user-supplied `.dockerignore` continues to take precedence (#NNN)
+
+### Notes
+- User-supplied `.dockerignore` is never modified or merged with the default. To regenerate, delete the existing file and rerun the CLI.
+- `.env` files are excluded from Python builds by default — security-positive change. Runtime config should use `THEOPACKS_*` env vars or a secrets backend.
+- Bun projects are unaffected by the prune change because bun lacks a prune subcommand.
+
 ### Fixed
 - **CMD form**: Generated Dockerfiles no longer hardcode `CMD ["/bin/bash", "-c", ...]`. The renderer now emits exec form (`CMD ["/app/server"]`) when the start command is shell-feature-free, falling back to `["/bin/sh", "-c", ...]` (NEVER bash) when shell features are present. Bash is absent from `debian:bookworm-slim` and distroless images — the previous form would have failed to start. Exec form also makes the app PID 1 so SIGTERM propagates correctly. (#15)
 - **Java JAR-extract quoting**: Fixed `RUN sh -c 'sh -c '...''` double-wrap that broke quoting in Gradle and Maven JAR-copy commands. Renderer now wraps in `sh -c '...'` exactly once. (#15)

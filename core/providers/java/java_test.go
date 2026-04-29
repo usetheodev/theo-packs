@@ -425,4 +425,3 @@ func TestPlanMavenWorkspace_InstallWarmsDeps(t *testing.T) {
 	cmds := installStepCommands(t, ctx)
 	require.Contains(t, cmds, "mvn -B -DskipTests dependency:go-offline")
 }
-

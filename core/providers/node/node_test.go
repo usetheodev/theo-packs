@@ -160,7 +160,7 @@ func TestDetectNodeVersion(t *testing.T) {
 		{
 			name: "reads .node-version",
 			files: map[string]string{
-				"package.json": `{"name":"test"}`,
+				"package.json":  `{"name":"test"}`,
 				".node-version": "18.20.5",
 			},
 			wantVer:    "18",
@@ -258,9 +258,9 @@ func TestDetectPackageManager_ConflictingLockFiles(t *testing.T) {
 	// When yarn.lock and pnpm-lock.yaml both exist, pnpm wins
 	// because it's checked first in DetectPackageManager
 	a := createNodeTempApp(t, map[string]string{
-		"package.json":    `{"name":"test"}`,
-		"yarn.lock":       "# yarn",
-		"pnpm-lock.yaml":  "lockfileVersion: 6",
+		"package.json":   `{"name":"test"}`,
+		"yarn.lock":      "# yarn",
+		"pnpm-lock.yaml": "lockfileVersion: 6",
 	})
 	require.Equal(t, PackageManagerPnpm, DetectPackageManager(a))
 }

@@ -36,6 +36,16 @@ The Dockerfile is consumed by the downstream Theo build pipeline (Argo Workflow 
 
 Detection order is fixed (first match wins): **Go → Rust → Java → .NET → Ruby → PHP → Python → Deno → Node → Static → Shell**. Deno is intentionally placed before Node so projects shipping both `deno.json` and a npm-compat `package.json` route to Deno. Override with `theopacks.json` → `{ "provider": "node" }`.
 
+### Generated Dockerfile defaults
+
+Every Dockerfile theo-packs emits starts with `# syntax=docker/dockerfile:1` so BuildKit cache mounts are honored regardless of the host's default frontend version. Per-language size optimizations are applied automatically:
+
+- **Node** runtime images drop devDependencies via `<pm> prune` (or `yarn install --production` for yarn classic). Bun is unchanged — its hardlinked store is already lean.
+- **Python** local-source layer excludes `__pycache__/`, `*.pyc`, `.pytest_cache/`, `tests/`, `.venv/`, `.env`, `.git/` and similar tooling artifacts.
+- **Java** install step warms the dep cache (`gradle dependencies` / `mvn dependency:go-offline`) so cold rebuilds reuse the Docker layer cache when only application code changes.
+
+When the project source has no `.dockerignore`, the CLI writes a per-language default to `<source>/.dockerignore`. User-supplied files are never overwritten or merged. Delete the file and rerun the CLI to regenerate.
+
 ## Project Structure
 
 ```

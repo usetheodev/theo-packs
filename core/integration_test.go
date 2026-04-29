@@ -51,10 +51,10 @@ func TestIntegrationExamples(t *testing.T) {
 	// contains multiple services in subdirectories; we expand those into
 	// separate subtests.
 	type exampleCase struct {
-		name      string // subtest name
-		dir       string // absolute path to the project
-		provider  string // expected detected provider
-		startCmd  string // optional start command to supply
+		name     string // subtest name
+		dir      string // absolute path to the project
+		provider string // expected detected provider
+		startCmd string // optional start command to supply
 	}
 
 	var cases []exampleCase
