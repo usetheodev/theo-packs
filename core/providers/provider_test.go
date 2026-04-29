@@ -37,17 +37,27 @@ func TestGetLanguageProviders(t *testing.T) {
 	require.Equal(t, expectedOrder, names)
 }
 
-// TestRegistrationOrder is the single source of truth for ADR D3. It pins
-// the provider order and asserts the Deno-before-Node invariant explicitly
-// so a future reordering surfaces as a clear test failure with rationale.
+// TestRegistrationOrder pins the full provider order — the public contract
+// for first-match-wins detection in core/core.go.
 func TestRegistrationOrder(t *testing.T) {
 	providers := GetLanguageProviders()
 	names := make([]string, len(providers))
 	for i, p := range providers {
 		names[i] = p.Name()
 	}
-
 	require.Equal(t, expectedOrder, names, "provider order is part of the public contract")
+}
+
+// TestDenoBeforeNode asserts the most ordering-sensitive invariant from
+// ADR D3 in isolation. Kept as its own test (rather than a sub-assertion
+// of TestRegistrationOrder) so a regression produces a focused failure
+// with the rationale right next to the diff.
+func TestDenoBeforeNode(t *testing.T) {
+	providers := GetLanguageProviders()
+	names := make([]string, len(providers))
+	for i, p := range providers {
+		names[i] = p.Name()
+	}
 
 	denoIdx := slices.Index(names, "deno")
 	nodeIdx := slices.Index(names, "node")
