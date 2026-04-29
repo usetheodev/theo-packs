@@ -46,6 +46,8 @@ Every Dockerfile theo-packs emits starts with `# syntax=docker/dockerfile:1` so 
 
 When the project source has no `.dockerignore`, the CLI writes a per-language default to `<source>/.dockerignore`. User-supplied files are never overwritten or merged. Delete the file and rerun the CLI to regenerate.
 
+For the full CLI contract — flags, env-var bridge for monorepo target selection, build-context invariant, and what the calling pipeline must guarantee — see [`docs/contracts/theo-packs-cli-contract.md`](docs/contracts/theo-packs-cli-contract.md).
+
 ## Project Structure
 
 ```
