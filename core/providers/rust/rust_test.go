@@ -158,8 +158,8 @@ path = "src/bin/helper.rs"
 name = "myapp"
 path = "src/main.rs"
 `,
-		"src/main.rs":         minimalMainRs,
-		"src/bin/helper.rs":   minimalMainRs,
+		"src/main.rs":       minimalMainRs,
+		"src/bin/helper.rs": minimalMainRs,
 	})
 	ctx := createTestContext(t, a, nil)
 

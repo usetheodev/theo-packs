@@ -263,7 +263,7 @@ func TestPlanSimple_BuildTaskRuns(t *testing.T) {
 
 func TestDetectWorkspace_Members(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"deno.json": `{"workspace": ["./apps/api", "./apps/worker"]}`,
+		"deno.json":             `{"workspace": ["./apps/api", "./apps/worker"]}`,
 		"apps/api/deno.json":    `{"name": "@theo/api"}`,
 		"apps/worker/deno.json": `{"name": "@theo/worker"}`,
 	})
@@ -291,7 +291,7 @@ func TestDetectWorkspace_NoWorkspace(t *testing.T) {
 
 func TestPlanWorkspace_SelectsMember(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"deno.json": `{"workspace": ["apps/api", "apps/worker"]}`,
+		"deno.json":             `{"workspace": ["apps/api", "apps/worker"]}`,
 		"apps/api/deno.json":    `{"name": "@theo/api", "tasks": {"start": "deno run -A main.ts"}}`,
 		"apps/api/main.ts":      "",
 		"apps/worker/deno.json": `{"name": "@theo/worker"}`,

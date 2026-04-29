@@ -15,7 +15,7 @@ import (
 
 // WorkspaceInfo describes a Deno 2 workspace.
 type WorkspaceInfo struct {
-	Members  map[string]string // member name (or path leaf) → path
+	Members map[string]string // member name (or path leaf) → path
 }
 
 // DetectWorkspace returns workspace info when the root deno.json has a non-

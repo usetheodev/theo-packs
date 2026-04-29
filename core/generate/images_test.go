@@ -10,9 +10,9 @@ func TestNormalizeToMajor(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		input   string
-		want    string
+		name  string
+		input string
+		want  string
 	}{
 		{"simple major", "20", "20"},
 		{"semver", "20.1.0", "20"},
@@ -41,9 +41,9 @@ func TestNormalizeToMajorMinor(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		input   string
-		want    string
+		name  string
+		input string
+		want  string
 	}{
 		{"major.minor", "3.12", "3.12"},
 		{"semver", "3.12.1", "3.12"},

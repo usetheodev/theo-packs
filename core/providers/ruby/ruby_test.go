@@ -126,8 +126,8 @@ func TestDetectRubyVersion_EnvVar(t *testing.T) {
 
 func TestDetectRubyVersion_DotRubyVersion(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"Gemfile":        `source "https://rubygems.org"`,
-		".ruby-version":  "3.2.5\n",
+		"Gemfile":       `source "https://rubygems.org"`,
+		".ruby-version": "3.2.5\n",
 	})
 	ctx := createTestContext(t, a, nil)
 	v, src := detectRubyVersion(ctx)
@@ -145,8 +145,8 @@ func TestDetectRubyVersion_Gemfile(t *testing.T) {
 
 func TestDetectFramework_Rails(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"Gemfile":                 railsGemfile,
-		"config/application.rb":   `Rails.application.initialize!`,
+		"Gemfile":               railsGemfile,
+		"config/application.rb": `Rails.application.initialize!`,
 	})
 	require.Equal(t, FrameworkRails, detectFramework(a))
 }
@@ -294,10 +294,10 @@ func TestSelectApp_AmbiguousNoEnv(t *testing.T) {
 
 func TestPlanWorkspace_SelectsApp(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"Gemfile":             `gem "puma"`,
-		"apps/api/app.rb":     `# api`,
-		"apps/api/config.ru":  `run lambda {}`,
-		"apps/worker/app.rb":  `# worker`,
+		"Gemfile":            `gem "puma"`,
+		"apps/api/app.rb":    `# api`,
+		"apps/api/config.ru": `run lambda {}`,
+		"apps/worker/app.rb": `# worker`,
 	})
 	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
 	err := (&RubyProvider{}).Plan(ctx)

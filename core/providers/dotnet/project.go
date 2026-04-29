@@ -15,10 +15,10 @@ import (
 // Encoding/xml is loose enough to handle .csproj/.fsproj/.vbproj — they all
 // share the same MSBuild XML schema for what we need.
 type Project struct {
-	XMLName        xml.Name           `xml:"Project"`
-	Sdk            string             `xml:"Sdk,attr"`
-	PropertyGroups []PropertyGroup    `xml:"PropertyGroup"`
-	ItemGroups     []ItemGroup        `xml:"ItemGroup"`
+	XMLName        xml.Name        `xml:"Project"`
+	Sdk            string          `xml:"Sdk,attr"`
+	PropertyGroups []PropertyGroup `xml:"PropertyGroup"`
+	ItemGroups     []ItemGroup     `xml:"ItemGroup"`
 }
 
 type PropertyGroup struct {

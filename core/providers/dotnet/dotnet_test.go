@@ -79,7 +79,7 @@ func TestDotnetProvider_Detect(t *testing.T) {
 		{"fsproj", map[string]string{"app.fsproj": aspnetCsproj}, true},
 		{"vbproj", map[string]string{"app.vbproj": aspnetCsproj}, true},
 		{"sln", map[string]string{
-			"app.sln":              ``,
+			"app.sln":                ``,
 			"src/MyApi/MyApi.csproj": aspnetCsproj,
 		}, true},
 		{"nested csproj", map[string]string{"src/Api/Api.csproj": aspnetCsproj}, true},
@@ -152,9 +152,9 @@ func TestProject_IsAspNet_NotAspNet(t *testing.T) {
 
 func TestProject_IsExecutable(t *testing.T) {
 	cases := []struct {
-		name string
+		name   string
 		csproj string
-		exe  bool
+		exe    bool
 	}{
 		{"aspnet web sdk", aspnetCsproj, true},
 		{"console exe", consoleCsproj, true},
@@ -255,8 +255,8 @@ EndProject
 
 func TestPlanSingleProject_Aspnet(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"app.csproj":     aspnetCsproj,
-		"Program.cs":     "// minimal program",
+		"app.csproj": aspnetCsproj,
+		"Program.cs": "// minimal program",
 	})
 	ctx := createTestContext(t, a, nil)
 	err := (&DotnetProvider{}).Plan(ctx)

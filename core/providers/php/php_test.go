@@ -257,7 +257,7 @@ func TestPlanSimple_Laravel(t *testing.T) {
 
 func TestDetectWorkspace_AppsTree(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"composer.json":   `{}`,
+		"composer.json":         `{}`,
 		"apps/api/index.php":    "<?php",
 		"apps/worker/index.php": "<?php",
 	})
@@ -274,7 +274,7 @@ func TestDetectWorkspace_NoComposer(t *testing.T) {
 
 func TestPlanWorkspace_Selects(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"composer.json":              `{}`,
+		"composer.json":             `{}`,
 		"apps/api/public/index.php": "<?php",
 		"apps/worker/worker.php":    "<?php",
 	})
