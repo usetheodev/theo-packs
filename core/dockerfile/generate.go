@@ -16,6 +16,24 @@ import (
 // disabled. The bare `1` tag resolves to the latest stable v1.x at build time.
 const SyntaxDirective = "# syntax=docker/dockerfile:1\n\n"
 
+// HeaderComment returns the metadata block emitted between the syntax
+// directive and the first FROM. It names the provider that produced the
+// plan and explicitly states the expected docker build context — a
+// frequent source of confusion when a monorepo Dockerfile is invoked
+// with the wrong context (see docs/contracts/theo-packs-cli-contract.md).
+func HeaderComment(providerName string) string {
+	if providerName == "" {
+		providerName = "unknown"
+	}
+	return fmt.Sprintf(`# theo-packs: generated for provider %q.
+# Build context: the directory passed as theopacks-generate --source
+# (workspace root for monorepos, app dir otherwise). When invoking
+# docker build, set --file <this-file> and the context to that same
+# directory. Misalignment is the most common cause of "not found" errors.
+
+`, providerName)
+}
+
 // Generate converts a BuildPlan into a Dockerfile string.
 // Each Step becomes a named multi-stage build stage.
 // The Deploy section becomes the final (unnamed) stage.
@@ -26,6 +44,7 @@ func Generate(p *plan.BuildPlan) (string, error) {
 
 	var b strings.Builder
 	b.WriteString(SyntaxDirective)
+	b.WriteString(HeaderComment(p.ProviderName))
 
 	for i, step := range p.Steps {
 		if i > 0 {

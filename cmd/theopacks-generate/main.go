@@ -62,20 +62,30 @@ func main() {
 	// Resolve full app directory
 	appDir := filepath.Join(*source, *appPath)
 
-	// Check if user already provided a Dockerfile — user-provided takes precedence.
+	// Single source of truth: theo-packs generates the Dockerfile. A user-
+	// supplied Dockerfile in the analyzed app directory is a contract
+	// violation — there would be two sources of truth for the build
+	// artifact, defeating the determinism theo-packs guarantees. Hard fail
+	// with exit code 2 (input invariant violated, distinguishable from
+	// generic failure code 1).
+	//
+	// A Dockerfile at the workspace ROOT (outside the analyzed app path)
+	// is NOT checked — it may legitimately exist for local development
+	// outside Theo (e.g., `docker compose up`). We only reject within the
+	// app path being analyzed.
+	//
+	// See docs/contracts/theo-packs-cli-contract.md, "Single source of
+	// truth" preamble, for the full rationale.
 	userDockerfile := filepath.Join(appDir, "Dockerfile")
 	if _, err := os.Stat(userDockerfile); err == nil {
-		fmt.Fprintf(os.Stderr, "[theopacks] User-provided Dockerfile found at %s — skipping generation\n", userDockerfile)
-		content, readErr := os.ReadFile(userDockerfile)
-		if readErr != nil {
-			log.Fatalf("Failed to read user Dockerfile: %v", readErr)
-		}
-		if err := os.WriteFile(*output, content, 0644); err != nil {
-			log.Fatalf("Failed to copy user Dockerfile to %s: %v", *output, err)
-		}
-		fmt.Println("--- User-provided Dockerfile ---")
-		fmt.Print(string(content))
-		return
+		fmt.Fprintf(os.Stderr,
+			"[theopacks] ERROR: user-supplied Dockerfile found at %s.\n\n"+
+				"theo-packs is the single source of truth for Dockerfile generation.\n"+
+				"Remove the file and rerun. To opt out of generation entirely, do not\n"+
+				"invoke theo-packs — declare your build via a different mechanism in\n"+
+				"your deployment pipeline.\n",
+			userDockerfile)
+		os.Exit(2)
 	}
 
 	// Bridge --app-name and --app-path to env vars so any provider can read

@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (BREAKING)
+- **theo-packs is now the single source of truth for Dockerfile generation.** The CLI rejects user-supplied Dockerfiles at `<source>/<app-path>/Dockerfile` with exit code 2 and an error message naming the offending path. The previous "user-Dockerfile takes precedence" behavior has been removed entirely. There is no override flag, no warning mode, no env var. A Dockerfile at the workspace root (`<source>/Dockerfile`, outside the analyzed app path) is NOT checked — it may legitimately exist for local development outside Theo. See `docs/contracts/theo-packs-cli-contract.md`, "Single source of truth" preamble, for the full rationale and edge cases (#NNN)
+
+### Removed
+- User-Dockerfile precedence path from `cmd/theopacks-generate/main.go`. The block that copied a user-supplied Dockerfile to `--output` has been replaced with a hard-fail (#NNN)
+- "User-Dockerfile precedence" section from `docs/contracts/theo-packs-cli-contract.md`. Replaced by "Single source of truth" preamble + a "User-Dockerfile rejection" section + a new failure-modes table row (#NNN)
+- `TestUserProvidedDockerfileTakesPrecedence` from `cmd/theopacks-generate/main_test.go`. Replaced by `TestUserProvidedDockerfileIsRejected` and `TestUserProvidedDockerfileAtWorkspaceRoot_IsNotRejected` (#NNN)
+
 ### Added
+- Defensive header comment in every generated Dockerfile naming the producing provider and the expected `docker build` context. Turns cryptic `"/<path>": not found` build failures into self-explanatory output (#NNN)
+- New public function `dockerfile.HeaderComment(providerName) string` returning the metadata block; renderer-emitted, not provider-emitted (#NNN)
+- `BuildPlan.ProviderName` field carrying the detected provider into the renderer (#NNN)
+- New canonical reference `docs/contracts/theo-packs-cli-contract.md` documenting CLI flags, env-var bridge, build-context invariant, user-Dockerfile precedence, `.dockerignore` rules, and what the calling pipeline must guarantee. Cross-linked from CLAUDE.md and README.md (#NNN)
+- E2E test `TestE2E_MonorepoTurboFromStacks` building the real upstream `theo-stacks/templates/monorepo-turbo` template with `docker build` context = workspace root, locking the contract end-to-end. Skips cleanly without Docker or without theo-stacks checked out as a sibling (#NNN)
+- Audit tests `TestGoldens_NoPerAppNodeModulesCopy` (and supporting positive/negative regex tests) locking the assertion that no Node workspace golden contains a per-app `node_modules` COPY pattern (F5 regression guard) (#NNN)
+- Audit test `TestGoldens_HasProviderHeader` asserting every golden carries the defensive header (#NNN)
 - `# syntax=docker/dockerfile:1` directive at the top of every generated Dockerfile so cache mounts are honored on every BuildKit-capable host regardless of the default frontend version (#NNN)
 - Per-language default `.dockerignore` written to `<source>/.dockerignore` when none exists. Covers `.git/`, language-specific build outputs (`node_modules/`, `target/`, `__pycache__/`, etc.), tooling caches, and OS noise. User-supplied files are never overwritten or merged (#NNN)
 - New public package `core/dockerignore/` with `DefaultFor(providerName) string` for library consumers (#NNN)
@@ -22,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - User-supplied `.dockerignore` is never modified or merged with the default. To regenerate, delete the existing file and rerun the CLI.
 - `.env` files are excluded from Python builds by default — security-positive change. Runtime config should use `THEOPACKS_*` env vars or a secrets backend.
 - Bun projects are unaffected by the prune change because bun lacks a prune subcommand.
+- Dogfood report findings F1, F2 (theo-stacks template bugs) and F6, F7 (theo product schema gap and silent-success in static delivery) are out of scope for this repo and tracked in their respective repos. F5 (claim that theo-packs generates per-app `node_modules` COPY) was disproven against the current generator — the bug exists in `theo-stacks/templates/monorepo-turbo/apps/api/Dockerfile`, which theo-packs passes through unchanged per the user-Dockerfile-precedence contract. F3 (build-context mismatch) is acknowledged in the new contract document; the systemic fix lives in the theo product (F6 — `build_context:` field separate from `path:` in `theo.yaml`).
 
 ### Fixed
 - **CMD form**: Generated Dockerfiles no longer hardcode `CMD ["/bin/bash", "-c", ...]`. The renderer now emits exec form (`CMD ["/app/server"]`) when the start command is shell-feature-free, falling back to `["/bin/sh", "-c", ...]` (NEVER bash) when shell features are present. Bash is absent from `debian:bookworm-slim` and distroless images — the previous form would have failed to start. Exec form also makes the app PID 1 so SIGTERM propagates correctly. (#15)

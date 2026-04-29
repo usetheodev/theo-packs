@@ -242,6 +242,8 @@ When parsing layer references in JSON:
 
 ### CLI: `theopacks-generate`
 
+> **Authoritative reference:** `docs/contracts/theo-packs-cli-contract.md` describes the CLI's contract with its caller (theo product, CI, humans) — flags, env-var bridge, build-context invariant, user-Dockerfile precedence, `.dockerignore` generation, and failure modes. Read it before integrating with theo-packs.
+
 Single binary used by Theo's build pipeline (Argo Workflow). Flags:
 
 ```
@@ -401,6 +403,7 @@ func (p *MyProvider) Plan(ctx *generate.GenerateContext) error {
 | `core/providers/node/workspace.go` | Node monorepo detection (turbo/pnpm/npm workspaces) + `PruneCommand` per PM |
 | `core/dockerignore/templates.go` | Per-language `.dockerignore` defaults; `DefaultFor(providerName)` |
 | `cmd/theopacks-generate/main.go` | CLI entry point used by Argo Workflow; writes Dockerfile + (when missing) `.dockerignore` |
+| `docs/contracts/theo-packs-cli-contract.md` | CLI contract: flags, env-var bridge, build-context invariant, user-Dockerfile precedence |
 | `e2e/e2e_test.go` | E2E suite (build tag `e2e`) |
 | `mise.toml` | Development tasks (root) |
 | `Dockerfile.generate` | Container image that ships `theopacks-generate` |

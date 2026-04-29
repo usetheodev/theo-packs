@@ -423,3 +423,123 @@ func TestE2E_DenoWorkspace_BuildsImage(t *testing.T) {
 	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/main.ts").CombinedOutput()
 	require.NoError(t, err, "workspace member entry missing: %s", string(output))
 }
+
+// --- Phase 3: theo-stacks contract validation ---
+
+// theoStacksDir returns the absolute path to a sibling theo-stacks
+// checkout's templates directory. Returns "" with t.Skip when absent —
+// the test cannot run without the upstream templates and skipping cleanly
+// is preferable to a hard fail in environments that don't have them
+// (e.g., CI runners without the second checkout).
+func theoStacksDir(t *testing.T, template string) string {
+	t.Helper()
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	dir := filepath.Join(filepath.Dir(thisFile), "..", "..", "theo-stacks", "templates", template)
+	abs, err := filepath.Abs(dir)
+	require.NoError(t, err)
+	if _, err := os.Stat(abs); os.IsNotExist(err) {
+		t.Skipf(
+			"theo-stacks not checked out next to theo-packs at %s — see docs/contracts/theo-packs-cli-contract.md",
+			abs,
+		)
+	}
+	return abs
+}
+
+// copyDir recursively copies src to dst preserving file modes. Returns
+// the first error encountered.
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
+}
+
+// generateDockerfileViaCLI invokes the theopacks-generate binary against
+// the given workspace and app, then returns the produced Dockerfile.
+// Exercises the same code path the theo product uses (CLI, not library).
+func generateDockerfileViaCLI(t *testing.T, source, appPath, appName string) string {
+	t.Helper()
+
+	bin := filepath.Join(t.TempDir(), "theopacks-generate")
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	cmdDir := filepath.Join(filepath.Dir(thisFile), "..", "cmd", "theopacks-generate")
+
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Dir = cmdDir
+	build.Env = append(os.Environ(), "GOWORK=off", "CGO_ENABLED=0")
+	out, err := build.CombinedOutput()
+	require.NoError(t, err, "failed to build theopacks-generate: %s", string(out))
+
+	outFile := filepath.Join(t.TempDir(), "Dockerfile")
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", appPath,
+		"--app-name", appName,
+		"--output", outFile,
+	)
+	out, err = cmd.CombinedOutput()
+	require.NoError(t, err, "theopacks-generate failed:\n%s", string(out))
+
+	df, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	return string(df)
+}
+
+// TestE2E_MonorepoTurboFromStacks validates the workspace-root build context
+// contract against the real upstream theo-stacks template. The template's
+// own apps/api/Dockerfile has known bugs (F2 in the dogfood report — npm
+// hoisting + per-app node_modules COPY); we remove it before generating
+// so we test the theo-packs-generated Dockerfile, not the user's.
+//
+// Skips when:
+//   - Docker is not available
+//   - theo-stacks is not checked out next to theo-packs
+func TestE2E_MonorepoTurboFromStacks(t *testing.T) {
+	if !dockerAvailable() {
+		t.Skip("Docker not available")
+	}
+	upstream := theoStacksDir(t, "monorepo-turbo")
+
+	// Copy the template to a temp dir so we never mutate the upstream
+	// working tree. Then remove the buggy user-Dockerfile (and any
+	// .dockerignore that ships with it, since the CLI writes one).
+	workspace := t.TempDir()
+	require.NoError(t, copyDir(upstream, workspace))
+	_ = os.Remove(filepath.Join(workspace, "apps", "api", "Dockerfile"))
+	_ = os.Remove(filepath.Join(workspace, "apps", "web", "Dockerfile"))
+
+	df := generateDockerfileViaCLI(t, workspace, "apps/api", "api")
+
+	// Sanity: the generated Dockerfile must carry the defensive header so
+	// the contract is enforced end-to-end (renderer → CLI → real build).
+	require.Contains(t, df, `# theo-packs: generated for provider "node"`,
+		"generated Dockerfile must carry the defensive header")
+	require.Contains(t, df, "Build context",
+		"generated Dockerfile must explain the expected build context")
+
+	// CRITICAL: build context = workspace root, NOT apps/api. This is the
+	// invariant that the dogfood F3 found unstated. The defensive header
+	// in the Dockerfile spells this out for humans; this test enforces it
+	// for CI.
+	tag := "theopacks-e2e-monorepo-turbo-from-stacks:test"
+	defer removeImage(tag)
+	buildImage(t, workspace, df, tag)
+	require.True(t, imageExists(tag), "image must exist after successful build")
+}
