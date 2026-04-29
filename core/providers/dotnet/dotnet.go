@@ -210,8 +210,12 @@ func (p *DotnetProvider) emitPlan(ctx *generate.GenerateContext, proj *Project, 
 	buildStep.AddInput(plan.NewStepLayer("install"))
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCacheMount("/root/.nuget/packages", "")
+	// -p:DebugType=None -p:DebugSymbols=false strips PDB files (~25% smaller publish).
+	// -p:PublishTrimmed and AOT are NOT enabled by default because they break
+	// reflection-heavy code (EF Core, AutoMapper). Users can opt in via
+	// theopacks.json buildArgs once we support that.
 	buildStep.AddCommand(plan.NewExecShellCommand(
-		fmt.Sprintf("dotnet publish %s -c Release -o /app/publish --no-restore", shellSafe(projPath)),
+		fmt.Sprintf("dotnet publish %s -c Release -o /app/publish --no-restore -p:DebugType=None -p:DebugSymbols=false", shellSafe(projPath)),
 	))
 
 	// Deploy: pick the runtime image based on whether the project is ASP.NET.

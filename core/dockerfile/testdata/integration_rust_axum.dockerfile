@@ -8,6 +8,7 @@ RUN --mount=type=cache,target=/root/.cargo/git,sharing=locked \
 FROM install AS build
 WORKDIR /app
 COPY . .
+ENV RUSTFLAGS="-C strip=symbols"
 RUN --mount=type=cache,target=/app/target,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/root/.cargo/registry,sharing=locked \

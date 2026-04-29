@@ -60,7 +60,9 @@ func (p *GoProvider) planSimple(ctx *generate.GenerateContext, version string) e
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCacheMount("/go/pkg/mod", "")
 	buildStep.AddCacheMount("/root/.cache/go-build", "")
-	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -o /app/server %s", target)))
+	// `-ldflags="-s -w"` strips debug symbols (~30% smaller binary).
+	// `-trimpath` removes filesystem paths from the binary for reproducibility.
+	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -ldflags=\"-s -w\" -trimpath -o /app/server %s", target)))
 
 	// Go compiles to a static binary, so the runtime image is always debian slim
 	ctx.Deploy.Base = plan.NewImageLayer(generate.GoRuntimeImage)
@@ -123,7 +125,7 @@ func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext, version string
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCacheMount("/go/pkg/mod", "")
 	buildStep.AddCacheMount("/root/.cache/go-build", "")
-	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -o /app/server ./%s", target)))
+	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -ldflags=\"-s -w\" -trimpath -o /app/server ./%s", target)))
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.GoRuntimeImage)
 	ctx.Deploy.StartCmd = "/app/server"

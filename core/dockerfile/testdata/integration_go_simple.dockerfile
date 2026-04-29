@@ -10,7 +10,7 @@ WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
-    sh -c 'go build -o /app/server .'
+    sh -c 'go build -ldflags="-s -w" -trimpath -o /app/server .'
 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app

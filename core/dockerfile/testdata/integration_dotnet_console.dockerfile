@@ -8,7 +8,7 @@ FROM install AS build
 WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/root/.nuget/packages,sharing=locked \
-    sh -c 'dotnet publish dotnet-console.csproj -c Release -o /app/publish --no-restore'
+    sh -c 'dotnet publish dotnet-console.csproj -c Release -o /app/publish --no-restore -p:DebugType=None -p:DebugSymbols=false'
 
 FROM mcr.microsoft.com/dotnet/runtime:8.0
 WORKDIR /app

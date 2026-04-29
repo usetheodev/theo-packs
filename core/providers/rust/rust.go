@@ -81,6 +81,10 @@ func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoTom
 	buildStep.AddCacheMount("/root/.cargo/registry", "")
 	buildStep.AddCacheMount("/root/.cargo/git", "")
 	buildStep.AddCacheMount("/app/target", "")
+	// RUSTFLAGS=-C strip=symbols strips debug info from the release binary
+	// (~30% smaller). Cargo applies it via the build environment without
+	// needing a Cargo.toml profile mutation.
+	buildStep.AddEnvVars(map[string]string{"RUSTFLAGS": "-C strip=symbols"})
 	buildStep.AddCommand(plan.NewExecShellCommand("cargo build --release --offline"))
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("cp target/release/%s /app/server", shellEscape(bin.Name)),
