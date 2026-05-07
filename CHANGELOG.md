@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-07
+
+### Added
+- **User-provided Dockerfile precedence is the canonical contract.** When a `Dockerfile` is present at `<app-dir>/Dockerfile`, `theopacks-generate` copies its content verbatim to `--output`, prints `[theopacks] User-provided Dockerfile found at <path> — skipping generation` to stderr, prints `--- User-provided Dockerfile ---` followed by the content to stdout, and exits with code 0. This behavior is the **defense-in-depth lower layer** for Theo's build pipeline: callers (Theo API) skip invoking theopacks-generate entirely when `app.Build == "dockerfile"`, but if it is invoked anyway (legacy path, bug, or direct usage), the user's Dockerfile is honored, never rejected. Supersedes the implicit-strict regression behavior observed in earlier image builds tagged `:latest` that errored with "user-supplied Dockerfile found ... Remove the file and rerun".
+- Unit test `TestUserProvidedDockerfileTakesPrecedence` (`cmd/theopacks-generate/main_test.go`) pins the lenient behavior. Asserts: source dir with user Dockerfile + run binary → output equals user content verbatim + stdout contains "User-provided Dockerfile".
+- Plan reference: `docs/plans/build-mode-dispatch-and-dockerfile-security-plan.md` (Theo repo) — D4/D5 codify this contract cross-repo.
+
+## [Pre-0.4.0]
+
 ### Added
 - CI workflow for lint and test on push/PR (`ci.yml`) (#2)
 - CI workflow to build and push `theo-packs-runner` image to DO Registry (`build-runner.yml`) (#2)
