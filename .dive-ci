@@ -1,0 +1,25 @@
+# dive CI thresholds (T0.4, robust-test-suite-plan).
+#
+# Runs as `CI=true dive <image>` and fails the build when the image
+# exceeds these limits. Start permissive; tighten as providers improve.
+#
+# Reference: https://github.com/wagoodman/dive#ci-integration
+
+rules:
+  # Bytes of inefficient layer content (duplicate files, stale caches
+  # left in build stages, devDependencies that escaped runtime).
+  # 50 MB ceiling is generous — most healthy images are under 5 MB
+  # wasted. Tighten to 20 MB after one stable release cycle.
+  highestWastedBytes: 50MB
+
+  # Lowest acceptable layer efficiency. dive's efficiency metric counts
+  # the proportion of bytes that survive intermediate layers — duplicate
+  # COPYs and `rm` after `RUN` drag this down. 0.9 catches gross
+  # regressions; 0.95 is the eventual target.
+  lowestEfficiency: 0.90
+
+  # Highest proportion of an image that is wasted bytes (relative).
+  # Useful guardrail when the absolute byte count is small but the
+  # image is also small (e.g., distroless go). 20% is the documented
+  # default; adjust per-image if a provider legitimately needs more.
+  highestUserWastedPercent: 0.20

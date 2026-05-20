@@ -1,0 +1,22 @@
+schemaVersion: 2.0.0
+
+# T1.2 — Ruby Sinatra app.
+
+fileExistenceTests:
+  - name: config.ru present
+    path: /app/config.ru
+    shouldExist: true
+
+  - name: ruby binary present
+    path: /usr/local/bin/ruby
+    shouldExist: true
+
+commandTests:
+  - name: sinatra gem installed
+    command: bundle
+    args: ["info", "sinatra"]
+    expectedOutput: ["sinatra"]
+
+metadataTest:
+  workdir: /app
+  user: "appuser"

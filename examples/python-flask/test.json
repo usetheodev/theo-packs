@@ -1,0 +1,7 @@
+{
+  // T1.5 — test.json migration (robust-test-suite-plan). HTTP probe
+  // validates the runtime container actually serves traffic, not just
+  // that the build succeeded. Port is the framework default.
+  "mode": "httpCheck",
+  "httpCheck": { "path": "/", "port": 5000, "expectedStatus": 200 }
+}

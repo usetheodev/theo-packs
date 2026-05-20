@@ -1,0 +1,22 @@
+schemaVersion: 2.0.0
+
+# T1.2 — PHP Slim framework.
+
+fileExistenceTests:
+  - name: index.php present
+    path: /app/public/index.php
+    shouldExist: true
+
+  - name: php binary present
+    path: /usr/local/bin/php
+    shouldExist: true
+
+commandTests:
+  - name: php version reports PHP
+    command: php
+    args: ["--version"]
+    expectedOutput: ["PHP "]
+
+metadataTest:
+  workdir: /app
+  user: "appuser"

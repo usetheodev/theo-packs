@@ -29,6 +29,9 @@ vendor/
 tmp-tmp-*/
 monorepo-go-test/
 
+# E2E SBOMs (T1.3) — generated per-build, archived in release.
+e2e/sboms/
+
 # Dependencies
 node_modules/
 

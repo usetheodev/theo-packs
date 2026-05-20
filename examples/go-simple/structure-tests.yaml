@@ -1,0 +1,18 @@
+schemaVersion: 2.0.0
+
+# T1.2 — go-simple structure invariants. Distroless static binary; no
+# shell or ls available, so we rely on file existence + metadata checks.
+
+fileExistenceTests:
+  - name: server binary present
+    path: /app/server
+    shouldExist: true
+
+  - name: no apt package manager in distroless runtime
+    path: /usr/bin/apt
+    shouldExist: false
+
+metadataTest:
+  workdir: /app
+  cmd: ["/app/server"]
+  user: "nonroot"

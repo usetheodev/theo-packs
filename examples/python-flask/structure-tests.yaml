@@ -1,0 +1,22 @@
+schemaVersion: 2.0.0
+
+# T1.2 — python-flask structure invariants.
+
+fileExistenceTests:
+  - name: app source present
+    path: /app/app.py
+    shouldExist: true
+
+  - name: python binary
+    path: /usr/local/bin/python
+    shouldExist: true
+
+commandTests:
+  - name: flask importable
+    command: python
+    args: ["-c", "import flask; print(flask.__version__)"]
+    excludedOutput: ["ModuleNotFoundError", "ImportError"]
+
+metadataTest:
+  workdir: /app
+  user: "appuser"

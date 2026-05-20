@@ -1,0 +1,79 @@
+# L3 — Full matrix: every example × {BuildKit, Kaniko}. Target: < 60 min.
+# Triggered nightly + on push to main.
+#
+# T5.1, T5.2, T5.3 (Kaniko portion) — robust-test-suite-plan.
+
+name: E2E L3 (Full matrix)
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "27 4 * * *" # nightly 04:27 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-buildkit:
+    name: E2E L3 BuildKit (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["0/8", "1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Install hadolint
+        run: |
+          curl -fsSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+
+      - name: Install dive
+        run: |
+          DIVE_VERSION=0.12.0
+          curl -fsSL https://github.com/wagoodman/dive/releases/download/v${DIVE_VERSION}/dive_${DIVE_VERSION}_linux_amd64.tar.gz | tar -xz -C /tmp dive
+          mv /tmp/dive /usr/local/bin/dive
+
+      - name: Install container-structure-test
+        run: |
+          CST_VERSION=1.19.3
+          curl -fsSL https://storage.googleapis.com/container-structure-test/v${CST_VERSION}/container-structure-test-linux-amd64 -o /usr/local/bin/container-structure-test
+          chmod +x /usr/local/bin/container-structure-test
+
+      - name: Install syft (SBOM)
+        run: curl -fsSL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: E2E sharded
+        env:
+          TEST_SHARD: ${{ matrix.shard }}
+        run: go test -tags e2e -timeout 60m -run TestE2E_All ./e2e/
+
+      - name: Upload SBOMs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sboms-shard-${{ strategy.job-index }}
+          path: e2e/sboms/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  e2e-kaniko:
+    name: E2E L3 Kaniko differential
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Install hadolint
+        run: |
+          curl -fsSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+
+      - name: Kaniko differential
+        run: go test -tags "e2e e2e_kaniko" -timeout 45m -run TestE2E_Kaniko_Differential ./e2e/

@@ -1,0 +1,23 @@
+schemaVersion: 2.0.0
+
+# T1.2 — Java Spring Boot fat-JAR runtime.
+
+fileExistenceTests:
+  - name: app jar present
+    path: /app/app.jar
+    shouldExist: true
+
+  - name: java binary present
+    path: /opt/java/openjdk/bin/java
+    shouldExist: true
+
+commandTests:
+  - name: java version reports temurin
+    command: java
+    args: ["-version"]
+    # stderr because OpenJDK prints version to stderr.
+    expectedError: ["openjdk version|OpenJDK Runtime"]
+
+metadataTest:
+  workdir: /app
+  user: "appuser"

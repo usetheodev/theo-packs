@@ -1,0 +1,47 @@
+# Weekly flakiness probe (T5.5, robust-test-suite-plan).
+#
+# Runs the in-process test suite 5x back-to-back and reports any test
+# that succeeded < 5 times. Flaky tests rarely fail in one CI run but
+# accumulate over a release cycle into operator pager noise.
+#
+# Output: artifact `flakiness-report.txt` + log summary. Issue
+# automation is manual for now (TODO once we have a metric ≥ 5%).
+
+name: Flakiness
+
+on:
+  schedule:
+    - cron: "0 8 * * 1" # Mondays 08:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  flakiness:
+    name: Flakiness — 5 runs of in-process suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Run suite 5x and aggregate
+        run: |
+          mkdir -p flakiness
+          for i in 1 2 3 4 5; do
+            echo "=== Run $i ==="
+            go test -race -count=1 -json ./core/... ./cmd/... ./internal/... > flakiness/run-$i.json || true
+          done
+          ./scripts/flakiness-report.sh flakiness/ > flakiness-report.txt
+          cat flakiness-report.txt
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flakiness-report
+          path: |
+            flakiness-report.txt
+            flakiness/
+          retention-days: 30

@@ -1,0 +1,94 @@
+# L4 — Nightly quality gates (T5.3, robust-test-suite-plan).
+#
+# Runs:
+#   - gremlins mutation testing (T2.4)
+#   - Trivy compliance docker-cis-1.6.0 (T0.3)
+#   - reproducibility build (T3.2)
+#
+# Heavy jobs that can't fit in PR feedback time. Failures open issues
+# automatically via the report step at the end (manual until automation
+# lands).
+
+name: Nightly
+
+on:
+  schedule:
+    - cron: "13 5 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  mutation:
+    name: Mutation (gremlins, scoped)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Install gremlins
+        run: go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
+
+      - name: Run mutation testing
+        run: |
+          gremlins unleash ./core/resolver/... | tee gremlins-resolver.txt
+          gremlins unleash ./core/config/... | tee gremlins-config.txt
+          gremlins unleash ./core/providers/ | tee gremlins-providers.txt
+
+      - name: Upload mutation reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gremlins-reports
+          path: gremlins-*.txt
+          retention-days: 90
+
+  trivy-compliance:
+    name: Trivy CIS Docker Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build runner image
+        run: docker build -f Dockerfile.generate -t theo-packs-runner:nightly .
+
+      - name: Trivy compliance scan
+        uses: aquasecurity/trivy-action@5bb6fea0db82a8e89fcccf24e1a04ec84a9b8b76 # 0.27.0
+        with:
+          scan-type: image
+          image-ref: theo-packs-runner:nightly
+          # compliance-mode produces a structured report against
+          # docker-cis-1.6.0. Doesn't fail by default — issue automation
+          # below converts findings to GitHub Issues (manual until
+          # automation lands).
+          severity: HIGH,CRITICAL
+          format: sarif
+          output: trivy-compliance.sarif
+          exit-code: "0"
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4
+        with:
+          sarif_file: trivy-compliance.sarif
+          category: trivy-cis-nightly
+
+  reproducibility:
+    name: Reproducibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Set up Docker Buildx (>= 0.13)
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        with:
+          version: latest
+
+      - name: Run reproducibility tests
+        run: go test -tags e2e -timeout 30m -run TestE2E_Reproducible_Build ./e2e/

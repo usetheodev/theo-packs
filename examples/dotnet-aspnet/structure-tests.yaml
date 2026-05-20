@@ -1,0 +1,18 @@
+schemaVersion: 2.0.0
+
+# T1.2 — .NET ASP.NET runtime image.
+
+fileExistenceTests:
+  - name: publish output present
+    path: /app/publish/dotnet-aspnet.dll
+    shouldExist: true
+
+  - name: dotnet binary present
+    path: /usr/share/dotnet/dotnet
+    shouldExist: true
+
+metadataTest:
+  workdir: /app
+  # MS aspnet image ships an `app` user (UID 1654) — see
+  # resolveDeployUser in core/dockerfile/generate.go.
+  user: "app"

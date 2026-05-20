@@ -1,0 +1,220 @@
+# Release pipeline for theo-packs (T4.1-T4.4 + T5.4,
+# robust-test-suite-plan).
+#
+# Triggered by pushing a `v*` tag. Produces:
+#   - theopacks-generate binary (single artifact, attached to release)
+#   - SLSA L3 provenance attestation via slsa-github-generator
+#   - signed runner image via cosign keyless (OIDC)
+#   - SBOMs (SPDX + CycloneDX) attested via cosign attest
+#   - verify gate that re-checks all of the above before exit
+#
+# Each step is documented inline. Security-relevant actions are pinned
+# to commit SHAs (same convention as ci.yml).
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (manual)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # T4.1 — Build the binary AND emit the SLSA provenance side-by-side. The
+  # binary's sha256 becomes the provenance subject; SLSA generator validates
+  # build isolation and produces non-falsifiable attestation.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build binary
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - id: tag
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build theopacks-generate
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -ldflags="-s -w -X main.version=${{ steps.tag.outputs.tag }}" \
+            -o dist/theopacks-generate-linux-amd64 \
+            ./cmd/theopacks-generate
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -ldflags="-s -w -X main.version=${{ steps.tag.outputs.tag }}" \
+            -o dist/theopacks-generate-linux-arm64 \
+            ./cmd/theopacks-generate
+
+      - id: hash
+        name: Compute artifact hashes for SLSA
+        run: |
+          cd dist
+          sha256sum theopacks-generate-* > sha256sums.txt
+          cat sha256sums.txt
+          # SLSA generator expects base64(hashes).
+          echo "hashes=$(base64 -w0 sha256sums.txt)" >> $GITHUB_OUTPUT
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: binaries
+          path: dist/
+
+  # ---------------------------------------------------------------------------
+  # T4.1 — SLSA L3 provenance via the official slsa-github-generator.
+  # Generates an intoto.jsonl signed by the GitHub OIDC identity.
+  # ---------------------------------------------------------------------------
+  provenance:
+    needs: build
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: true
+
+  # ---------------------------------------------------------------------------
+  # T4.2 + T4.3 — Build and sign the runner image, generate SBOMs, attach
+  # both as cosign attestations.
+  # ---------------------------------------------------------------------------
+  image:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for cosign keyless OIDC
+      packages: write   # in case we push to ghcr in the future
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Build runner image
+        run: |
+          docker build -f Dockerfile.generate \
+            -t theopacks-generate-runner:${{ needs.build.outputs.tag }} .
+          docker tag theopacks-generate-runner:${{ needs.build.outputs.tag }} \
+            theopacks-generate-runner:latest
+
+      # T4.3 — SBOM generation. SPDX + CycloneDX both attested below.
+      - name: Install syft
+        run: curl -fsSL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM (SPDX)
+        run: syft theopacks-generate-runner:${{ needs.build.outputs.tag }} -o spdx-json=sbom.spdx.json
+
+      - name: Generate SBOM (CycloneDX)
+        run: syft theopacks-generate-runner:${{ needs.build.outputs.tag }} -o cyclonedx-json=sbom.cyclonedx.json
+
+      # T0.3 release gate — HARD fail on HIGH/CRITICAL in runner image.
+      - name: Trivy scan (release gate)
+        uses: aquasecurity/trivy-action@5bb6fea0db82a8e89fcccf24e1a04ec84a9b8b76 # 0.27.0
+        with:
+          scan-type: image
+          image-ref: theopacks-generate-runner:${{ needs.build.outputs.tag }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+      # T4.2 — Cosign keyless signing via GitHub OIDC.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Sign image (keyless)
+        run: cosign sign --yes theopacks-generate-runner:${{ needs.build.outputs.tag }}
+
+      # T4.3 — Attach SBOM attestations.
+      - name: Attest SBOM (SPDX)
+        run: cosign attest --yes --predicate sbom.spdx.json --type spdxjson \
+             theopacks-generate-runner:${{ needs.build.outputs.tag }}
+
+      - name: Attest SBOM (CycloneDX)
+        run: cosign attest --yes --predicate sbom.cyclonedx.json --type cyclonedx \
+             theopacks-generate-runner:${{ needs.build.outputs.tag }}
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sboms
+          path: |
+            sbom.spdx.json
+            sbom.cyclonedx.json
+
+  # ---------------------------------------------------------------------------
+  # T4.4 — Hard verify gate. Re-checks SLSA provenance + image signature
+  # before declaring the release "released". Fails the release entirely
+  # if any verification fails.
+  # ---------------------------------------------------------------------------
+  verify:
+    needs: [build, provenance, image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install slsa-verifier
+        run: |
+          curl -fsSL https://github.com/slsa-framework/slsa-verifier/releases/download/v2.6.0/slsa-verifier-linux-amd64 -o /usr/local/bin/slsa-verifier
+          chmod +x /usr/local/bin/slsa-verifier
+          slsa-verifier version
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Download artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+
+      - name: Verify SLSA provenance
+        run: |
+          # Each binary's provenance is in `binaries/`; the SLSA generator
+          # placed the attestation alongside the artifacts.
+          for bin in binaries/theopacks-generate-*; do
+            echo "Verifying $bin"
+            slsa-verifier verify-artifact \
+              --provenance-path binaries/multiple.intoto.jsonl \
+              --source-uri github.com/${{ github.repository }} \
+              --source-tag ${{ needs.build.outputs.tag }} \
+              "$bin"
+          done
+
+      - name: Verify image signature
+        run: |
+          cosign verify theopacks-generate-runner:${{ needs.build.outputs.tag }} \
+            --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.github/workflows/release.yml@.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+      - name: Verify SBOM attestations
+        run: |
+          cosign verify-attestation \
+            --type spdxjson \
+            --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.github/workflows/release.yml@.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            theopacks-generate-runner:${{ needs.build.outputs.tag }}
+          cosign verify-attestation \
+            --type cyclonedx \
+            --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.github/workflows/release.yml@.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            theopacks-generate-runner:${{ needs.build.outputs.tag }}

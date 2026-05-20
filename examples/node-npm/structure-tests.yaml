@@ -1,0 +1,23 @@
+schemaVersion: 2.0.0
+
+# T1.2 — node-npm structure invariants. Non-distroless runtime
+# (node:20-bookworm-slim with appuser created); shell available.
+
+fileExistenceTests:
+  - name: package.json copied to /app
+    path: /app/package.json
+    shouldExist: true
+
+  - name: node binary present
+    path: /usr/local/bin/node
+    shouldExist: true
+
+commandTests:
+  - name: node runs simple JS
+    command: node
+    args: ["-e", "console.log('ok')"]
+    expectedOutput: ["ok"]
+
+metadataTest:
+  workdir: /app
+  user: "appuser"

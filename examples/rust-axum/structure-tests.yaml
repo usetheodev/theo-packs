@@ -1,0 +1,14 @@
+schemaVersion: 2.0.0
+
+# T1.2 — rust-axum static binary on distroless. Same shape as
+# go-simple.
+
+fileExistenceTests:
+  - name: server binary present
+    path: /app/server
+    shouldExist: true
+
+metadataTest:
+  workdir: /app
+  cmd: ["/app/server"]
+  user: "nonroot"

@@ -1,0 +1,21 @@
+schemaVersion: 2.0.0
+
+# T1.2 — Deno Hono app.
+
+fileExistenceTests:
+  - name: main.ts present
+    path: /app/main.ts
+    shouldExist: true
+
+  - name: deno binary present
+    path: /bin/deno
+    shouldExist: true
+
+commandTests:
+  - name: deno version
+    command: deno
+    args: ["--version"]
+    expectedOutput: ["deno"]
+
+metadataTest:
+  workdir: /app

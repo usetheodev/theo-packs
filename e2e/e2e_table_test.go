@@ -26,11 +26,12 @@ import (
 
 // e2eCase declares an end-to-end Docker build for a single example.
 type e2eCase struct {
-	example string                       // examples/<name>
-	tag     string                       // docker tag for the built image
-	env     map[string]string            // optional env vars passed to the generator
-	verify  func(t *testing.T, tag string) // optional post-build assertion
-	maxMB   int                          // optional image size cap in MB
+	example       string                         // examples/<name>
+	tag           string                         // docker tag for the built image
+	env           map[string]string              // optional env vars passed to the generator
+	verify        func(t *testing.T, tag string) // optional post-build assertion
+	maxMB         int                            // optional image size cap in MB
+	structureTest string                         // T1.1 — path to structure-tests.yaml (relative to example dir; empty = skip)
 }
 
 // --- Named verifiers ---
@@ -150,12 +151,12 @@ func verifyCommand(cmd []string, mustContain string) func(*testing.T, string) {
 func e2eCases() []e2eCase {
 	return []e2eCase{
 		// --- Go ---
-		{example: "go-simple", tag: "te2e-go-simple", verify: verifyGoBinary},
+		{example: "go-simple", tag: "te2e-go-simple", verify: verifyGoBinary, structureTest: "structure-tests.yaml"},
 		{example: "go-cmd-dirs", tag: "te2e-go-cmd-dirs", verify: verifyGoBinary},
 		{example: "go-workspaces", tag: "te2e-go-workspaces", verify: verifyGoBinary},
 
 		// --- Node single-package ---
-		{example: "node-npm", tag: "te2e-node-npm", verify: verifyNodeRuntime, maxMB: 280},
+		{example: "node-npm", tag: "te2e-node-npm", verify: verifyNodeRuntime, maxMB: 280, structureTest: "structure-tests.yaml"},
 		{example: "node-express", tag: "te2e-node-express", verify: verifyNodeRuntime, maxMB: 280},
 
 		// --- Node frameworks (build step exercised) ---
@@ -176,13 +177,17 @@ func e2eCases() []e2eCase {
 		{example: "node-yarn-workspaces", tag: "te2e-node-yarn-workspaces", verify: verifyNodeRuntime, maxMB: 400},
 		{example: "node-pnpm-workspaces", tag: "te2e-node-pnpm-workspaces", verify: verifyNodeRuntime, maxMB: 400},
 		{example: "node-turborepo", tag: "te2e-node-turborepo",
-			env:    map[string]string{"THEOPACKS_APP_NAME": "api", "THEOPACKS_APP_PATH": "apps/api"},
-			verify: verifyFileExists("/app/apps/api"), maxMB: 600},
+			env:           map[string]string{"THEOPACKS_APP_NAME": "api", "THEOPACKS_APP_PATH": "apps/api"},
+			verify:        verifyFileExists("/app/apps/api"),
+			maxMB:         600,
+			structureTest: "structure-tests.yaml"},
 
 		// --- Python ---
 		{example: "python-flask", tag: "te2e-python-flask",
-			env:    map[string]string{"THEOPACKS_START_CMD": "python -c 'print(1)'"},
-			verify: verifyPythonImport("flask"), maxMB: 280},
+			env:           map[string]string{"THEOPACKS_START_CMD": "python -c 'print(1)'"},
+			verify:        verifyPythonImport("flask"),
+			maxMB:         280,
+			structureTest: "structure-tests.yaml"},
 		{example: "python-django", tag: "te2e-python-django",
 			env:    map[string]string{"THEOPACKS_START_CMD": "python -c 'print(1)'"},
 			verify: verifyPythonImport("django"), maxMB: 350},
@@ -215,14 +220,15 @@ func e2eCases() []e2eCase {
 			verify: verifyShellExecutes("/app/start.sh", "hello world")},
 
 		// --- Rust ---
-		{example: "rust-axum", tag: "te2e-rust-axum", verify: verifyGoBinary}, // /app/server convention
+		{example: "rust-axum", tag: "te2e-rust-axum", verify: verifyGoBinary, structureTest: "structure-tests.yaml"}, // /app/server convention
 		{example: "rust-cli", tag: "te2e-rust-cli", verify: verifyGoBinary},
 		{example: "rust-workspace", tag: "te2e-rust-workspace",
 			env: map[string]string{"THEOPACKS_APP_NAME": "api"}, verify: verifyGoBinary},
 
 		// --- Java ---
 		{example: "java-spring-gradle", tag: "te2e-java-spring-gradle",
-			verify: verifyFileExists("/app/app.jar")},
+			verify:        verifyFileExists("/app/app.jar"),
+			structureTest: "structure-tests.yaml"},
 		{example: "java-spring-maven", tag: "te2e-java-spring-maven",
 			verify: verifyFileExists("/app/app.jar")},
 		{example: "java-gradle-workspace", tag: "te2e-java-gradle-workspace",
@@ -230,7 +236,8 @@ func e2eCases() []e2eCase {
 
 		// --- .NET ---
 		{example: "dotnet-aspnet", tag: "te2e-dotnet-aspnet",
-			verify: verifyCommand([]string{"ls", "/app/publish"}, "dotnet-aspnet.dll")},
+			verify:        verifyCommand([]string{"ls", "/app/publish"}, "dotnet-aspnet.dll"),
+			structureTest: "structure-tests.yaml"},
 		{example: "dotnet-console", tag: "te2e-dotnet-console",
 			verify: verifyCommand([]string{"ls", "/app/publish"}, ".dll")},
 		{example: "dotnet-solution", tag: "te2e-dotnet-solution",
@@ -238,7 +245,8 @@ func e2eCases() []e2eCase {
 
 		// --- Ruby ---
 		{example: "ruby-sinatra", tag: "te2e-ruby-sinatra",
-			verify: verifyCommand([]string{"bundle", "info", "sinatra"}, "sinatra")},
+			verify:        verifyCommand([]string{"bundle", "info", "sinatra"}, "sinatra"),
+			structureTest: "structure-tests.yaml"},
 		{example: "ruby-rails", tag: "te2e-ruby-rails",
 			verify: verifyCommand([]string{"bundle", "info", "rails"}, "rails")},
 		{example: "ruby-monorepo", tag: "te2e-ruby-monorepo",
@@ -246,7 +254,8 @@ func e2eCases() []e2eCase {
 
 		// --- PHP ---
 		{example: "php-slim", tag: "te2e-php-slim",
-			verify: verifyCommand([]string{"php", "--version"}, "PHP")},
+			verify:        verifyCommand([]string{"php", "--version"}, "PHP"),
+			structureTest: "structure-tests.yaml"},
 		{example: "php-laravel", tag: "te2e-php-laravel",
 			verify: verifyCommand([]string{"php", "--version"}, "PHP")},
 		{example: "php-monorepo", tag: "te2e-php-monorepo",
@@ -254,7 +263,8 @@ func e2eCases() []e2eCase {
 
 		// --- Deno ---
 		{example: "deno-hono", tag: "te2e-deno-hono",
-			verify: verifyCommand([]string{"deno", "--version"}, "deno")},
+			verify:        verifyCommand([]string{"deno", "--version"}, "deno"),
+			structureTest: "structure-tests.yaml"},
 		{example: "deno-fresh", tag: "te2e-deno-fresh",
 			verify: verifyCommand([]string{"deno", "--version"}, "deno")},
 		{example: "deno-workspace", tag: "te2e-deno-workspace",
@@ -267,6 +277,10 @@ func runE2ECase(t *testing.T, c e2eCase) {
 	t.Helper()
 	dir := filepath.Join(examplesDir(t), c.example)
 	df := generateDockerfile(t, dir, c.env)
+	// T0.2 — lint the generated Dockerfile before attempting to build.
+	// Fails fast on hadolint findings (warning+); silently skipped when
+	// hadolint binary isn't on PATH (local dev without it).
+	runHadolint(t, df)
 	t.Cleanup(func() { removeImage(c.tag) })
 	buildImage(t, dir, df, c.tag)
 	require.True(t, imageExists(c.tag), "image %s missing after build", c.tag)
@@ -276,18 +290,36 @@ func runE2ECase(t *testing.T, c e2eCase) {
 	if c.maxMB > 0 {
 		requireSizeLessThan(t, c.tag, c.maxMB)
 	}
+	// T1.1 — declarative structure tests when the case declares one.
+	if c.structureTest != "" {
+		runStructureTest(t, c.tag, filepath.Join(dir, c.structureTest))
+	}
+	// T0.4 — dive efficiency gate. Runs AFTER verify so a failing
+	// runtime check surfaces first (more actionable). Skips silently
+	// when dive isn't installed (local dev) or DIVE_SKIP=1.
+	runDive(t, c.tag)
+	// T1.3 — emit SBOMs (SPDX + CycloneDX) for every E2E image. Output
+	// at e2e/sboms/<tag>.{spdx,cyclonedx}.json. Skipped silently when
+	// syft isn't installed.
+	generateSBOM(t, c.tag)
 }
 
 // TestE2E_All builds every example in the table. Subtests parallelize:
 // Docker daemon serializes builds internally, but the test goroutines
 // run concurrently so cleanup and verification overlap with the next
 // build's setup.
+//
+// T5.2 — when TEST_SHARD=N/M is set, only the cases whose example
+// hashes to shard N execute. fnv32a keeps assignment deterministic.
 func TestE2E_All(t *testing.T) {
 	if !dockerAvailable() {
 		t.Skip("Docker not available")
 	}
 	for _, c := range e2eCases() {
 		c := c
+		if !shouldRunInShard(c.example) {
+			continue
+		}
 		t.Run(c.example, func(t *testing.T) {
 			t.Parallel()
 			runE2ECase(t, c)

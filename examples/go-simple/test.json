@@ -1,0 +1,6 @@
+{
+  // T1.5 — non-HTTP example (CLI / static binary). justBuild is
+  // legitimate here per docs/adrs/0002-shell-provider-requires-start-cmd.md
+  // and the broader convention.
+  "mode": "justBuild"
+}

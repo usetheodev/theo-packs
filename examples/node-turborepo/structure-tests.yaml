@@ -1,0 +1,28 @@
+schemaVersion: 2.0.0
+
+# T1.2 — Turbo monorepo. Build context = workspace root; apps/api is
+# the selected member. Validates the workspace-mode invariants:
+#   - source of all apps is copied (NOT just apps/api)
+#   - turbo.json and root manifests are present
+#   - node binary is callable
+
+fileExistenceTests:
+  - name: apps/api source present
+    path: /app/apps/api/package.json
+    shouldExist: true
+
+  - name: workspace turbo config present
+    path: /app/turbo.json
+    shouldExist: true
+
+  - name: root package.json present
+    path: /app/package.json
+    shouldExist: true
+
+  - name: node binary present
+    path: /usr/local/bin/node
+    shouldExist: true
+
+metadataTest:
+  workdir: /app
+  user: "appuser"

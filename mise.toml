@@ -18,6 +18,16 @@ run = ["go vet ./...", "go fmt ./...", "golangci-lint run"]
 description = "Tidy Go modules"
 run = "go mod tidy"
 
+# T2.4 — mutation testing. Scoped to logic-heavy packages; full codebase
+# is prohibitive (per go-gremlins README).
+[tasks.mutation]
+description = "Mutation testing with go-gremlins (scoped to core/resolver, core/config, core/providers)"
+run = """
+gremlins unleash ./core/resolver/... &&
+gremlins unleash ./core/config/... &&
+gremlins unleash ./core/providers/
+"""
+
 [tools]
 go = "1.25"
 "github:golangci/golangci-lint" = "2"

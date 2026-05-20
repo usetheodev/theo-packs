@@ -1,0 +1,24 @@
+Mutation testing baseline — go-gremlins (T2.4, robust-test-suite-plan).
+
+Scope:
+  - core/resolver/...
+  - core/config/...
+  - core/providers/ (registry only — language subpackages run via their own tests)
+
+Threshold:
+  - Warmup (first 4 weeks):  efficacy ≥ 0.60
+  - Steady (after warmup):   efficacy ≥ 0.70
+
+How to regenerate:
+  mise install                 # ensures gremlins binary present
+  mise run mutation > docs/benchmarks/mutation-baseline.txt
+
+Notes:
+  - gremlins is NOT installed by `mise.toml::tools` automatically because
+    it's a heavy dependency. Install manually before running:
+      go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
+  - First baseline will be captured by the L4 nightly job (T5.3) once
+    the workflow lands. Until then, run locally and append below.
+
+Baseline (TBD — populated by first nightly run):
+  (empty — populated on first run)

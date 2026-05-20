@@ -1,0 +1,31 @@
+# Hadolint config — gate over generated Dockerfiles (T0.1/T0.2,
+# robust-test-suite-plan).
+#
+# failure-threshold: warning  → severities >= warning fail the lint;
+# info / style remain visible but advisory.
+
+failure-threshold: warning
+
+ignored:
+  # DL3018 — apk add without version pin. theo-packs depends on Alpine
+  # base images and Alpine moves package versions per-release; pinning
+  # would break on every base image bump. Aceptable risk: scoped via
+  # Trivy scanning the final image (T0.3).
+  - DL3018
+  # DL3008 — apt-get without version pin. Same rationale as DL3018 for
+  # Debian-based bases (golang:*-bookworm, node:*-bookworm-slim, etc.).
+  - DL3008
+  # DL3059 — multiple consecutive RUN. Cache mounts are per-RUN and
+  # consolidation would discard the BuildKit `--mount=type=cache`
+  # split that we deliberately emit per command.
+  - DL3059
+  # SC1091 — shellcheck "file not found" when sourcing /etc/profile-style
+  # files. Hadolint can't follow cross-stage paths.
+  - SC1091
+
+trustedRegistries:
+  - docker.io
+  - gcr.io
+  - mcr.microsoft.com
+  - ghcr.io
+  - public.ecr.aws

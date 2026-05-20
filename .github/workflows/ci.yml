@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write # T0.3 — required to upload SARIF to GitHub Security tab
 
 jobs:
   lint-and-test:
@@ -47,5 +48,41 @@ jobs:
       - name: Lint and vet
         run: mise run check
 
+      # T0.1 — Hadolint over committed golden Dockerfiles. Uses the
+      # versioned .hadolint.yaml; failure-threshold: warning. Pinned to
+      # release commit SHA (supply-chain hardening).
+      - name: Hadolint goldens
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
+        with:
+          recursive: true
+          dockerfile: "core/dockerfile/testdata/integration_*.dockerfile"
+          config: .hadolint.yaml
+          failure-threshold: warning
+
       - name: Test
         run: mise run test
+
+      # T0.3 — Trivy advisory scan of the runner image. exit-code 0 so a
+      # finding doesn't block PRs (release.yml enforces a hard gate at
+      # the L5 layer). SARIF upload populates the Security tab so
+      # findings are visible without scrolling job logs.
+      - name: Build runner image for scan
+        run: docker build -f Dockerfile.generate -t theo-packs-runner:ci .
+
+      - name: Trivy filesystem scan (advisory)
+        uses: aquasecurity/trivy-action@5bb6fea0db82a8e89fcccf24e1a04ec84a9b8b76 # 0.27.0
+        with:
+          scan-type: image
+          image-ref: theo-packs-runner:ci
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-runner

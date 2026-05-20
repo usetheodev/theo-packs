@@ -1,0 +1,39 @@
+# go-gremlins configuration (T2.4, robust-test-suite-plan).
+#
+# Mutation testing is expensive — we scope it to the directories where
+# logic density is highest and tests are most load-bearing:
+#   - core/resolver — version resolution priority
+#   - core/config   — Merge semantics
+#   - core/providers (root) — provider registry order, secret filtering
+#
+# We do NOT run gremlins on the codebase as a whole because per the
+# upstream README it "doesn't work very well on very big Go modules,
+# mainly because a run can take hours to complete." Scoping keeps
+# runtime under 30 min in CI.
+#
+# Reference: https://gremlins.dev/latest/configuration/
+
+silent: true
+
+# Mutation operators — start with defaults; tune after baseline.
+# Empty mutant-type list = all known operators enabled.
+mutants:
+  arithmetic-base: { disabled: false }
+  conditionals-boundary: { disabled: false }
+  conditionals-negation: { disabled: false }
+  increment-decrement: { disabled: false }
+  invert-assignments: { disabled: false }
+  invert-bitwise: { disabled: false }
+  invert-bitwise-assignments: { disabled: false }
+  invert-logical: { disabled: false }
+  invert-loopctrl: { disabled: false }
+  invert-negatives: { disabled: false }
+  remove-self-assignments: { disabled: false }
+
+# Threshold for the CI gate. Warmup phase (4 weeks): 0.60. Steady: 0.70.
+threshold-efficacy: 0.60
+
+# Timeout per mutant test run. theo-packs unit tests are fast (< 5s
+# typically). 60s gives plenty of headroom for parallelization fluctuations.
+test-cpu: 0    # 0 = all available
+timeout-coefficient: 3

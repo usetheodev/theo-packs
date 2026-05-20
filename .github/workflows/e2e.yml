@@ -53,5 +53,42 @@ jobs:
       - name: Verify Docker is available
         run: docker info >/dev/null
 
+      - name: Install hadolint
+        run: |
+          curl -fsSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+          hadolint --version
+
+      - name: Install dive
+        run: |
+          DIVE_VERSION=0.12.0
+          curl -fsSL https://github.com/wagoodman/dive/releases/download/v${DIVE_VERSION}/dive_${DIVE_VERSION}_linux_amd64.tar.gz | tar -xz -C /tmp dive
+          mv /tmp/dive /usr/local/bin/dive
+          dive --version
+
+      - name: Install container-structure-test
+        run: |
+          CST_VERSION=1.19.3
+          curl -fsSL https://storage.googleapis.com/container-structure-test/v${CST_VERSION}/container-structure-test-linux-amd64 -o /usr/local/bin/container-structure-test
+          chmod +x /usr/local/bin/container-structure-test
+          container-structure-test version
+
+      - name: Install syft (T1.3)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft version
+
+      # T0.2/T0.4/T1.1/T1.3 — hadolint, dive, container-structure-test
+      # and syft are invoked from inside the E2E test bodies. Installing
+      # the binaries above is sufficient.
       - name: Run E2E tests
         run: mise run test-e2e
+
+      - name: Upload SBOMs (T1.3)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sboms
+          path: e2e/sboms/
+          retention-days: 30
+          if-no-files-found: ignore
