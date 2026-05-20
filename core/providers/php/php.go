@@ -123,6 +123,14 @@ func (p *PhpProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspace
 	if ctx.App.HasFile("composer.lock") {
 		installStep.AddCommand(plan.NewCopyCommand("composer.lock", "./"))
 	}
+	// theo-stacks monorepo-php declares path repositories at
+	// `packages/<name>` in composer.json. `composer install` walks them
+	// at install-time, so the packages/ tree MUST be present before the
+	// install. Copy it whole (cheap — packages are small) before the
+	// composer step rather than waiting for the build stage.
+	if ctx.App.HasFile("packages") {
+		installStep.AddCommand(plan.NewCopyCommand("packages", "packages/"))
+	}
 	installStep.AddCommand(plan.NewExecShellCommand(
 		"composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader --no-progress",
 	))

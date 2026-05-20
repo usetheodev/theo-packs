@@ -24,7 +24,7 @@ Last sync: 2026-05-20
 | `monorepo-turbo` | `nextjs` + `express` | `node` (turbo) | `node-turborepo` | ✅ `TestE2E_MonorepoTurboContract` end-to-end |
 | `node-express` | `express` | `node` | `node-express` | ✅ Build + structure-test |
 | `node-fastify` | (fastify) | `node` | `node-fastify` (NEW) | 🆕 Created in this cycle |
-| `node-nestjs` | (nestjs) | `node` | `node-nestjs` (NEW) | 🆕 Created in this cycle |
+| `node-nestjs` | (nestjs) | `node` | `node-nestjs` (NEW) | 🆕 Created in this cycle. **Upstream template has TS error** ([usetheodev/theo-stacks#38](https://github.com/usetheodev/theo-stacks/issues/38)) — Dockerfile is generated correctly but `tsc` fails on `src/logger.ts`. Build success is gated on the upstream fix landing. |
 | `node-nextjs` | `nextjs` | `node` | `node-next` | ✅ |
 | `node-worker` | (worker — no HTTP) | `node` | `node-worker` (NEW) | 🆕 Created in this cycle, `justBuild` mode |
 | `php-slim` | (slim) | `php` | `php-slim` | ✅ Build + structure-test |
@@ -56,6 +56,32 @@ When `theo-stacks/templates/<new-name>` is added upstream:
 4. Add an entry to `e2eCases` in `e2e/e2e_table_test.go` so the E2E
    suite exercises it.
 5. Optionally add `structure-tests.yaml` for declarative invariants.
+
+## Verified end-to-end (real `docker build`)
+
+The matrix above is gated by `TestE2E_TheoStacksTemplates` which runs
+`theopacks-generate` against each template and inspects the produced
+Dockerfile. A separate manual verification cycle on 2026-05-20 built
+each template with real Docker and exercised the resulting image:
+
+- **18/19 templates build successfully end-to-end.**
+- **1/19 fails** — `node-nestjs`, due to an upstream TypeScript bug
+  ([theo-stacks#38](https://github.com/usetheodev/theo-stacks/issues/38)),
+  not a theo-packs regression.
+
+Issues fixed in this cycle to reach 18/19:
+- Generic monorepo workspace redirect now covers Go (`go.work`), Java
+  Gradle (`settings.gradle*`), Rust (`Cargo.toml [workspace]`), Python
+  uv (`[tool.uv.workspace]`) in addition to the previous Node-only
+  redirect.
+- Gradle subproject regex now accepts both `include(":a:b")` (leading
+  colon) and `include("a:b")` (no leading colon — theo-stacks's
+  monorepo-java form).
+- PHP workspace install step copies `packages/` before `composer
+  install` so path repositories resolve.
+- Node workspace mode resolves the user-supplied app alias (e.g.
+  `api`) to the canonical `package.json#name` (e.g. `@demo/api`) so
+  `turbo --filter` and `pnpm --filter` succeed.
 
 ## Known gaps
 

@@ -19,10 +19,17 @@ var (
 	gradleKtsSpringBootRe    = regexp.MustCompile(`id\(\s*"org\.springframework\.boot"\s*\)`)
 	gradleGroovySpringBootRe = regexp.MustCompile(`(?:apply\s+plugin:|id)\s+['"]org\.springframework\.boot['"]`)
 
-	// Matches every Gradle subproject coordinate (":apps:api", ":lib"). All
-	// Gradle paths start with ':' which uniquely distinguishes them from any
-	// other quoted strings in settings.gradle (rootProject.name, etc.).
-	gradleIncludeRe = regexp.MustCompile(`['"]:([^'"]+)['"]`)
+	// Matches every Gradle subproject coordinate. Supports both forms:
+	//   - include(":apps:api")  → leading-colon (canonical Gradle syntax)
+	//   - include("apps:api")   → no leading colon (theo-stacks template
+	//     monorepo-java)
+	// Plus comma-separated includes:  include(":a", ":b")
+	//
+	// We capture any quoted string that EITHER starts with ":" OR contains
+	// a ":" inside (subproject paths use ":" as separator). This excludes
+	// rootProject.name = "my-project" (no ":"). Caller still validates
+	// that the resolved directory exists on disk with a build.gradle*.
+	gradleIncludeRe = regexp.MustCompile(`['"](:[^'"]+|[^'":]+:[^'"]*)['"]`)
 )
 
 // gradleHasSpringBoot reports whether the project applies the Spring Boot
@@ -132,8 +139,11 @@ func gradleSubprojects(a *app.App) []string {
 	seen := make(map[string]bool)
 	var out []string
 	for _, m := range gradleIncludeRe.FindAllStringSubmatch(settings, -1) {
-		// Each m[1] is the path *after* the leading colon (e.g. "apps:api").
-		dir := strings.ReplaceAll(m[1], ":", "/")
+		// Strip leading colon (canonical Gradle path form) then replace
+		// ":" with "/" to get the on-disk path. Both
+		// include(":apps:api") and include("apps:api") map to "apps/api".
+		raw := strings.TrimPrefix(m[1], ":")
+		dir := strings.ReplaceAll(raw, ":", "/")
 		if dir == "" || seen[dir] {
 			continue
 		}

@@ -92,6 +92,18 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
 	appPath, _ := ctx.Env.GetConfigVariable("APP_PATH")
 
+	// In workspace mode the appName the user passes (e.g. "api") must
+	// be resolved to the scoped package.json#name field (e.g.
+	// "@demo/api"). Turbo's --filter matches against package.json#name,
+	// NOT against the directory leaf. Without this resolution, turbo
+	// fails with `No package found with name 'api'`. See
+	// docs/theo-stacks-compatibility.md for the monorepo-turbo path.
+	if ws != nil && appPath != "" {
+		if scoped := readMemberPackageName(ctx.App, appPath, ctx.Logger); scoped != "" {
+			appName = scoped
+		}
+	}
+
 	if pkg.hasBuildScript() || (ws != nil && appName != "") {
 		buildCmd := workspaceBuildCommand(pm, ws, appName, pkg.hasBuildScript())
 		if buildCmd != "" {
@@ -245,6 +257,29 @@ func readPackageJSON(a *app.App, log *logger.Logger) *packageJSON {
 		return &packageJSON{}
 	}
 	return &pkg
+}
+
+// readMemberPackageName reads <root>/<appPath>/package.json and returns
+// its `name` field. Used in workspace mode so the workspace build
+// command (turbo --filter, pnpm --filter) receives the canonical
+// package.json#name (e.g. "@demo/api") instead of the user-supplied
+// short alias ("api"). Returns "" on any error — caller falls back to
+// the alias.
+func readMemberPackageName(a *app.App, appPath string, log *logger.Logger) string {
+	pkgFile := filepath.Join(appPath, "package.json")
+	if !a.HasFile(pkgFile) {
+		return ""
+	}
+	var pkg struct {
+		Name string `json:"name"`
+	}
+	if err := a.ReadJSON(pkgFile, &pkg); err != nil {
+		if log != nil {
+			log.LogWarn("Failed to read %s: %s", pkgFile, err)
+		}
+		return ""
+	}
+	return pkg.Name
 }
 
 func (p *packageJSON) hasBuildScript() bool {

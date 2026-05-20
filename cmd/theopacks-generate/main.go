@@ -30,6 +30,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -252,49 +253,100 @@ func normalizeAppPath(p string) string {
 	return p
 }
 
-// isGenericMonorepoRoot returns true when (a) appPath is non-empty
-// and non-".", (b) source root has a language-manifest file that
-// signals a single-language monorepo (Ruby/PHP/Python/Java/Rust),
-// and (c) the apps/<name>/ subdir doesn't carry its own copy of the
-// manifest. theo-stacks shapes its non-Node monorepos this way — the
-// root Gemfile/composer.json/pyproject.toml/etc. holds shared deps and
-// apps/<name>/ is just the app's source tree.
+// isGenericMonorepoRoot returns true when the source root signals a
+// monorepo whose providers want to analyze from the root (not from
+// the per-app subdir). Two categories:
 //
-// This mirrors the Node CHG-002b redirect for languages that ship the
-// equivalent layout via theo-stacks templates.
+//  1. WORKSPACE-MANAGER ROOTS — the file alone declares the workspace,
+//     regardless of what's in the app subdir. Examples:
+//       - go.work                       → Go workspace
+//       - settings.gradle / .kts         → Gradle multi-module
+//       - Cargo.toml with [workspace]    → Rust workspace (root manifest)
+//     For these, ALWAYS redirect when appPath is non-empty.
+//
+//  2. SHARED-MANIFEST ROOTS — root manifest holds shared deps, app
+//     subdir is just source. Redirect only when the subdir lacks the
+//     same manifest. Examples:
+//       - Gemfile / composer.json / pyproject.toml on root
+//
+// This mirrors the Node CHG-002b redirect for the languages
+// theo-stacks ships in its monorepo-* templates.
 func isGenericMonorepoRoot(source, appPath string) bool {
 	if appPath == "" || appPath == "." {
 		return false
 	}
-	rootManifests := []string{
-		"Gemfile",         // Ruby
-		"composer.json",   // PHP
-		"pyproject.toml",  // Python (monorepo-python uses root pyproject)
-		"Cargo.toml",      // Rust (workspace root)
-		"build.gradle",    // Java Gradle
-		"build.gradle.kts",
+
+	// Category 1 — workspace-manager roots always redirect.
+	workspaceManagers := []string{
+		"go.work",
 		"settings.gradle",
 		"settings.gradle.kts",
-		"pom.xml",         // Java Maven (multi-module root)
 	}
-	rootHasManifest := false
-	for _, m := range rootManifests {
+	for _, m := range workspaceManagers {
 		if fileExists(filepath.Join(source, m)) {
-			rootHasManifest = true
+			return true
+		}
+	}
+	// Cargo workspace requires Cargo.toml with [workspace] table; absent
+	// that token, the root is a single-crate. We do a cheap substring
+	// check to avoid TOML parsing here.
+	if cargoIsWorkspace(filepath.Join(source, "Cargo.toml")) {
+		return true
+	}
+	// Python uv workspace — pyproject.toml at root with [tool.uv.workspace]
+	// table. Unlike a simple shared pyproject, uv workspaces install
+	// member packages via path references; the root must drive `uv sync`.
+	if pyprojectIsUvWorkspace(filepath.Join(source, "pyproject.toml")) {
+		return true
+	}
+
+	// Category 2 — shared-manifest roots redirect ONLY when the subdir
+	// lacks its own copy of the manifest.
+	sharedManifests := []string{
+		"Gemfile",        // Ruby
+		"composer.json",  // PHP
+		"pyproject.toml", // Python
+		"pom.xml",        // Maven multi-module (less common — settings.gradle covers Gradle)
+	}
+	rootHasShared := false
+	for _, m := range sharedManifests {
+		if fileExists(filepath.Join(source, m)) {
+			rootHasShared = true
 			break
 		}
 	}
-	if !rootHasManifest {
+	if !rootHasShared {
 		return false
 	}
-	// If the app subdir has its OWN root-equivalent manifest, the
-	// provider can detect from there directly — don't redirect.
-	for _, m := range rootManifests {
+	for _, m := range sharedManifests {
 		if fileExists(filepath.Join(source, appPath, m)) {
 			return false
 		}
 	}
 	return true
+}
+
+// cargoIsWorkspace reports whether the Cargo.toml at path declares a
+// [workspace] table. Naïve substring check — TOML parsing is overkill
+// for a single keyword.
+func cargoIsWorkspace(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return bytes.Contains(data, []byte("[workspace]"))
+}
+
+// pyprojectIsUvWorkspace reports whether pyproject.toml at path
+// declares a [tool.uv.workspace] table. uv workspaces require the
+// provider to analyze the root (where the workspace declaration lives)
+// even when the targeted app has its own pyproject.toml in apps/<name>/.
+func pyprojectIsUvWorkspace(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return bytes.Contains(data, []byte("[tool.uv.workspace]"))
 }
 
 func fileExists(p string) bool {
