@@ -1,1 +1,6 @@
-{"pipeline":{"build":{}}}
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "build": {}
+  }
+}

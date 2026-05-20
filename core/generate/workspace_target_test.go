@@ -11,6 +11,7 @@ import (
 // WorkspaceTarget and the legacy env-var bridge are populated, the
 // typed value wins.
 func TestResolveAppName_PrefersWorkspaceTargetOverEnv(t *testing.T) {
+	t.Parallel()
 	ctx := &GenerateContext{
 		Env: app.NewEnvironment(&map[string]string{
 			"THEOPACKS_APP_NAME": "legacy-name",
@@ -24,6 +25,7 @@ func TestResolveAppName_PrefersWorkspaceTargetOverEnv(t *testing.T) {
 // WorkspaceTarget; the legacy env-var bridge must still work for
 // backward compat.
 func TestResolveAppName_FallsBackToEnv(t *testing.T) {
+	t.Parallel()
 	ctx := &GenerateContext{
 		Env: app.NewEnvironment(&map[string]string{
 			"THEOPACKS_APP_NAME": "env-name",
@@ -34,6 +36,7 @@ func TestResolveAppName_FallsBackToEnv(t *testing.T) {
 
 // TestResolveAppName_EmptyWhenUnset — neither typed nor env: empty.
 func TestResolveAppName_EmptyWhenUnset(t *testing.T) {
+	t.Parallel()
 	ctx := &GenerateContext{Env: app.NewEnvironment(nil)}
 	require.Equal(t, "", ctx.ResolveAppName())
 }
@@ -41,6 +44,7 @@ func TestResolveAppName_EmptyWhenUnset(t *testing.T) {
 // TestResolveAppPath_PrefersWorkspaceTargetOverEnv — mirror of the above
 // for AppPath.
 func TestResolveAppPath_PrefersWorkspaceTargetOverEnv(t *testing.T) {
+	t.Parallel()
 	ctx := &GenerateContext{
 		Env: app.NewEnvironment(&map[string]string{
 			"THEOPACKS_APP_PATH": "legacy/path",
@@ -51,6 +55,7 @@ func TestResolveAppPath_PrefersWorkspaceTargetOverEnv(t *testing.T) {
 }
 
 func TestResolveAppPath_FallsBackToEnv(t *testing.T) {
+	t.Parallel()
 	ctx := &GenerateContext{
 		Env: app.NewEnvironment(&map[string]string{
 			"THEOPACKS_APP_PATH": "apps/api",
@@ -62,6 +67,7 @@ func TestResolveAppPath_FallsBackToEnv(t *testing.T) {
 // TestResolveAppName_EmptyWorkspaceTargetUsesEnv — an empty AppName on
 // the typed target should NOT shadow the env-var fallback.
 func TestResolveAppName_EmptyWorkspaceTargetUsesEnv(t *testing.T) {
+	t.Parallel()
 	ctx := &GenerateContext{
 		Env: app.NewEnvironment(&map[string]string{
 			"THEOPACKS_APP_NAME": "env-name",

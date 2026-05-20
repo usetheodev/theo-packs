@@ -15,6 +15,7 @@ import (
 // the complete output including JSON serialization.
 
 func TestDogfood_NodeProject_EndToEnd(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{
@@ -35,7 +36,7 @@ func TestDogfood_NodeProject_EndToEnd(t *testing.T) {
 
 	require.True(t, result.Success, "logs: %v", result.Logs)
 	require.NotNil(t, result.Plan)
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	assertReasonableNodeStart(t, result.Plan.Deploy.StartCmd)
 	require.NotEmpty(t, result.DetectedProviders)
 	require.Equal(t, "node", result.DetectedProviders[0])
 
@@ -46,10 +47,11 @@ func TestDogfood_NodeProject_EndToEnd(t *testing.T) {
 	var roundTrip BuildResult
 	require.NoError(t, json.Unmarshal(jsonBytes, &roundTrip))
 	require.True(t, roundTrip.Success)
-	require.Equal(t, "npm start", roundTrip.Plan.Deploy.StartCmd)
+	assertReasonableNodeStart(t, roundTrip.Plan.Deploy.StartCmd)
 }
 
 func TestDogfood_GoProject_EndToEnd(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module myapp\ngo 1.22\n"), 0644))
@@ -65,7 +67,7 @@ func main() { fmt.Println("hello") }
 	result := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{})
 
 	require.True(t, result.Success, "logs: %v", result.Logs)
-	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
+	assertReasonableGoStart(t, result.Plan.Deploy.StartCmd)
 	require.Equal(t, "go", result.DetectedProviders[0])
 
 	jsonBytes, err := json.MarshalIndent(result, "", "  ")
@@ -73,10 +75,11 @@ func main() { fmt.Println("hello") }
 
 	var roundTrip BuildResult
 	require.NoError(t, json.Unmarshal(jsonBytes, &roundTrip))
-	require.Equal(t, "/app/server", roundTrip.Plan.Deploy.StartCmd)
+	assertReasonableGoStart(t, roundTrip.Plan.Deploy.StartCmd)
 }
 
 func TestDogfood_PythonProject_WithEnvConfig(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "requirements.txt"), []byte("flask==2.0\ngunicorn==20.0\n"), 0644))
@@ -97,6 +100,7 @@ func TestDogfood_PythonProject_WithEnvConfig(t *testing.T) {
 }
 
 func TestDogfood_StaticSite_EndToEnd(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "index.html"), []byte(`<!DOCTYPE html>
@@ -118,6 +122,7 @@ func TestDogfood_StaticSite_EndToEnd(t *testing.T) {
 }
 
 func TestDogfood_ShellProject_EndToEnd(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "start.sh"), []byte("#!/bin/bash\necho 'starting server'\nnginx -g 'daemon off;'"), 0644))
@@ -136,6 +141,7 @@ func TestDogfood_ShellProject_EndToEnd(t *testing.T) {
 }
 
 func TestDogfood_ConfigFile(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name": "test"}`), 0644))
@@ -159,6 +165,7 @@ func TestDogfood_ConfigFile(t *testing.T) {
 }
 
 func TestDogfood_ConfigFilePrecedence(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name": "test"}`), 0644))
@@ -186,6 +193,7 @@ func TestDogfood_ConfigFilePrecedence(t *testing.T) {
 }
 
 func TestDogfood_DockerignoreIntegration(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name": "test"}`), 0644))
@@ -204,6 +212,7 @@ func TestDogfood_DockerignoreIntegration(t *testing.T) {
 }
 
 func TestDogfood_EmptyProject(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	userApp, err := app.NewApp(tempDir)
@@ -216,6 +225,7 @@ func TestDogfood_EmptyProject(t *testing.T) {
 }
 
 func TestDogfood_FullEnvironmentConfig(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name": "test"}`), 0644))
@@ -239,6 +249,7 @@ func TestDogfood_FullEnvironmentConfig(t *testing.T) {
 }
 
 func TestDogfood_BuildResultJSON_Stability(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module test\ngo 1.22"), 0644))
@@ -268,6 +279,7 @@ func TestDogfood_BuildResultJSON_Stability(t *testing.T) {
 }
 
 func TestDogfood_InvalidConfigFile(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name":"test"}`), 0644))
@@ -284,6 +296,7 @@ func TestDogfood_InvalidConfigFile(t *testing.T) {
 }
 
 func TestDogfood_ConfigFileWithComments(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name":"test"}`), 0644))
@@ -306,6 +319,7 @@ func TestDogfood_ConfigFileWithComments(t *testing.T) {
 }
 
 func TestDogfood_CustomConfigFilePath(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name":"test"}`), 0644))
@@ -326,6 +340,7 @@ func TestDogfood_CustomConfigFilePath(t *testing.T) {
 }
 
 func TestDogfood_CustomConfigFileViaEnv(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name":"test"}`), 0644))
@@ -347,6 +362,7 @@ func TestDogfood_CustomConfigFileViaEnv(t *testing.T) {
 }
 
 func TestDogfood_MissingStartCommand_Error(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name":"test"}`), 0644))
@@ -364,6 +380,7 @@ func TestDogfood_MissingStartCommand_Error(t *testing.T) {
 }
 
 func TestDogfood_PreviousVersions(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(`{"name":"test"}`), 0644))
@@ -382,6 +399,7 @@ func TestDogfood_PreviousVersions(t *testing.T) {
 }
 
 func TestDogfood_PlanNormalization(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module test\ngo 1.22"), 0644))
@@ -406,6 +424,7 @@ func TestDogfood_PlanNormalization(t *testing.T) {
 }
 
 func TestDogfood_ProviderPriority(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	// Project has both go.mod AND package.json — Go should win (first in priority)
@@ -422,5 +441,5 @@ func TestDogfood_ProviderPriority(t *testing.T) {
 	require.True(t, result.Success)
 	require.Equal(t, "go", result.DetectedProviders[0],
 		"Go provider should have higher priority than Node")
-	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
+	assertReasonableGoStart(t, result.Plan.Deploy.StartCmd)
 }

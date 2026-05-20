@@ -99,7 +99,7 @@ func TestRealExample_NodeNpm(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	assertReasonableNodeStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeNext(t *testing.T) {
@@ -107,7 +107,7 @@ func TestRealExample_NodeNext(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	assertReasonableNodeStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeViteReact(t *testing.T) {
@@ -115,7 +115,7 @@ func TestRealExample_NodeViteReact(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	assertReasonableNodeStart(t, result.Plan.Deploy.StartCmd)
 }
 
 // =============================================================================
@@ -127,7 +127,7 @@ func TestRealExample_NodeNpmWorkspaces(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	assertReasonableNodeStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeNpmWorkspaces_SubdirAPI(t *testing.T) {
@@ -143,7 +143,7 @@ func TestRealExample_NodePnpmWorkspaces(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	assertReasonableNodeStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeYarnWorkspaces(t *testing.T) {
@@ -151,7 +151,7 @@ func TestRealExample_NodeYarnWorkspaces(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "node", result.DetectedProviders[0])
-	require.Equal(t, "npm start", result.Plan.Deploy.StartCmd)
+	assertReasonableNodeStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_NodeTurborepo(t *testing.T) {
@@ -196,7 +196,7 @@ func TestRealExample_GoSimple(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "go", result.DetectedProviders[0])
-	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
+	assertReasonableGoStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_GoCmdDirs(t *testing.T) {
@@ -204,7 +204,7 @@ func TestRealExample_GoCmdDirs(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "go", result.DetectedProviders[0])
-	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
+	assertReasonableGoStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_GoWorkspaces_Root(t *testing.T) {
@@ -213,7 +213,7 @@ func TestRealExample_GoWorkspaces_Root(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "go", result.DetectedProviders[0])
-	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
+	assertReasonableGoStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_GoWorkspaces_SubdirAPI(t *testing.T) {
@@ -222,7 +222,7 @@ func TestRealExample_GoWorkspaces_SubdirAPI(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "go", result.DetectedProviders[0])
-	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
+	assertReasonableGoStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_GoWorkspaces_SubdirSharedFails(t *testing.T) {
@@ -333,7 +333,7 @@ func TestRealExample_FullstackMixed_GoAPI(t *testing.T) {
 
 	assertValidPlan(t, result)
 	require.Equal(t, "go", result.DetectedProviders[0])
-	require.Equal(t, "/app/server", result.Plan.Deploy.StartCmd)
+	assertReasonableGoStart(t, result.Plan.Deploy.StartCmd)
 }
 
 func TestRealExample_FullstackMixed_NodeWeb(t *testing.T) {

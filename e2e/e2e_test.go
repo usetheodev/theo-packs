@@ -141,7 +141,7 @@ func TestE2E_GoSimple_BuildsImage(t *testing.T) {
 	dir := filepath.Join(examplesDir(t), "go-simple")
 	df := generateDockerfile(t, dir, nil)
 	tag := "theopacks-e2e-go-simple:test"
-	defer removeImage(tag)
+	t.Cleanup(func() { removeImage(tag) })
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
@@ -159,7 +159,7 @@ func TestE2E_NodeNpm_BuildsImage(t *testing.T) {
 	dir := filepath.Join(examplesDir(t), "node-npm")
 	df := generateDockerfile(t, dir, nil)
 	tag := "theopacks-e2e-node-npm:test"
-	defer removeImage(tag)
+	t.Cleanup(func() { removeImage(tag) })
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
@@ -185,7 +185,7 @@ func TestE2E_PythonFlask_BuildsImage(t *testing.T) {
 		"THEOPACKS_START_CMD": "python -c 'print(1)'",
 	})
 	tag := "theopacks-e2e-python-flask:test"
-	defer removeImage(tag)
+	t.Cleanup(func() { removeImage(tag) })
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
@@ -210,7 +210,7 @@ func TestE2E_StaticFile_BuildsImage(t *testing.T) {
 	dir := filepath.Join(examplesDir(t), "staticfile")
 	df := generateDockerfile(t, dir, nil)
 	tag := "theopacks-e2e-staticfile:test"
-	defer removeImage(tag)
+	t.Cleanup(func() { removeImage(tag) })
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
@@ -231,7 +231,7 @@ func TestE2E_ShellScript_BuildsImage(t *testing.T) {
 		"THEOPACKS_START_CMD": "bash start.sh",
 	})
 	tag := "theopacks-e2e-shell:test"
-	defer removeImage(tag)
+	t.Cleanup(func() { removeImage(tag) })
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
@@ -284,7 +284,7 @@ func TestE2E_FullstackMixed_AllServicesBuild(t *testing.T) {
 			df := generateDockerfile(t, dir, svc.env)
 			tag := fmt.Sprintf("theopacks-e2e-fullstack-%s:test",
 				strings.ReplaceAll(filepath.Base(svc.subdir), "/", "-"))
-			defer removeImage(tag)
+			t.Cleanup(func() { removeImage(tag) })
 
 			buildImage(t, dir, df, tag)
 			require.True(t, imageExists(tag))
@@ -301,7 +301,7 @@ func TestE2E_GoWorkspace_BuildsImage(t *testing.T) {
 	dir := filepath.Join(examplesDir(t), "go-workspaces")
 	df := generateDockerfile(t, dir, nil)
 	tag := "theopacks-e2e-go-workspaces:test"
-	defer removeImage(tag)
+	t.Cleanup(func() { removeImage(tag) })
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
@@ -425,27 +425,14 @@ func TestE2E_DenoWorkspace_BuildsImage(t *testing.T) {
 }
 
 // --- Phase 3: theo-stacks contract validation ---
-
-// theoStacksDir returns the absolute path to a sibling theo-stacks
-// checkout's templates directory. Returns "" with t.Skip when absent —
-// the test cannot run without the upstream templates and skipping cleanly
-// is preferable to a hard fail in environments that don't have them
-// (e.g., CI runners without the second checkout).
-func theoStacksDir(t *testing.T, template string) string {
-	t.Helper()
-	_, thisFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	dir := filepath.Join(filepath.Dir(thisFile), "..", "..", "theo-stacks", "templates", template)
-	abs, err := filepath.Abs(dir)
-	require.NoError(t, err)
-	if _, err := os.Stat(abs); os.IsNotExist(err) {
-		t.Skipf(
-			"theo-stacks not checked out next to theo-packs at %s — see docs/contracts/theo-packs-cli-contract.md",
-			abs,
-		)
-	}
-	return abs
-}
+//
+// T1.5 (test-suite-hardening-plan): the contract validation no longer
+// depends on a sibling `theo-stacks/` checkout. The in-repo
+// `examples/node-turborepo` mirrors the same shape (workspace root with
+// `apps/api`, `apps/web`, `packages/*`) and is sufficient to lock the
+// invariant that build context = workspace root. The original
+// theoStacksDir helper was deleted along with its silent t.Skip — the
+// contract is now testable in any CI runner that has Docker.
 
 // copyDir recursively copies src to dst preserving file modes. Returns
 // the first error encountered.
@@ -502,30 +489,32 @@ func generateDockerfileViaCLI(t *testing.T, source, appPath, appName string) str
 	return string(df)
 }
 
-// TestE2E_MonorepoTurboFromStacks validates the workspace-root build context
-// contract against the real upstream theo-stacks template. The template's
-// own apps/api/Dockerfile has known bugs (F2 in the dogfood report — npm
-// hoisting + per-app node_modules COPY); we remove it before generating
-// so we test the theo-packs-generated Dockerfile, not the user's.
+// TestE2E_MonorepoTurboContract validates the workspace-root build context
+// contract end-to-end using the in-repo `examples/node-turborepo` example.
+// This test used to depend on a sibling `theo-stacks/` checkout (and would
+// silently t.Skip in CI without one) — replaced in T1.5 by an in-repo
+// fixture so the contract is always exercised.
 //
-// Skips when:
+// Skips only when:
 //   - Docker is not available
-//   - theo-stacks is not checked out next to theo-packs
-func TestE2E_MonorepoTurboFromStacks(t *testing.T) {
+func TestE2E_MonorepoTurboContract(t *testing.T) {
 	if !dockerAvailable() {
 		t.Skip("Docker not available")
 	}
-	upstream := theoStacksDir(t, "monorepo-turbo")
 
-	// Copy the template to a temp dir so we never mutate the upstream
-	// working tree. Then remove the buggy user-Dockerfile (and any
-	// .dockerignore that ships with it, since the CLI writes one).
+	// Copy the in-repo turborepo example so the CLI's .dockerignore /
+	// header write side-effects don't pollute the working tree.
+	upstream := filepath.Join(examplesDir(t), "node-turborepo")
 	workspace := t.TempDir()
 	require.NoError(t, copyDir(upstream, workspace))
-	_ = os.Remove(filepath.Join(workspace, "apps", "api", "Dockerfile"))
-	_ = os.Remove(filepath.Join(workspace, "apps", "web", "Dockerfile"))
 
-	df := generateDockerfileViaCLI(t, workspace, "apps/api", "api")
+	// The internal example's apps/api package.json declares
+	// `"name": "@node-turborepo/api"`. Turbo's --filter matches against
+	// the package.json#name, so we pass the scoped form. (A future
+	// theo-packs feature could resolve "api" → "@node-turborepo/api"
+	// automatically — until then, callers must pass the scoped form for
+	// scoped packages.)
+	df := generateDockerfileViaCLI(t, workspace, "apps/api", "@node-turborepo/api")
 
 	// Sanity: the generated Dockerfile must carry the defensive header so
 	// the contract is enforced end-to-end (renderer → CLI → real build).
@@ -538,8 +527,8 @@ func TestE2E_MonorepoTurboFromStacks(t *testing.T) {
 	// invariant that the dogfood F3 found unstated. The defensive header
 	// in the Dockerfile spells this out for humans; this test enforces it
 	// for CI.
-	tag := "theopacks-e2e-monorepo-turbo-from-stacks:test"
-	defer removeImage(tag)
+	tag := "theopacks-e2e-monorepo-turbo-contract:test"
+	t.Cleanup(func() { removeImage(tag) })
 	buildImage(t, workspace, df, tag)
 	require.True(t, imageExists(tag), "image must exist after successful build")
 }

@@ -13,6 +13,7 @@ import (
 // info-disclosure via a Dockerfile symlinked to a sensitive path.
 // The CLI must Lstat (not Stat) and reject any symlink before reading.
 func TestUserDockerfile_RejectsSymlink(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	source := t.TempDir()
 
@@ -44,6 +45,7 @@ func TestUserDockerfile_RejectsSymlink(t *testing.T) {
 // followed nor overwritten. The CLI logs "symlink" and proceeds without
 // writing a default.
 func TestDockerignore_SkipsSymlink(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	source := copyExampleToTemp(t, "node-npm")
 

@@ -10,6 +10,7 @@ import (
 )
 
 func TestApp(t *testing.T) {
+	t.Parallel()
 	// Create a temp dir with a package.json for testing
 	tempDir, err := os.MkdirTemp("", "app-test")
 	require.NoError(t, err)
@@ -44,6 +45,7 @@ func TestApp(t *testing.T) {
 }
 
 func TestAppAbsolutePath(t *testing.T) {
+	t.Parallel()
 	tempDir, err := os.MkdirTemp("", "app-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()
@@ -58,6 +60,7 @@ func TestAppAbsolutePath(t *testing.T) {
 }
 
 func TestAppReadJsonWithComments(t *testing.T) {
+	t.Parallel()
 	tempDir, err := os.MkdirTemp("", "app-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()
@@ -80,6 +83,7 @@ func TestAppReadJsonWithComments(t *testing.T) {
 }
 
 func TestFindFilesWithContent(t *testing.T) {
+	t.Parallel()
 	tempDir, err := os.MkdirTemp("", "app-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()
@@ -105,6 +109,7 @@ func TestFindFilesWithContent(t *testing.T) {
 }
 
 func TestHasFile(t *testing.T) {
+	t.Parallel()
 	tempDir, err := os.MkdirTemp("", "app-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()
@@ -120,12 +125,14 @@ func TestHasFile(t *testing.T) {
 }
 
 func TestNewAppNonExistentDir(t *testing.T) {
+	t.Parallel()
 	_, err := NewApp("/nonexistent/directory")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "does not exist")
 }
 
 func TestFindDirectories(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.MkdirAll(filepath.Join(tempDir, "src"), 0755))
@@ -143,6 +150,7 @@ func TestFindDirectories(t *testing.T) {
 }
 
 func TestHasMatch(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.MkdirAll(filepath.Join(tempDir, "public"), 0755))
@@ -156,6 +164,7 @@ func TestHasMatch(t *testing.T) {
 }
 
 func TestReadYAML(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	yamlContent := "root: public\nport: 8080\n"
@@ -175,6 +184,7 @@ func TestReadYAML(t *testing.T) {
 }
 
 func TestReadYAML_Error(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := NewApp(tempDir)
@@ -186,6 +196,7 @@ func TestReadYAML_Error(t *testing.T) {
 }
 
 func TestReadTOML(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	tomlContent := `[project]
@@ -210,6 +221,7 @@ version = "1.0.0"
 }
 
 func TestIsFileExecutable(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "script.sh"), []byte("#!/bin/bash\necho hi"), 0755))
@@ -224,6 +236,7 @@ func TestIsFileExecutable(t *testing.T) {
 }
 
 func TestReadFile_NonExistent(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := NewApp(tempDir)
@@ -235,6 +248,7 @@ func TestReadFile_NonExistent(t *testing.T) {
 }
 
 func TestReadJSON_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "bad.json"), []byte("{invalid"), 0644))

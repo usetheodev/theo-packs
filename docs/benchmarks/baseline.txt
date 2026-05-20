@@ -1,0 +1,25 @@
+Baseline para benchmarks de geração (T3.4, test-suite-hardening-plan)
+
+Capturado em 2026-05-20 (commit 9e0eafd + plano de hardening de testes)
+Host: AMD64, Linux, Go 1.25
+Comando: go test -bench=. -run=^$ ./core/dockerfile/ -benchtime=3s
+
+goos: linux
+goarch: amd64
+pkg: github.com/usetheo/theopacks/core/dockerfile
+cpu: DO-Premium-AMD
+BenchmarkGenerate_GoSimple-8            28526       120896 ns/op       18937 B/op    239 allocs/op
+BenchmarkGenerate_NodeTurborepo-8        2662      1351220 ns/op       69571 B/op   1171 allocs/op
+BenchmarkGenerate_PythonFlask-8         10000       421610 ns/op       29753 B/op    476 allocs/op
+
+Interpretação:
+  - GoSimple (~0.12ms): caso mais simples — go.mod + main.go. Floor de performance.
+  - PythonFlask (~0.42ms): requirements.txt + start-cmd detection.
+  - NodeTurborepo (~1.35ms): workspace com 4 packages + lockfile + cache mounts;
+    case mais complexo do corpus interno. Inclui ResolveAppName, ManifestFiles,
+    workspaceBuildCommand.
+
+Regressões aceitáveis: até 30% sem investigação. Acima disso, abrir issue.
+
+Regenerar:
+  go test -bench=. -run=^$ ./core/dockerfile/ -benchtime=3s | tee docs/benchmarks/baseline.txt

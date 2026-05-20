@@ -10,22 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// buildBinary compiles the theopacks-generate binary into a temporary directory
-// and returns its path. Uses GOWORK=off to avoid workspace interference.
+// buildBinary returns the path to the package's shared test binary,
+// compiled once by TestMain (testmain_test.go). The per-test signature
+// is preserved for compatibility — callers should not assume the
+// binary is unique per test (it isn't), but the binary is read-only at
+// runtime so sharing is safe.
 func buildBinary(t *testing.T) string {
 	t.Helper()
-
-	dir := t.TempDir()
-	binPath := filepath.Join(dir, "theopacks-generate")
-
-	cmd := exec.Command("go", "build", "-o", binPath, ".")
-	cmd.Dir = filepath.Join(projectRoot(t), "cmd", "theopacks-generate")
-	cmd.Env = append(os.Environ(), "GOWORK=off", "CGO_ENABLED=0")
-
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "failed to build binary: %s", string(out))
-
-	return binPath
+	require.NotEmpty(t, sharedBinary, "sharedBinary not initialized — TestMain must run first")
+	return sharedBinary
 }
 
 // projectRoot returns the repo root (two levels up from cmd/theopacks-generate/).

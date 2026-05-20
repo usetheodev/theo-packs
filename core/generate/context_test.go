@@ -12,6 +12,7 @@ import (
 )
 
 func TestNewGenerateContext(t *testing.T) {
+	t.Parallel()
 	tempDir, err := os.MkdirTemp("", "context-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()
@@ -32,6 +33,7 @@ func TestNewGenerateContext(t *testing.T) {
 }
 
 func TestGenerateContextWithDockerignore(t *testing.T) {
+	t.Parallel()
 	tempDir, err := os.MkdirTemp("", "context-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()
@@ -54,6 +56,7 @@ func TestGenerateContextWithDockerignore(t *testing.T) {
 }
 
 func TestGenerateContextSubContext(t *testing.T) {
+	t.Parallel()
 	tempDir, err := os.MkdirTemp("", "context-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()
@@ -77,6 +80,7 @@ func TestGenerateContextSubContext(t *testing.T) {
 }
 
 func TestGenerateContextWithoutDockerignore(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -91,6 +95,7 @@ func TestGenerateContextWithoutDockerignore(t *testing.T) {
 }
 
 func TestGenerateContextNewLocalLayer(t *testing.T) {
+	t.Parallel()
 	t.Run("without dockerignore", func(t *testing.T) {
 		tempDir := t.TempDir()
 
@@ -131,6 +136,7 @@ func TestGenerateContextNewLocalLayer(t *testing.T) {
 }
 
 func TestGenerateContextGetStepByName(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -150,6 +156,7 @@ func TestGenerateContextGetStepByName(t *testing.T) {
 }
 
 func TestExitSubContextOnEmpty(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -168,6 +175,7 @@ func TestExitSubContextOnEmpty(t *testing.T) {
 }
 
 func TestGenerateContextGetAppSource(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -182,6 +190,7 @@ func TestGenerateContextGetAppSource(t *testing.T) {
 }
 
 func TestGenerateContextGetLogger(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -196,6 +205,7 @@ func TestGenerateContextGetLogger(t *testing.T) {
 }
 
 func TestNewAptInstallCommand(t *testing.T) {
+	t.Parallel()
 	options := &BuildStepOptions{
 		Caches: NewCacheContext(),
 	}
@@ -205,6 +215,7 @@ func TestNewAptInstallCommand(t *testing.T) {
 }
 
 func TestGenerateContextGenerate(t *testing.T) {
+	t.Parallel()
 	tempDir, err := os.MkdirTemp("", "context-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tempDir) }()

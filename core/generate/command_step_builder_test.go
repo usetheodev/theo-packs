@@ -12,6 +12,7 @@ import (
 )
 
 func TestCommandStepBuilder(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -38,6 +39,7 @@ func TestCommandStepBuilder(t *testing.T) {
 }
 
 func TestCommandStepBuilderReplacesExisting(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -57,6 +59,7 @@ func TestCommandStepBuilderReplacesExisting(t *testing.T) {
 }
 
 func TestCommandStepBuilderBuild(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -83,6 +86,7 @@ func TestCommandStepBuilderBuild(t *testing.T) {
 }
 
 func TestCommandStepBuilderAddPaths(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -101,6 +105,7 @@ func TestCommandStepBuilderAddPaths(t *testing.T) {
 }
 
 func TestCommandStepBuilderUseSecrets(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -128,6 +133,7 @@ func TestCommandStepBuilderUseSecrets(t *testing.T) {
 }
 
 func TestCommandStepBuilderAddInputs(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -148,6 +154,7 @@ func TestCommandStepBuilderAddInputs(t *testing.T) {
 }
 
 func TestCommandStepBuilderAddVariables(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -166,6 +173,7 @@ func TestCommandStepBuilderAddVariables(t *testing.T) {
 }
 
 func TestCommandStepBuilderUseSecretsWithPrefixes(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -190,6 +198,7 @@ func TestCommandStepBuilderUseSecretsWithPrefixes(t *testing.T) {
 }
 
 func TestCommandStepBuilderUseSecretsCIMode(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)
@@ -226,6 +235,7 @@ func TestCommandStepBuilderUseSecretsCIMode(t *testing.T) {
 }
 
 func TestCommandStepBuilderAddCacheEmpty(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 
 	testApp, err := app.NewApp(tempDir)

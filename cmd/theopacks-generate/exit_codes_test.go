@@ -25,6 +25,7 @@ func exitCode(t *testing.T, err error) int {
 
 // TestExitCode_Success — happy path returns 0.
 func TestExitCode_Success(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	source := copyExampleToTemp(t, "go-simple")
 	out := filepath.Join(t.TempDir(), "Dockerfile")
@@ -42,6 +43,7 @@ func TestExitCode_Success(t *testing.T) {
 
 // TestExitCode_InputInvariant_BadFlag — sanitization rejects → exit 2.
 func TestExitCode_InputInvariant_BadFlag(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	out := filepath.Join(t.TempDir(), "Dockerfile")
 
@@ -56,6 +58,7 @@ func TestExitCode_InputInvariant_BadFlag(t *testing.T) {
 
 // TestExitCode_InputInvariant_Traversal — clampPath rejects → exit 2.
 func TestExitCode_InputInvariant_Traversal(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	out := filepath.Join(t.TempDir(), "Dockerfile")
 
@@ -70,6 +73,7 @@ func TestExitCode_InputInvariant_Traversal(t *testing.T) {
 
 // TestExitCode_InputInvariant_UserDockerfile — hard-fail user Dockerfile → exit 2.
 func TestExitCode_InputInvariant_UserDockerfile(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	source := t.TempDir()
 	require.NoError(t, writeFileForTest(filepath.Join(source, "Dockerfile"), "FROM alpine\n"))
@@ -88,6 +92,7 @@ func TestExitCode_InputInvariant_UserDockerfile(t *testing.T) {
 // an empty source → exit 1, not 2 (the source is structurally valid;
 // just nothing to build).
 func TestExitCode_GenericFailure_NoProvider(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	source := t.TempDir() // empty dir
 	out := filepath.Join(t.TempDir(), "Dockerfile")

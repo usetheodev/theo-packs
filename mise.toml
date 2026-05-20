@@ -1,10 +1,10 @@
 [tasks.test]
 description = "Run unit tests"
-run = "go test ./core/... ./cmd/..."
+run = "go test -race ./core/... ./cmd/... ./internal/..."
 
 [tasks.test-e2e]
 description = "Run end-to-end tests (requires Docker)"
-run = "go test -tags e2e ./e2e/ -timeout 1500s"
+run = "go test -race -tags e2e ./e2e/ -timeout 1500s"
 
 [tasks.test-update-snapshots]
 description = "Regenerate golden Dockerfiles in core/dockerfile/testdata/"
