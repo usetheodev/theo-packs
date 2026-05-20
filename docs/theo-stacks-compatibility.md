@@ -24,7 +24,7 @@ Last sync: 2026-05-20
 | `monorepo-turbo` | `nextjs` + `express` | `node` (turbo) | `node-turborepo` | ✅ `TestE2E_MonorepoTurboContract` end-to-end |
 | `node-express` | `express` | `node` | `node-express` | ✅ Build + structure-test |
 | `node-fastify` | (fastify) | `node` | `node-fastify` (NEW) | 🆕 Created in this cycle |
-| `node-nestjs` | (nestjs) | `node` | `node-nestjs` (NEW) | 🆕 Created in this cycle. **Upstream template has TS error** ([usetheodev/theo-stacks#38](https://github.com/usetheodev/theo-stacks/issues/38)) — Dockerfile is generated correctly but `tsc` fails on `src/logger.ts`. Build success is gated on the upstream fix landing. |
+| `node-nestjs` | (nestjs) | `node` | `node-nestjs` (NEW) | ✅ Builds end-to-end after [usetheodev/theo-stacks#39](https://github.com/usetheodev/theo-stacks/pull/39) merged (pino default import + esModuleInterop). |
 | `node-nextjs` | `nextjs` | `node` | `node-next` | ✅ |
 | `node-worker` | (worker — no HTTP) | `node` | `node-worker` (NEW) | 🆕 Created in this cycle, `justBuild` mode |
 | `php-slim` | (slim) | `php` | `php-slim` | ✅ Build + structure-test |
@@ -64,10 +64,7 @@ The matrix above is gated by `TestE2E_TheoStacksTemplates` which runs
 Dockerfile. A separate manual verification cycle on 2026-05-20 built
 each template with real Docker and exercised the resulting image:
 
-- **18/19 templates build successfully end-to-end.**
-- **1/19 fails** — `node-nestjs`, due to an upstream TypeScript bug
-  ([theo-stacks#38](https://github.com/usetheodev/theo-stacks/issues/38)),
-  not a theo-packs regression.
+- **19/19 templates build successfully end-to-end.** ✅
 
 Issues fixed in this cycle to reach 18/19:
 - Generic monorepo workspace redirect now covers Go (`go.work`), Java
