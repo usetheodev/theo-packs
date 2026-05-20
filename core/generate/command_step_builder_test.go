@@ -107,11 +107,11 @@ func TestCommandStepBuilderUseSecrets(t *testing.T) {
 	require.NoError(t, err)
 
 	envVars := map[string]string{
-		"CI":               "true",
-		"NPM_TOKEN":        "secret",
-		"GITHUB_TOKEN":     "secret",
-		"NPM_AUTH_TOKEN":   "secret",
-		"OTHER_VAR":        "value",
+		"CI":             "true",
+		"NPM_TOKEN":      "secret",
+		"GITHUB_TOKEN":   "secret",
+		"NPM_AUTH_TOKEN": "secret",
+		"OTHER_VAR":      "value",
 	}
 	env := app.NewEnvironment(&envVars)
 	cfg := config.EmptyConfig()
@@ -172,9 +172,9 @@ func TestCommandStepBuilderUseSecretsWithPrefixes(t *testing.T) {
 	require.NoError(t, err)
 
 	envVars := map[string]string{
-		"NPM_TOKEN":  "secret",
-		"GH_TOKEN":   "secret",
-		"OTHER":      "val",
+		"NPM_TOKEN": "secret",
+		"GH_TOKEN":  "secret",
+		"OTHER":     "val",
 	}
 	env := app.NewEnvironment(&envVars)
 	cfg := config.EmptyConfig()

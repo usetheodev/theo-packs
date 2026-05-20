@@ -6,6 +6,14 @@ type BuildPlan struct {
 	Caches  map[string]*Cache `json:"caches,omitempty"`
 	Secrets []string          `json:"secrets,omitempty"`
 	Deploy  Deploy            `json:"deploy,omitempty"`
+
+	// ProviderName is the language provider that produced this plan
+	// (e.g., "node", "rust", "python"). Set by core.GenerateBuildPlan
+	// after detection. Used by the renderer to emit a defensive header
+	// comment naming the provider so a debugger looking at a generated
+	// Dockerfile knows what generator produced it. Empty → renderer
+	// falls back to "unknown".
+	ProviderName string `json:"providerName,omitempty"`
 }
 
 type Deploy struct {
@@ -14,6 +22,16 @@ type Deploy struct {
 	StartCmd  string            `json:"startCommand,omitempty"`
 	Variables map[string]string `json:"variables,omitempty"`
 	Paths     []string          `json:"paths,omitempty"`
+
+	// HealthcheckPath, when set, drives the renderer to emit a HEALTHCHECK
+	// directive that probes `http://localhost:<HealthcheckPort>{HealthcheckPath}`.
+	// Empty → no HEALTHCHECK is emitted. The framework-aware providers
+	// (Spring Boot Actuator, ASP.NET, Rails, etc.) set this when they
+	// detect an HTTP server.
+	HealthcheckPath string `json:"healthcheckPath,omitempty"`
+	// HealthcheckPort defaults to "${PORT:-8080}" when empty (works for the
+	// majority of HTTP frameworks via env-var expansion).
+	HealthcheckPort string `json:"healthcheckPort,omitempty"`
 }
 
 func NewBuildPlan() *BuildPlan {

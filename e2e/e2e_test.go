@@ -1,3 +1,6 @@
+//go:build e2e
+// +build e2e
+
 package e2e
 
 import (
@@ -7,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -17,9 +21,11 @@ import (
 	"github.com/usetheo/theopacks/core/dockerfile"
 )
 
-// E2E tests build real Docker images from example projects.
-// They require Docker to be running and are skipped if unavailable.
-// Run with: go test -tags e2e ./e2e/ -timeout 600s
+// E2E tests build real Docker images from example projects. They require
+// Docker to be running and are gated behind the `e2e` build tag so a plain
+// `go test ./...` does not pull them in.
+//
+// Run with: go test -tags e2e ./e2e/ -timeout 1500s
 
 func dockerAvailable() bool {
 	cmd := exec.Command("docker", "info")
@@ -86,9 +92,45 @@ func removeImage(tag string) {
 }
 
 // imageExists checks if a Docker image exists.
+// requireBinaryAt verifies a path exists inside an image even when the image
+// has no shell or `ls` (e.g., distroless). It uses `docker create` + `docker
+// cp` to materialize the file on the host — succeeds iff the file exists in
+// the image.
+func requireBinaryAt(t *testing.T, tag, path string) {
+	t.Helper()
+	cid, err := exec.Command("docker", "create", tag).Output()
+	require.NoError(t, err, "docker create failed for %s", tag)
+	containerID := strings.TrimSpace(string(cid))
+	defer func() { _ = exec.Command("docker", "rm", "-f", containerID).Run() }()
+
+	tmp := filepath.Join(t.TempDir(), "binary")
+	out, err := exec.Command("docker", "cp", containerID+":"+path, tmp).CombinedOutput()
+	require.NoError(t, err, "binary missing at %s in image %s: %s", path, tag, string(out))
+
+	info, err := os.Stat(tmp)
+	require.NoError(t, err)
+	require.False(t, info.IsDir(), "expected %s to be a file, got directory", path)
+	require.Greater(t, info.Size(), int64(0), "%s is empty", path)
+}
+
 func imageExists(tag string) bool {
 	cmd := exec.Command("docker", "image", "inspect", tag)
 	return cmd.Run() == nil
+}
+
+// requireSizeLessThan asserts the named image is smaller than maxMB megabytes.
+// Reports the actual size in MB on failure. Caps are intentionally loose
+// (D6: absolute bounds beat ratios because base images drift across Debian
+// point releases — generous bounds won't flake within a 12-month horizon).
+func requireSizeLessThan(t *testing.T, tag string, maxMB int) {
+	t.Helper()
+	out, err := exec.Command("docker", "image", "inspect", tag, "--format", "{{.Size}}").Output()
+	require.NoError(t, err, "docker image inspect failed for %s", tag)
+	sizeBytes, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	require.NoError(t, err, "could not parse image size %q", string(out))
+	sizeMB := int(sizeBytes / (1024 * 1024))
+	require.LessOrEqual(t, sizeMB, maxMB,
+		"image %s is %d MB, expected <= %d MB — devDependencies likely shipping to runtime", tag, sizeMB, maxMB)
 }
 
 func TestE2E_GoSimple_BuildsImage(t *testing.T) {
@@ -103,11 +145,10 @@ func TestE2E_GoSimple_BuildsImage(t *testing.T) {
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
-
-	// Verify the binary exists in the image
-	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
-	require.NoError(t, err, "binary not found: %s", string(output))
-	require.Contains(t, string(output), "/app/server")
+	// Distroless runtime has no `ls`. The COPY --from=build /app/server step
+	// in the Dockerfile already fails the build if the binary is missing, so
+	// `imageExists` is sufficient proof that /app/server is in the image.
+	requireBinaryAt(t, tag, "/app/server")
 }
 
 func TestE2E_NodeNpm_BuildsImage(t *testing.T) {
@@ -127,6 +168,11 @@ func TestE2E_NodeNpm_BuildsImage(t *testing.T) {
 	output, err := exec.Command("docker", "run", "--rm", tag, "node", "-e", "console.log('ok')").CombinedOutput()
 	require.NoError(t, err, "node not working: %s", string(output))
 	require.Contains(t, string(output), "ok")
+
+	// Phase 6: lock the size win from npm prune --omit=dev. node:20-bookworm-slim
+	// is ~210 MB; a hello-world app + prod-only deps should fit comfortably
+	// under 280 MB. If devDependencies leaked through, we'd see ~150 MB more.
+	requireSizeLessThan(t, tag, 280)
 }
 
 func TestE2E_PythonFlask_BuildsImage(t *testing.T) {
@@ -149,6 +195,11 @@ func TestE2E_PythonFlask_BuildsImage(t *testing.T) {
 		"python", "-c", "import flask; print(flask.__version__)").CombinedOutput()
 	require.NoError(t, err, "flask not installed: %s", string(output))
 	require.NotEmpty(t, strings.TrimSpace(string(output)))
+
+	// Phase 6: python:3.12-slim-bookworm is ~125 MB; flask + gunicorn add a
+	// modest amount. Cap at 280 MB to catch regressions where __pycache__
+	// or .venv start leaking into the runtime image.
+	requireSizeLessThan(t, tag, 280)
 }
 
 func TestE2E_StaticFile_BuildsImage(t *testing.T) {
@@ -205,8 +256,8 @@ func TestE2E_FullstackMixed_AllServicesBuild(t *testing.T) {
 			subdir: "services/api",
 			env:    nil,
 			verify: func(t *testing.T, tag string) {
-				output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
-				require.NoError(t, err, "go binary missing: %s", string(output))
+				// Go runtime is now distroless (no shell) — use docker cp.
+				requireBinaryAt(t, tag, "/app/server")
 			},
 		},
 		{
@@ -254,7 +305,241 @@ func TestE2E_GoWorkspace_BuildsImage(t *testing.T) {
 
 	buildImage(t, dir, df, tag)
 	require.True(t, imageExists(tag))
+	requireBinaryAt(t, tag, "/app/server")
+}
 
-	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/server").CombinedOutput()
-	require.NoError(t, err, "go workspace binary missing: %s", string(output))
+// runE2EBuild is a small helper for the simpler "build & assert exists" cases
+// to keep new-language tests succinct. It lets each test focus on the assertion
+// that's specific to that language.
+func runE2EBuild(t *testing.T, exampleName, tag string, env map[string]string) string {
+	t.Helper()
+	if !dockerAvailable() {
+		t.Skip("Docker not available")
+	}
+	dir := filepath.Join(examplesDir(t), exampleName)
+	df := generateDockerfile(t, dir, env)
+	t.Cleanup(func() { removeImage(tag) })
+	buildImage(t, dir, df, tag)
+	require.True(t, imageExists(tag))
+	return dir
+}
+
+func TestE2E_RustAxum_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-rust-axum:test"
+	runE2EBuild(t, "rust-axum", tag, nil)
+	requireBinaryAt(t, tag, "/app/server")
+}
+
+func TestE2E_RustWorkspace_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-rust-workspace:test"
+	runE2EBuild(t, "rust-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	requireBinaryAt(t, tag, "/app/server")
+}
+
+func TestE2E_JavaSpringGradle_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-java-spring-gradle:test"
+	runE2EBuild(t, "java-spring-gradle", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/app.jar").CombinedOutput()
+	require.NoError(t, err, "fat JAR missing: %s", string(output))
+}
+
+func TestE2E_JavaGradleWorkspace_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-java-gradle-workspace:test"
+	runE2EBuild(t, "java-gradle-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/app.jar").CombinedOutput()
+	require.NoError(t, err, "workspace fat JAR missing: %s", string(output))
+}
+
+func TestE2E_DotnetAspnet_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-dotnet-aspnet:test"
+	runE2EBuild(t, "dotnet-aspnet", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/publish").CombinedOutput()
+	require.NoError(t, err, "publish output missing: %s", string(output))
+	require.Contains(t, string(output), "dotnet-aspnet.dll")
+}
+
+func TestE2E_DotnetSolution_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-dotnet-solution:test"
+	runE2EBuild(t, "dotnet-solution", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/publish").CombinedOutput()
+	require.NoError(t, err, "solution publish missing: %s", string(output))
+}
+
+func TestE2E_RubySinatra_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-ruby-sinatra:test"
+	runE2EBuild(t, "ruby-sinatra", tag, nil)
+
+	// `bundle info sinatra` prints gem metadata without loading sinatra's
+	// code. We can't `require "sinatra"` here because Sinatra's classic-style
+	// main.rb registers an at_exit hook that starts the web server when the
+	// process exits — that would hang docker run indefinitely.
+	output, err := exec.Command("docker", "run", "--rm", tag, "bundle", "info", "sinatra").CombinedOutput()
+	require.NoError(t, err, "sinatra not installed: %s", string(output))
+	require.Contains(t, string(output), "sinatra")
+}
+
+func TestE2E_RubyMonorepo_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-ruby-monorepo:test"
+	runE2EBuild(t, "ruby-monorepo", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/config.ru").CombinedOutput()
+	require.NoError(t, err, "monorepo source missing: %s", string(output))
+}
+
+func TestE2E_PhpSlim_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-php-slim:test"
+	runE2EBuild(t, "php-slim", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "php", "--version").CombinedOutput()
+	require.NoError(t, err, "php not present: %s", string(output))
+	require.Contains(t, string(output), "PHP")
+}
+
+func TestE2E_PhpMonorepo_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-php-monorepo:test"
+	runE2EBuild(t, "php-monorepo", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/public/index.php").CombinedOutput()
+	require.NoError(t, err, "monorepo entry missing: %s", string(output))
+}
+
+func TestE2E_DenoHono_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-deno-hono:test"
+	runE2EBuild(t, "deno-hono", tag, nil)
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "deno", "--version").CombinedOutput()
+	require.NoError(t, err, "deno not present: %s", string(output))
+	require.Contains(t, string(output), "deno")
+}
+
+func TestE2E_DenoWorkspace_BuildsImage(t *testing.T) {
+	tag := "theopacks-e2e-deno-workspace:test"
+	runE2EBuild(t, "deno-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+
+	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/main.ts").CombinedOutput()
+	require.NoError(t, err, "workspace member entry missing: %s", string(output))
+}
+
+// --- Phase 3: theo-stacks contract validation ---
+
+// theoStacksDir returns the absolute path to a sibling theo-stacks
+// checkout's templates directory. Returns "" with t.Skip when absent —
+// the test cannot run without the upstream templates and skipping cleanly
+// is preferable to a hard fail in environments that don't have them
+// (e.g., CI runners without the second checkout).
+func theoStacksDir(t *testing.T, template string) string {
+	t.Helper()
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	dir := filepath.Join(filepath.Dir(thisFile), "..", "..", "theo-stacks", "templates", template)
+	abs, err := filepath.Abs(dir)
+	require.NoError(t, err)
+	if _, err := os.Stat(abs); os.IsNotExist(err) {
+		t.Skipf(
+			"theo-stacks not checked out next to theo-packs at %s — see docs/contracts/theo-packs-cli-contract.md",
+			abs,
+		)
+	}
+	return abs
+}
+
+// copyDir recursively copies src to dst preserving file modes. Returns
+// the first error encountered.
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode())
+	})
+}
+
+// generateDockerfileViaCLI invokes the theopacks-generate binary against
+// the given workspace and app, then returns the produced Dockerfile.
+// Exercises the same code path the theo product uses (CLI, not library).
+func generateDockerfileViaCLI(t *testing.T, source, appPath, appName string) string {
+	t.Helper()
+
+	bin := filepath.Join(t.TempDir(), "theopacks-generate")
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	cmdDir := filepath.Join(filepath.Dir(thisFile), "..", "cmd", "theopacks-generate")
+
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Dir = cmdDir
+	build.Env = append(os.Environ(), "GOWORK=off", "CGO_ENABLED=0")
+	out, err := build.CombinedOutput()
+	require.NoError(t, err, "failed to build theopacks-generate: %s", string(out))
+
+	outFile := filepath.Join(t.TempDir(), "Dockerfile")
+	cmd := exec.Command(bin,
+		"--source", source,
+		"--app-path", appPath,
+		"--app-name", appName,
+		"--output", outFile,
+	)
+	out, err = cmd.CombinedOutput()
+	require.NoError(t, err, "theopacks-generate failed:\n%s", string(out))
+
+	df, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	return string(df)
+}
+
+// TestE2E_MonorepoTurboFromStacks validates the workspace-root build context
+// contract against the real upstream theo-stacks template. The template's
+// own apps/api/Dockerfile has known bugs (F2 in the dogfood report — npm
+// hoisting + per-app node_modules COPY); we remove it before generating
+// so we test the theo-packs-generated Dockerfile, not the user's.
+//
+// Skips when:
+//   - Docker is not available
+//   - theo-stacks is not checked out next to theo-packs
+func TestE2E_MonorepoTurboFromStacks(t *testing.T) {
+	if !dockerAvailable() {
+		t.Skip("Docker not available")
+	}
+	upstream := theoStacksDir(t, "monorepo-turbo")
+
+	// Copy the template to a temp dir so we never mutate the upstream
+	// working tree. Then remove the buggy user-Dockerfile (and any
+	// .dockerignore that ships with it, since the CLI writes one).
+	workspace := t.TempDir()
+	require.NoError(t, copyDir(upstream, workspace))
+	_ = os.Remove(filepath.Join(workspace, "apps", "api", "Dockerfile"))
+	_ = os.Remove(filepath.Join(workspace, "apps", "web", "Dockerfile"))
+
+	df := generateDockerfileViaCLI(t, workspace, "apps/api", "api")
+
+	// Sanity: the generated Dockerfile must carry the defensive header so
+	// the contract is enforced end-to-end (renderer → CLI → real build).
+	require.Contains(t, df, `# theo-packs: generated for provider "node"`,
+		"generated Dockerfile must carry the defensive header")
+	require.Contains(t, df, "Build context",
+		"generated Dockerfile must explain the expected build context")
+
+	// CRITICAL: build context = workspace root, NOT apps/api. This is the
+	// invariant that the dogfood F3 found unstated. The defensive header
+	// in the Dockerfile spells this out for humans; this test enforces it
+	// for CI.
+	tag := "theopacks-e2e-monorepo-turbo-from-stacks:test"
+	defer removeImage(tag)
+	buildImage(t, workspace, df, tag)
+	require.True(t, imageExists(tag), "image must exist after successful build")
 }

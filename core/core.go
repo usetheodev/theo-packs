@@ -103,6 +103,11 @@ func GenerateBuildPlan(app *app.App, env *app.Environment, options *GenerateBuil
 		providerToUse.CleansePlan(buildPlan)
 	}
 
+	// Stamp the provider name into the plan so the renderer can emit a
+	// defensive header comment naming the generator. Detected name is
+	// already known from getProviders() above.
+	buildPlan.ProviderName = detectedProviderName
+
 	if !ValidatePlan(buildPlan, app, log, &ValidatePlanOptions{
 		ErrorMissingStartCommand: options.ErrorMissingStartCommand,
 		ProviderToUse:            providerToUse,

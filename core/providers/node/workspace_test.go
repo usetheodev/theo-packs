@@ -34,7 +34,7 @@ func TestDetectPackageManager_Npm(t *testing.T) {
 
 func TestDetectPackageManager_Pnpm(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"package.json":  `{"name":"test"}`,
+		"package.json":   `{"name":"test"}`,
 		"pnpm-lock.yaml": "lockfileVersion: 6",
 	})
 	require.Equal(t, PackageManagerPnpm, DetectPackageManager(a))
@@ -67,10 +67,10 @@ func TestDetectPackageManager_Default(t *testing.T) {
 
 func TestDetectWorkspace_NpmWorkspaces(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"package.json":                  `{"name":"root","workspaces":["packages/*"]}`,
-		"package-lock.json":             "{}",
-		"packages/api/package.json":     `{"name":"api"}`,
-		"packages/shared/package.json":  `{"name":"shared"}`,
+		"package.json":                 `{"name":"root","workspaces":["packages/*"]}`,
+		"package-lock.json":            "{}",
+		"packages/api/package.json":    `{"name":"api"}`,
+		"packages/shared/package.json": `{"name":"shared"}`,
 	})
 	ws := DetectWorkspace(a)
 	require.NotNil(t, ws)
@@ -83,8 +83,8 @@ func TestDetectWorkspace_NpmWorkspaces(t *testing.T) {
 func TestDetectWorkspace_PnpmWorkspaces(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"package.json":                `{"name":"root"}`,
-		"pnpm-lock.yaml":             "lockfileVersion: 6",
-		"pnpm-workspace.yaml":        "packages:\n  - \"packages/*\"",
+		"pnpm-lock.yaml":              "lockfileVersion: 6",
+		"pnpm-workspace.yaml":         "packages:\n  - \"packages/*\"",
 		"packages/pkg-a/package.json": `{"name":"pkg-a"}`,
 		"packages/pkg-b/package.json": `{"name":"pkg-b"}`,
 	})
@@ -97,9 +97,9 @@ func TestDetectWorkspace_PnpmWorkspaces(t *testing.T) {
 
 func TestDetectWorkspace_YarnWorkspaces(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"package.json":                 `{"name":"root","workspaces":["packages/*"]}`,
-		"yarn.lock":                    "# yarn",
-		"packages/api/package.json":    `{"name":"api"}`,
+		"package.json":              `{"name":"root","workspaces":["packages/*"]}`,
+		"yarn.lock":                 "# yarn",
+		"packages/api/package.json": `{"name":"api"}`,
 	})
 	ws := DetectWorkspace(a)
 	require.NotNil(t, ws)
@@ -110,12 +110,12 @@ func TestDetectWorkspace_YarnWorkspaces(t *testing.T) {
 
 func TestDetectWorkspace_Turborepo(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"package.json":                  `{"name":"root","workspaces":["apps/*","packages/*"]}`,
-		"package-lock.json":             "{}",
-		"turbo.json":                    `{"tasks":{}}`,
-		"apps/web/package.json":         `{"name":"web"}`,
-		"apps/api/package.json":         `{"name":"api"}`,
-		"packages/ui/package.json":      `{"name":"ui"}`,
+		"package.json":             `{"name":"root","workspaces":["apps/*","packages/*"]}`,
+		"package-lock.json":        "{}",
+		"turbo.json":               `{"tasks":{}}`,
+		"apps/web/package.json":    `{"name":"web"}`,
+		"apps/api/package.json":    `{"name":"api"}`,
+		"packages/ui/package.json": `{"name":"ui"}`,
 	})
 	ws := DetectWorkspace(a)
 	require.NotNil(t, ws)
@@ -167,11 +167,11 @@ func TestManifestFiles_Simple(t *testing.T) {
 
 func TestManifestFiles_Workspace(t *testing.T) {
 	a := createTempApp(t, map[string]string{
-		"package.json":                  `{"name":"root","workspaces":["packages/*"]}`,
-		"package-lock.json":             "{}",
-		"turbo.json":                    `{}`,
-		"packages/api/package.json":     `{"name":"api"}`,
-		"packages/shared/package.json":  `{"name":"shared"}`,
+		"package.json":                 `{"name":"root","workspaces":["packages/*"]}`,
+		"package-lock.json":            "{}",
+		"turbo.json":                   `{}`,
+		"packages/api/package.json":    `{"name":"api"}`,
+		"packages/shared/package.json": `{"name":"shared"}`,
 	})
 	ws := &WorkspaceInfo{
 		Type:        WorkspaceNpm,
@@ -200,9 +200,9 @@ func TestDetectWorkspace_UnresolvableGlob(t *testing.T) {
 func TestDetectWorkspace_NestedPatterns(t *testing.T) {
 	// Nested workspace pattern packages/** should find deeply nested packages
 	a := createTempApp(t, map[string]string{
-		"package.json":                            `{"name":"root","workspaces":["packages/**"]}`,
-		"packages/api/package.json":               `{"name":"api"}`,
-		"packages/shared/utils/package.json":      `{"name":"utils"}`,
+		"package.json":                       `{"name":"root","workspaces":["packages/**"]}`,
+		"packages/api/package.json":          `{"name":"api"}`,
+		"packages/shared/utils/package.json": `{"name":"utils"}`,
 	})
 	ws := DetectWorkspace(a)
 	require.NotNil(t, ws)
@@ -213,8 +213,8 @@ func TestDetectWorkspace_NestedPatterns(t *testing.T) {
 func TestManifestFiles_Pnpm(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"package.json":                `{"name":"root"}`,
-		"pnpm-lock.yaml":             "lockfileVersion: 6",
-		"pnpm-workspace.yaml":        "packages:\n  - packages/*",
+		"pnpm-lock.yaml":              "lockfileVersion: 6",
+		"pnpm-workspace.yaml":         "packages:\n  - packages/*",
 		"packages/pkg-a/package.json": `{"name":"pkg-a"}`,
 	})
 	ws := &WorkspaceInfo{
@@ -226,4 +226,22 @@ func TestManifestFiles_Pnpm(t *testing.T) {
 	require.Contains(t, files, "pnpm-lock.yaml")
 	require.Contains(t, files, "pnpm-workspace.yaml")
 	require.Contains(t, files, "packages/pkg-a/package.json")
+}
+
+// --- PruneCommand ---
+
+func TestPruneCommand_Npm(t *testing.T) {
+	require.Equal(t, "npm prune --omit=dev", PruneCommand(PackageManagerNpm))
+}
+
+func TestPruneCommand_Pnpm(t *testing.T) {
+	require.Equal(t, "pnpm prune --prod", PruneCommand(PackageManagerPnpm))
+}
+
+func TestPruneCommand_Yarn(t *testing.T) {
+	require.Equal(t, "yarn install --production --ignore-scripts --prefer-offline", PruneCommand(PackageManagerYarn))
+}
+
+func TestPruneCommand_Bun(t *testing.T) {
+	require.Equal(t, "", PruneCommand(PackageManagerBun))
 }

@@ -3,9 +3,15 @@ package providers
 import (
 	"github.com/usetheo/theopacks/core/generate"
 	"github.com/usetheo/theopacks/core/plan"
+	"github.com/usetheo/theopacks/core/providers/deno"
+	"github.com/usetheo/theopacks/core/providers/dotnet"
 	"github.com/usetheo/theopacks/core/providers/golang"
+	"github.com/usetheo/theopacks/core/providers/java"
 	"github.com/usetheo/theopacks/core/providers/node"
+	"github.com/usetheo/theopacks/core/providers/php"
 	"github.com/usetheo/theopacks/core/providers/python"
+	"github.com/usetheo/theopacks/core/providers/ruby"
+	"github.com/usetheo/theopacks/core/providers/rust"
 	"github.com/usetheo/theopacks/core/providers/shell"
 	"github.com/usetheo/theopacks/core/providers/staticfile"
 )
@@ -19,10 +25,20 @@ type Provider interface {
 	StartCommandHelp() string
 }
 
+// GetLanguageProviders returns the registered providers in DETECTION ORDER.
+// First-match-wins via Provider.Detect(); the order matters where manifests
+// can collide (Deno before Node so a Deno project shipping a npm-compat
+// package.json routes to Deno, not Node).
 func GetLanguageProviders() []Provider {
 	return []Provider{
 		&golang.GoProvider{},
+		&rust.RustProvider{},
+		&java.JavaProvider{},
+		&dotnet.DotnetProvider{},
+		&ruby.RubyProvider{},
+		&php.PhpProvider{},
 		&python.PythonProvider{},
+		&deno.DenoProvider{},
 		&node.NodeProvider{},
 		&staticfile.StaticfileProvider{},
 		&shell.ShellProvider{},

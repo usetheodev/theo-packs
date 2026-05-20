@@ -1,0 +1,9 @@
+{
+  "name": "@theo/api",
+  "imports": {
+    "hono": "jsr:@hono/hono@4"
+  },
+  "tasks": {
+    "start": "deno run -A main.ts"
+  }
+}

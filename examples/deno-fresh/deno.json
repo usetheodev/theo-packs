@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "$fresh/": "https://deno.land/x/fresh@1.6.5/",
+    "preact": "https://esm.sh/preact@10.19.0"
+  },
+  "tasks": {
+    "start": "deno run -A --watch=static/,routes/ main.ts",
+    "build": "deno run -A dev.ts build"
+  }
+}

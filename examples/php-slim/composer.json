@@ -1,0 +1,14 @@
+{
+  "name": "theo/php-slim-example",
+  "type": "project",
+  "require": {
+    "php": ">=8.1",
+    "slim/slim": "^4.0",
+    "slim/psr7": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/"
+    }
+  }
+}
