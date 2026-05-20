@@ -280,3 +280,9 @@ Modifications made for the Theo platform are summarized in [`NOTICE`](NOTICE) at
 ## License
 
 Apache License 2.0 -- see [LICENSE](LICENSE) for details. Attribution for upstream work is in [`NOTICE`](NOTICE).
+
+## Community
+
+- Discord: https://discord.usetheo.dev/
+- X: https://x.com/usetheodev
+- LinkedIn: https://linkedin.com/company/usetheodev
