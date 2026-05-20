@@ -21,19 +21,13 @@ type App struct {
 }
 
 func NewApp(path string) (*App, error) {
-	var source string
-
-	if filepath.IsAbs(path) {
-		source = path
-	} else {
-		currentDir, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		source, err = filepath.Abs(filepath.Join(currentDir, path))
-		if err != nil {
-			return nil, errors.New("failed to read app source directory")
-		}
+	// filepath.Abs already resolves relative paths against the current
+	// working directory and absolute paths to themselves, so the
+	// previous Getwd+Join+Abs pipeline collapses to a single call. (T3.5
+	// L3 — remove redundant pre-resolution.)
+	source, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve app source %q: %w", path, err)
 	}
 
 	if _, err := os.Stat(source); err != nil {
@@ -150,12 +144,12 @@ func (a *App) ReadFile(name string) (string, error) {
 func (a *App) ReadJSON(name string, v interface{}) error {
 	data, err := a.ReadFile(name)
 	if err != nil {
-		return err
+		return fmt.Errorf("ReadJSON %q: %w", name, err)
 	}
 
 	jsonBytes, err := utils.StandardizeJSON([]byte(data))
 	if err != nil {
-		return err
+		return fmt.Errorf("standardize JSONC in %q: %w", name, err)
 	}
 
 	data = string(jsonBytes)
@@ -171,7 +165,7 @@ func (a *App) ReadJSON(name string, v interface{}) error {
 func (a *App) ReadYAML(name string, v interface{}) error {
 	data, err := a.ReadFile(name)
 	if err != nil {
-		return err
+		return fmt.Errorf("ReadYAML %q: %w", name, err)
 	}
 
 	if err := yaml.Unmarshal([]byte(data), v); err != nil {
@@ -184,10 +178,13 @@ func (a *App) ReadYAML(name string, v interface{}) error {
 func (a *App) ReadTOML(name string, v interface{}) error {
 	data, err := a.ReadFile(name)
 	if err != nil {
-		return err
+		return fmt.Errorf("ReadTOML %q: %w", name, err)
 	}
 
-	return toml.Unmarshal([]byte(data), v)
+	if err := toml.Unmarshal([]byte(data), v); err != nil {
+		return fmt.Errorf("unmarshal TOML in %q: %w", name, err)
+	}
+	return nil
 }
 
 func (a *App) IsFileExecutable(name string) bool {

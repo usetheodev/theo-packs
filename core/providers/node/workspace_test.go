@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theopacks/core/logger"
 )
 
 func createTempApp(t *testing.T, files map[string]string) *app.App {
@@ -72,7 +73,7 @@ func TestDetectWorkspace_NpmWorkspaces(t *testing.T) {
 		"packages/api/package.json":    `{"name":"api"}`,
 		"packages/shared/package.json": `{"name":"shared"}`,
 	})
-	ws := DetectWorkspace(a)
+	ws := DetectWorkspace(a, logger.Nop())
 	require.NotNil(t, ws)
 	require.Equal(t, WorkspaceNpm, ws.Type)
 	require.Equal(t, PackageManagerNpm, ws.PackageManager)
@@ -88,7 +89,7 @@ func TestDetectWorkspace_PnpmWorkspaces(t *testing.T) {
 		"packages/pkg-a/package.json": `{"name":"pkg-a"}`,
 		"packages/pkg-b/package.json": `{"name":"pkg-b"}`,
 	})
-	ws := DetectWorkspace(a)
+	ws := DetectWorkspace(a, logger.Nop())
 	require.NotNil(t, ws)
 	require.Equal(t, WorkspacePnpm, ws.Type)
 	require.Equal(t, PackageManagerPnpm, ws.PackageManager)
@@ -101,7 +102,7 @@ func TestDetectWorkspace_YarnWorkspaces(t *testing.T) {
 		"yarn.lock":                 "# yarn",
 		"packages/api/package.json": `{"name":"api"}`,
 	})
-	ws := DetectWorkspace(a)
+	ws := DetectWorkspace(a, logger.Nop())
 	require.NotNil(t, ws)
 	require.Equal(t, WorkspaceYarn, ws.Type)
 	require.Equal(t, PackageManagerYarn, ws.PackageManager)
@@ -117,7 +118,7 @@ func TestDetectWorkspace_Turborepo(t *testing.T) {
 		"apps/api/package.json":    `{"name":"api"}`,
 		"packages/ui/package.json": `{"name":"ui"}`,
 	})
-	ws := DetectWorkspace(a)
+	ws := DetectWorkspace(a, logger.Nop())
 	require.NotNil(t, ws)
 	require.Equal(t, WorkspaceNpm, ws.Type) // turbo uses npm workspaces under the hood
 	require.True(t, ws.HasTurbo)
@@ -128,7 +129,7 @@ func TestDetectWorkspace_NoWorkspace(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"package.json": `{"name":"simple"}`,
 	})
-	ws := DetectWorkspace(a)
+	ws := DetectWorkspace(a, logger.Nop())
 	require.Nil(t, ws)
 }
 
@@ -191,7 +192,7 @@ func TestDetectWorkspace_UnresolvableGlob(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"package.json": `{"name":"root","workspaces":["nonexistent/*"]}`,
 	})
-	ws := DetectWorkspace(a)
+	ws := DetectWorkspace(a, logger.Nop())
 	// Patterns are present so workspace is detected, but members are empty
 	require.NotNil(t, ws)
 	require.Empty(t, ws.MemberPaths)
@@ -204,7 +205,7 @@ func TestDetectWorkspace_NestedPatterns(t *testing.T) {
 		"packages/api/package.json":          `{"name":"api"}`,
 		"packages/shared/utils/package.json": `{"name":"utils"}`,
 	})
-	ws := DetectWorkspace(a)
+	ws := DetectWorkspace(a, logger.Nop())
 	require.NotNil(t, ws)
 	require.Contains(t, ws.MemberPaths, "packages/api")
 	require.Contains(t, ws.MemberPaths, "packages/shared/utils")

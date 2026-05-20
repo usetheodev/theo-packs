@@ -39,6 +39,11 @@ type GenerateContext struct {
 
 	SubContexts []string
 
+	// WorkspaceTarget identifies the monorepo member to build, if any.
+	// Populated from GenerateBuildPlanOptions.WorkspaceTarget by the
+	// library entry point. Nil for single-app projects.
+	WorkspaceTarget *WorkspaceTarget
+
 	Metadata *Metadata
 	Resolver *resolver.Resolver
 	Logger   *logger.Logger

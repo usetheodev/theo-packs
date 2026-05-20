@@ -107,7 +107,7 @@ func (p *PythonProvider) Plan(ctx *generate.GenerateContext) error {
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("python plan: %w", err)
 	}
 
 	// Auto-detect start command if not already set by config

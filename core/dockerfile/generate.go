@@ -16,6 +16,12 @@ import (
 // disabled. The bare `1` tag resolves to the latest stable v1.x at build time.
 const SyntaxDirective = "# syntax=docker/dockerfile:1\n\n"
 
+// DefaultWorkdir is the in-container working directory used by every
+// generated stage. Centralized as a constant (T3.5 L2) so a future
+// retarget (e.g. distroless requires `/workspace`) is one edit instead
+// of a sweep across multiple call sites.
+const DefaultWorkdir = "/app"
+
 // HeaderComment returns the metadata block emitted between the syntax
 // directive and the first FROM. It names the provider that produced the
 // plan and explicitly states the expected docker build context — a
@@ -69,7 +75,7 @@ func writeStep(b *strings.Builder, step *plan.Step, p *plan.BuildPlan) error {
 	// FROM — first input determines the base
 	base := step.Inputs[0]
 	writeFrom(b, base, step.Name)
-	b.WriteString("WORKDIR /app\n")
+	b.WriteString("WORKDIR " + DefaultWorkdir + "\n")
 
 	// Additional inputs (index 1+)
 	for _, input := range step.Inputs[1:] {
@@ -112,7 +118,7 @@ func writeDeploy(b *strings.Builder, deploy *plan.Deploy) {
 		b.WriteString(userSetup)
 	}
 
-	b.WriteString("WORKDIR /app\n")
+	b.WriteString("WORKDIR " + DefaultWorkdir + "\n")
 
 	if user != "" {
 		// /app was created by WORKDIR as root; chown so the eventual `USER`
@@ -403,7 +409,16 @@ func writeFileCommand(b *strings.Builder, cmd plan.FileCommand, step *plan.Step)
 	fmt.Fprintf(b, "RUN printf '%%s' %s > %s\n", escapedContent, escapedDest)
 }
 
-// shellEscape wraps a string in single quotes, escaping any embedded single quotes.
+// shellEscape wraps a string in POSIX-shell single quotes, escaping any
+// embedded single quote via the standard `'\”` close/escape/reopen
+// idiom. Output is safe to interpolate into `sh -c '<wrapped>'`.
+//
+// Rationale (T3.4): we deliberately do NOT use strconv.Quote here —
+// strconv.Quote emits a Go string literal (double quotes, unicode
+// escapes, \xNN bytes) which is NOT a valid POSIX-shell-safe form. A
+// FileCommand's `RUN printf '%s' '<content>' > '<dest>'` needs single
+// quoting; rolling the four lines below is simpler than reaching for
+// shellwords (lib) and avoids one more transitive dependency.
 func shellEscape(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
@@ -430,14 +445,14 @@ func writeEnvVars(b *strings.Builder, vars map[string]string) {
 // "requirements.txt" → "/app/requirements.txt /app/requirements.txt" (relative, prefix with /app)
 func resolveDeployPaths(include string) (string, string) {
 	if include == "." {
-		return "/app", "/app"
+		return DefaultWorkdir, DefaultWorkdir
 	}
 
 	if filepath.IsAbs(include) {
 		return include, include
 	}
 
-	abs := filepath.Join("/app", include)
+	abs := filepath.Join(DefaultWorkdir, include)
 	return abs, abs
 }
 

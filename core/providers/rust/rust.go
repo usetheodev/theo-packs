@@ -108,7 +108,7 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 		return fmt.Errorf("cargo workspace has no resolvable members")
 	}
 
-	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appName := ctx.ResolveAppName()
 	name, _, ok := ws.SelectMember(appName)
 	if !ok {
 		if appName == "" {

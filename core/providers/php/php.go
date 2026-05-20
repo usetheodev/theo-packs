@@ -101,7 +101,7 @@ func (p *PhpProvider) planSimple(ctx *generate.GenerateContext, composer *Compos
 }
 
 func (p *PhpProvider) planWorkspace(ctx *generate.GenerateContext, ws *WorkspaceInfo, version string) error {
-	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appName := ctx.ResolveAppName()
 	name, path, ok := ws.SelectApp(appName)
 	if !ok {
 		if appName == "" {

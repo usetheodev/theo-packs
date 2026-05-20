@@ -159,6 +159,33 @@ func TestMergeStructs(t *testing.T) {
 		require.NoError(t, MergeStructs(dst, nil))
 		require.Equal(t, "keep", dst.Name)
 	})
+
+	// T2.1 — type mismatches return a typed error instead of being
+	// swallowed by a generic "config merge failed" string.
+	t.Run("type mismatch returns typed error", func(t *testing.T) {
+		type OtherStruct struct{ X int }
+		dst := &TestStruct{}
+		src := &OtherStruct{X: 1}
+
+		err := MergeStructs(dst, src)
+		require.Error(t, err)
+
+		var tm *TypeMismatchError
+		require.ErrorAs(t, err, &tm,
+			"expected *TypeMismatchError, got %T: %v", err, err)
+		require.NotNil(t, tm.Want)
+		require.NotNil(t, tm.Got)
+	})
+
+	t.Run("nil destination returns ErrMergeNilDestination", func(t *testing.T) {
+		err := MergeStructs(nil)
+		require.ErrorIs(t, err, ErrMergeNilDestination)
+	})
+
+	t.Run("non-pointer destination returns ErrMergeNilDestination", func(t *testing.T) {
+		err := MergeStructs(TestStruct{})
+		require.ErrorIs(t, err, ErrMergeNilDestination)
+	})
 }
 
 func TestParseSemver(t *testing.T) {

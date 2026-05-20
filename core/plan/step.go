@@ -2,6 +2,7 @@ package plan
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 type Step struct {
@@ -47,7 +48,7 @@ func (s *Step) UnmarshalJSON(data []byte) error {
 	}
 
 	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
+		return fmt.Errorf("unmarshal Step: %w", err)
 	}
 
 	if aux.Commands != nil {
@@ -55,7 +56,7 @@ func (s *Step) UnmarshalJSON(data []byte) error {
 		for _, rawCmd := range *aux.Commands {
 			cmd, err := UnmarshalCommand(rawCmd)
 			if err != nil {
-				return err
+				return fmt.Errorf("unmarshal command in step %q: %w", s.Name, err)
 			}
 			s.Commands = append(s.Commands, cmd)
 		}

@@ -155,16 +155,15 @@ func findSimpleBuildTarget(ctx *generate.GenerateContext) string {
 }
 
 // parseGoWork reads go.work and extracts module paths from the use (...) block.
-func parseGoWork(a *app.App, log ...*logger.Logger) ([]string, error) {
-	// Extract optional logger
-	var l *logger.Logger
-	if len(log) > 0 {
-		l = log[0]
+// log must be non-nil; pass logger.Nop() in contexts that don't want output.
+func parseGoWork(a *app.App, log *logger.Logger) ([]string, error) {
+	if log == nil {
+		log = logger.Nop()
 	}
 
 	content, err := a.ReadFile("go.work")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read go.work: %w", err)
 	}
 
 	re := regexp.MustCompile(`use\s*\(\s*\n([\s\S]*?)\)`)
@@ -175,9 +174,7 @@ func parseGoWork(a *app.App, log ...*logger.Logger) ([]string, error) {
 		if singleMatch != nil {
 			return []string{strings.TrimPrefix(singleMatch[1], "./")}, nil
 		}
-		if l != nil {
-			l.LogWarn("go.work file has no valid use directive — file may be malformed")
-		}
+		log.LogWarn("go.work file has no valid use directive — file may be malformed")
 		return nil, fmt.Errorf("no use directive found in go.work")
 	}
 
@@ -191,9 +188,7 @@ func parseGoWork(a *app.App, log ...*logger.Logger) ([]string, error) {
 	}
 
 	if len(modules) == 0 {
-		if l != nil {
-			l.LogWarn("go.work has use () block but no modules listed inside it")
-		}
+		log.LogWarn("go.work has use () block but no modules listed inside it")
 		return nil, fmt.Errorf("go.work has empty use block — no modules declared")
 	}
 

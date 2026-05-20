@@ -109,7 +109,7 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 }
 
 func (p *RubyProvider) planWorkspace(ctx *generate.GenerateContext, ws *WorkspaceInfo, version string) error {
-	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appName := ctx.ResolveAppName()
 	name, path, ok := ws.SelectApp(appName)
 	if !ok {
 		if appName == "" {

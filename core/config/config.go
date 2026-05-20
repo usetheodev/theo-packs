@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/usetheo/theopacks/core/plan"
 	"github.com/usetheo/theopacks/internal/utils"
@@ -78,7 +79,7 @@ func (s *StepConfig) UnmarshalJSON(data []byte) error {
 		DeployOutputs []plan.Filter `json:"deployOutputs,omitempty"`
 	}
 	if err := json.Unmarshal(data, &temp); err != nil {
-		return err
+		return fmt.Errorf("unmarshal StepConfig deployOutputs: %w", err)
 	}
 	s.DeployOutputs = temp.DeployOutputs
 

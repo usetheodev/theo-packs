@@ -7,6 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-20
+
+> Security & hardening release. Closes every CRITICAL / HIGH / MEDIUM / LOW
+> finding from the 2026-05-20 deep review. See
+> `docs/plans/deep-review-hardening-plan.md` for the full audit trail.
+
+### Security
+- **CVE-class — Path traversal via `--app-path`** (T1.2). The CLI now passes
+  every flag through a restrictive allowlist (`^[A-Za-z0-9._/@-]+$` for
+  paths, `^[@A-Za-z0-9_][A-Za-z0-9._@/-]*$` for names) and clamps the
+  resolved app dir to the source root via `filepath.Abs` + prefix check.
+  Reproduced pre-fix: `--app-path ../../etc` resolved to `/home/etc`.
+- **CVE-class — Symlink follow in user-Dockerfile / .dockerignore checks**
+  (T1.3). `os.Stat` replaced by `os.Lstat` + `ModeSymlink` check. A
+  symlinked Dockerfile in the app dir now hard-fails with exit code 2
+  instead of leaking the target's existence (or content, in earlier lenient
+  versions of the contract).
+- **CVE-class — Shell injection via `--app-path` / `--app-name`** (T1.1).
+  Same input allowlist rejects shell metacharacters before any
+  `fmt.Sprintf("cd %s && %s", appPath, ...)` interpolation can occur.
+- **Secret-mount pollution** (T1.4). `core.GenerateConfigFromEnvironment`
+  no longer promotes `THEOPACKS_APP_NAME`, `THEOPACKS_APP_PATH`,
+  `THEOPACKS_*_VERSION`, and other internal configuration keys to
+  `plan.Secrets`. Defense-in-depth against future providers opting back
+  into `Step.Secrets = ["*"]` and emitting spurious
+  `--mount=type=secret,id=THEOPACKS_*` lines in generated Dockerfiles.
+- **`THEOPACKS_CONFIG_FILE` allowlist** (T2.4). Now rejects absolute
+  paths, paths that escape the source root, and any extension other than
+  `.json` / `.jsonc`.
+- **Non-root runner** (T2.2). `Dockerfile.generate` creates user
+  `theopacks` (UID 10001) and ends with `USER theopacks`. Reduces the
+  blast radius of any path-traversal or parser bug that escapes upstream
+  sanitization in the multi-tenant Argo build cluster.
+
+### Added
+- Typed `core.WorkspaceTarget` field on `GenerateBuildPlanOptions` (T3.1).
+  Providers consume the monorepo target via `ctx.ResolveAppName()` /
+  `ctx.ResolveAppPath()`; the legacy `THEOPACKS_APP_NAME` /
+  `THEOPACKS_APP_PATH` env-var bridge remains as a backward-compat
+  fallback during the deprecation window.
+- `core/logger.Nop()` discards messages; replaces the historical
+  `log ...*Logger` variadic hack.
+- `logger.MaxLogs = 1000` cap on `Logger.Logs` — pathological plans can
+  no longer inflate `BuildResult.Logs` without bound; a single warning
+  replaces overflow.
+- `dockerfile.DefaultWorkdir = "/app"` centralizes the in-container
+  WORKDIR used by every generated stage.
+- ADR-0001 (`docs/adrs/0001-tailscale-hujson-pseudo-version.md`)
+  documenting the explicit acceptance of `tailscale/hujson` at its
+  current pseudo-version.
+- Typed errors `utils.TypeMismatchError` and `utils.ErrMergeNilDestination`
+  surfaced by `MergeStructs`.
+
+### Changed
+- `internal/utils.MergeStructs` no longer swallows reflect panics via
+  `recover() { %v }` (T2.1). Pre-validates destination + source types
+  and returns a typed `*TypeMismatchError` / `ErrMergeNilDestination`;
+  the remaining `recover` preserves the error chain via `%w`.
+- `core/providers/node.DetectWorkspace(*App, *Logger)` and
+  `core/providers/golang.parseGoWork(*App, *Logger)` now take an
+  explicit non-nil logger (T3.3). Variadic `log ...*Logger` API removed.
+  Pass `logger.Nop()` when output is not desired.
+- `core/app.NewApp` collapses `Getwd + Join + Abs` into a single
+  `filepath.Abs(path)` call (T3.5 L3).
+- CLI exit codes documented and enforced via a single
+  `fatal(code, format, args)` helper (T4.1): `0` success, `1` generic
+  failure, `2` input invariant violated.
+
+### Fixed
+- Workspace env-var bridge no longer sets `THEOPACKS_APP_PATH=.` when
+  the CLI is invoked with `--app-path .` (or omitted). Previously the
+  value was bridged literally and could be misinterpreted by providers
+  that branch on a non-empty `APP_PATH`. (#NNN)
+- Multiple bare `return err` sites in `core/app/app.go`,
+  `core/providers/python/python.go`, `core/core.go`,
+  `core/plan/step.go`, `core/config/config.go`, and
+  `core/providers/dotnet/dotnet.go` now wrap errors with `%w` and
+  identifying context (T3.2). Restores `errors.Is` / `errors.As`
+  traceability in operator-facing failures.
+- Regenerated stale `examples/node-express/package-lock.json` so the
+  E2E build no longer fails with `npm error code EUSAGE` (T4.2 L6).
+
+### Removed
+- Comment `//Force 1` from `core/validate.go:3` — residual CI
+  force-push marker that violated Rule 4 (T0.1).
+
+## [Pre-0.5.0 — Unreleased aggregate from develop]
+
 ### Changed (BREAKING)
 - **theo-packs is now the single source of truth for Dockerfile generation.** The CLI rejects user-supplied Dockerfiles at `<source>/<app-path>/Dockerfile` with exit code 2 and an error message naming the offending path. The previous "user-Dockerfile takes precedence" behavior has been removed entirely. There is no override flag, no warning mode, no env var. A Dockerfile at the workspace root (`<source>/Dockerfile`, outside the analyzed app path) is NOT checked — it may legitimately exist for local development outside Theo. See `docs/contracts/theo-packs-cli-contract.md`, "Single source of truth" preamble, for the full rationale and edge cases (#NNN)
 

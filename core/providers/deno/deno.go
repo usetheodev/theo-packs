@@ -101,7 +101,7 @@ func (p *DenoProvider) planWorkspace(ctx *generate.GenerateContext, cfg *DenoCon
 		return fmt.Errorf("deno workspace declares members but none could be resolved")
 	}
 
-	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appName := ctx.ResolveAppName()
 	name, path, ok := ws.SelectMember(appName)
 	if !ok {
 		if appName == "" {

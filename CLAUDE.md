@@ -26,7 +26,7 @@ There is **no separate `railpack/` module** and no BuildKit/LLB integration in t
 Source code → Provider.Detect() → Provider.Plan() → BuildPlan → dockerfile.Generate() → Dockerfile
 ```
 
-The CLI (`theopacks-generate`) wraps this flow with workspace detection, user-Dockerfile precedence, and Argo-friendly logging.
+The CLI (`theopacks-generate`) wraps this flow with workspace detection, user-Dockerfile rejection (single source of truth), and Argo-friendly logging.
 
 ---
 
@@ -242,7 +242,7 @@ When parsing layer references in JSON:
 
 ### CLI: `theopacks-generate`
 
-> **Authoritative reference:** `docs/contracts/theo-packs-cli-contract.md` describes the CLI's contract with its caller (theo product, CI, humans) — flags, env-var bridge, build-context invariant, user-Dockerfile precedence, `.dockerignore` generation, and failure modes. Read it before integrating with theo-packs.
+> **Authoritative reference:** `docs/contracts/theo-packs-cli-contract.md` describes the CLI's contract with its caller (theo product, CI, humans) — flags, env-var bridge, build-context invariant, user-Dockerfile rejection (single source of truth), `.dockerignore` generation, and failure modes. Read it before integrating with theo-packs.
 
 Single binary used by Theo's build pipeline (Argo Workflow). Flags:
 
@@ -255,8 +255,8 @@ theopacks-generate \
 ```
 
 Behavior:
-1. **User Dockerfile precedence** — if `<source>/<app-path>/Dockerfile` exists, copy it to `--output` and exit.
-2. **Workspace detection (CHG-002b)** — if the source root is a Node workspace monorepo (`turbo.json`, `pnpm-workspace.yaml`, or `package.json#workspaces`), analyze the **workspace root** instead of the per-app subdir, and pass `THEOPACKS_APP_NAME` / `THEOPACKS_APP_PATH` so the Node provider scopes the build (e.g. `turbo run build --filter=<app>...`).
+1. **Single source of truth** — if `<source>/<app-path>/Dockerfile` exists, the CLI **rejects** the run with exit code 2. theo-packs is the single source of truth for Dockerfile generation; there is no precedence / override mode. A Dockerfile at the workspace root (`<source>/Dockerfile`, outside the analyzed app path) is NOT checked.
+2. **Workspace detection (CHG-002b)** — if the source root is a Node workspace monorepo (`turbo.json`, `pnpm-workspace.yaml`, or `package.json#workspaces`), analyze the **workspace root** instead of the per-app subdir, and pass `THEOPACKS_APP_NAME` / `THEOPACKS_APP_PATH` so the Node provider scopes the build (e.g. `turbo run build --filter=<app>...`). The env-var bridge skips `THEOPACKS_APP_PATH` when `--app-path` is `.` or empty.
 3. Otherwise analyze `--app-path` as a standalone app.
 4. Run `core.GenerateBuildPlan` → `dockerfile.Generate` → write to `--output`.
 5. Echo the Dockerfile to stdout for Loki/Promtail capture.
@@ -265,7 +265,7 @@ Behavior:
 
 The CLI writes two artifacts; the library is read-only against the source tree.
 
-- **Dockerfile** at `--output` (or copied from a user-provided `<source>/<app-path>/Dockerfile` when present).
+- **Dockerfile** at `--output`. The CLI never copies a user-provided Dockerfile — that path triggers hard-fail with exit code 2 (see Behavior step 1 above and `docs/contracts/theo-packs-cli-contract.md`).
 - **`.dockerignore`** at `<source>/.dockerignore` — only when the file does not already exist. User-supplied files are never overwritten or merged. Templates are per-language via `core/dockerignore/DefaultFor(providerName)`. Read-only sources fail gracefully with a logged warning; the Dockerfile write still happens.
 
 Generated Dockerfiles always start with `# syntax=docker/dockerfile:1` (renderer-emitted, not provider-emitted) so BuildKit cache mounts are honored on every host. Node deploy stages drop devDependencies via `<pm> prune`. Java install steps warm the dep cache via `gradle dependencies` / `mvn dependency:go-offline`. Don't undo these defaults without coordinating — they're load-bearing for image size and rebuild speed in the PaaS.
@@ -403,7 +403,7 @@ func (p *MyProvider) Plan(ctx *generate.GenerateContext) error {
 | `core/providers/node/workspace.go` | Node monorepo detection (turbo/pnpm/npm workspaces) + `PruneCommand` per PM |
 | `core/dockerignore/templates.go` | Per-language `.dockerignore` defaults; `DefaultFor(providerName)` |
 | `cmd/theopacks-generate/main.go` | CLI entry point used by Argo Workflow; writes Dockerfile + (when missing) `.dockerignore` |
-| `docs/contracts/theo-packs-cli-contract.md` | CLI contract: flags, env-var bridge, build-context invariant, user-Dockerfile precedence |
+| `docs/contracts/theo-packs-cli-contract.md` | CLI contract: flags, env-var bridge, build-context invariant, user-Dockerfile rejection (single source of truth) |
 | `e2e/e2e_test.go` | E2E suite (build tag `e2e`) |
 | `mise.toml` | Development tasks (root) |
 | `Dockerfile.generate` | Container image that ships `theopacks-generate` |

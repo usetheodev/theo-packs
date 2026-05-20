@@ -60,7 +60,7 @@ func (p *DotnetProvider) planSingleProject(ctx *generate.GenerateContext) error 
 
 	target, err := pickProject(ctx, projects)
 	if err != nil {
-		return err
+		return fmt.Errorf("pick .NET project: %w", err)
 	}
 
 	proj, err := parseProject(ctx.App, target)
@@ -82,7 +82,7 @@ func (p *DotnetProvider) planSolution(ctx *generate.GenerateContext, slnPath str
 
 	target, err := pickSolutionEntry(ctx, entries)
 	if err != nil {
-		return err
+		return fmt.Errorf("pick solution entry from %s: %w", slnPath, err)
 	}
 
 	proj, err := parseProject(ctx.App, target.Path)
@@ -103,7 +103,7 @@ func pickProject(ctx *generate.GenerateContext, projects []string) (string, erro
 		return projects[0], nil
 	}
 
-	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appName := ctx.ResolveAppName()
 	if appName == "" {
 		names := projectNames(projects)
 		return "", fmt.Errorf("multiple .NET projects found; set THEOPACKS_APP_NAME to one of: %s", strings.Join(names, ", "))
@@ -123,7 +123,7 @@ func pickProject(ctx *generate.GenerateContext, projects []string) (string, erro
 //   - Exactly one ASP.NET project in the solution → auto-select it.
 //   - Otherwise: error listing entries.
 func pickSolutionEntry(ctx *generate.GenerateContext, entries []SolutionEntry) (*SolutionEntry, error) {
-	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appName := ctx.ResolveAppName()
 
 	if appName != "" {
 		for i := range entries {

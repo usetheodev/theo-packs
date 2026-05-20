@@ -102,7 +102,7 @@ func mavenModules(a *app.App) []string {
 
 // planMavenWorkspace builds a single submodule via `mvn -pl <path> -am package`.
 func planMavenWorkspace(ctx *generate.GenerateContext, version string, modules []string) error {
-	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appName := ctx.ResolveAppName()
 	target, ok := selectMavenModule(modules, appName)
 	if !ok {
 		if appName == "" {

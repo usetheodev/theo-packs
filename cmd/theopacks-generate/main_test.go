@@ -279,13 +279,17 @@ func TestFailsWhenOutputFlagMissing(t *testing.T) {
 	// Arrange
 	bin := buildBinary(t)
 
-	// Act: run without --output
-	cmd := exec.Command(bin, "--source", "/tmp")
+	// Act: run with valid --source/--app-path but no --output
+	cmd := exec.Command(bin,
+		"--source", "/tmp",
+		"--app-path", ".",
+	)
 	out, err := cmd.CombinedOutput()
 
 	// Assert
 	require.Error(t, err, "should fail without --output")
-	require.Contains(t, string(out), "--output is required")
+	require.Contains(t, string(out), "--output")
+	require.Contains(t, string(out), "required")
 }
 
 // extractCMDLine returns the CMD instruction from a Dockerfile string.

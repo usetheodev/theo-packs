@@ -201,7 +201,7 @@ func TestParseGoWork(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"go.work": "go 1.22\n\nuse (\n\t./api\n\t./shared\n)\n",
 	})
-	modules, err := parseGoWork(a)
+	modules, err := parseGoWork(a, logger.Nop())
 	require.NoError(t, err)
 	require.Equal(t, []string{"api", "shared"}, modules)
 }
@@ -210,7 +210,7 @@ func TestParseGoWork_SingleModule(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"go.work": "go 1.22\n\nuse ./api\n",
 	})
-	modules, err := parseGoWork(a)
+	modules, err := parseGoWork(a, logger.Nop())
 	require.NoError(t, err)
 	require.Equal(t, []string{"api"}, modules)
 }
@@ -262,7 +262,7 @@ func TestParseGoWork_EmptyUseBlock(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"go.work": "go 1.22\n\nuse (\n)\n",
 	})
-	modules, err := parseGoWork(a)
+	modules, err := parseGoWork(a, logger.Nop())
 	require.Error(t, err)
 	require.Nil(t, modules)
 	require.Contains(t, err.Error(), "empty use block")

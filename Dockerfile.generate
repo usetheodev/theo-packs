@@ -17,8 +17,16 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /theopacks-generate ./cmd/theopac
 # Minimal runtime — ~20MB total
 FROM alpine:3.20
 
-RUN apk add --no-cache ca-certificates
+# T2.2 — Create a dedicated non-root user (UID 10001) and run the binary
+# under it. Defense-in-depth: the runner executes inside an Argo
+# Workflow step in a multi-tenant build cluster; running as root would
+# magnify the blast radius of any path-traversal / symlink / parser
+# vulnerability that escapes the upstream sanitization. Theo's workflow
+# must mount the source workspace with read/execute access for UID 10001.
+RUN apk add --no-cache ca-certificates \
+ && adduser -D -H -u 10001 theopacks
 
 COPY --from=build /theopacks-generate /usr/local/bin/theopacks-generate
 
+USER theopacks
 ENTRYPOINT ["theopacks-generate"]

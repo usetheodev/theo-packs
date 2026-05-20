@@ -147,7 +147,7 @@ func gradleSubprojects(a *app.App) []string {
 
 // planGradleWorkspace builds a single subproject targeted by THEOPACKS_APP_NAME.
 func planGradleWorkspace(ctx *generate.GenerateContext, version string, subprojects []string) error {
-	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
+	appName := ctx.ResolveAppName()
 
 	target, ok := selectGradleSubproject(subprojects, appName)
 	if !ok {
