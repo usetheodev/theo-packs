@@ -1,0 +1,8 @@
+{
+  "name": "node-worker-example",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node src/worker.js"
+  }
+}

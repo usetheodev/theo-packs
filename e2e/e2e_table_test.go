@@ -159,6 +159,11 @@ func e2eCases() []e2eCase {
 		{example: "node-npm", tag: "te2e-node-npm", verify: verifyNodeRuntime, maxMB: 280, structureTest: "structure-tests.yaml"},
 		{example: "node-express", tag: "te2e-node-express", verify: verifyNodeRuntime, maxMB: 280},
 
+		// --- Node theo-stacks parity (T1.5 + theo-stacks-compat doc) ---
+		{example: "node-fastify", tag: "te2e-node-fastify", verify: verifyNodeRuntime, maxMB: 280},
+		{example: "node-nestjs", tag: "te2e-node-nestjs", verify: verifyNodeRuntime, maxMB: 400},
+		{example: "node-worker", tag: "te2e-node-worker", verify: verifyNodeRuntime, maxMB: 280},
+
 		// --- Node frameworks (build step exercised) ---
 		{example: "node-next", tag: "te2e-node-next", verify: verifyNodeFrameworkBuilt("/app/.next"), maxMB: 600},
 		{example: "node-astro", tag: "te2e-node-astro", verify: verifyNodeFrameworkBuilt("/app/dist"), maxMB: 400},

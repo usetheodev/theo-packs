@@ -59,8 +59,16 @@ jobs:
           config: .hadolint.yaml
           failure-threshold: warning
 
-      - name: Test
-        run: mise run test
+      - name: Test (with coverage)
+        run: mise run coverage
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@5a605bd92782ce0810fa3b8acc235c921b497052 # v5.5.1
+        with:
+          files: coverage.out
+          fail_ci_if_error: false  # Codecov flakes on rate limit; don't block PR
+          verbose: false
 
       # T0.3 — Trivy advisory scan of the runner image. exit-code 0 so a
       # finding doesn't block PRs (release.yml enforces a hard gate at

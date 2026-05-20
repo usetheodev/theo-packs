@@ -1,24 +1,57 @@
 Mutation testing baseline — go-gremlins (T2.4, robust-test-suite-plan).
 
-Scope:
-  - core/resolver/...
-  - core/config/...
-  - core/providers/ (registry only — language subpackages run via their own tests)
+Generated: 2026-05-20
+Tool: github.com/go-gremlins/gremlins (latest)
+Config: .gremlins.yaml (timeout-coefficient: 10)
 
 Threshold:
   - Warmup (first 4 weeks):  efficacy ≥ 0.60
   - Steady (after warmup):   efficacy ≥ 0.70
 
 How to regenerate:
-  mise install                 # ensures gremlins binary present
-  mise run mutation > docs/benchmarks/mutation-baseline.txt
+  go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
+  mise run mutation
 
-Notes:
-  - gremlins is NOT installed by `mise.toml::tools` automatically because
-    it's a heavy dependency. Install manually before running:
-      go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
-  - First baseline will be captured by the L4 nightly job (T5.3) once
-    the workflow lands. Until then, run locally and append below.
+================================================================
+core/providers/  (provider registry + cross-provider helpers)
+================================================================
+  efficacy:        81.6%   ← ✅ exceeds 0.70 steady threshold
+  mutation cov:    96.9%
+  mutants total:   381
+  killed:          311
+  lived:           70
+  not covered:     12
 
-Baseline (TBD — populated by first nightly run):
-  (empty — populated on first run)
+================================================================
+core/config/  (Config.Merge + UnmarshalJSON)
+================================================================
+  efficacy:        100%    ← ✅ perfect
+  mutation cov:    100%
+  mutants total:   1
+  killed:          1
+  lived:           0
+
+================================================================
+core/resolver/  (version resolution priority + ResolvePackages)
+================================================================
+  STATUS:          property-test timeouts dominate this run
+  cause:           pgregory.net/rapid runs 100 iterations per
+                   property × 3 properties; per-mutant timeout
+                   coefficient at 10× still trips for some
+                   mutants. KNOWN limitation; see follow-up.
+  partial signal:  1 KILLED, 1 LIVED, 8 TIMED_OUT with `-i`
+                   (integration mode).
+  next step:       reduce rapid iterations under gremlins (env
+                   gating: rapid.Check honors RAPID_ITERATIONS)
+                   OR exclude resolver_property_test.go via
+                   `--exclude-files` and rely on table tests
+                   alone for mutation signal.
+
+================================================================
+Summary
+================================================================
+Combined kill rate for the two clean packages: 312 / 382 = 81.7%.
+Above the warmup threshold (0.60). Steady threshold (0.70) also
+met by core/providers in isolation.
+
+Re-runs: nightly via .github/workflows/nightly.yml (T5.3).

@@ -33,7 +33,8 @@ mutants:
 # Threshold for the CI gate. Warmup phase (4 weeks): 0.60. Steady: 0.70.
 threshold-efficacy: 0.60
 
-# Timeout per mutant test run. theo-packs unit tests are fast (< 5s
-# typically). 60s gives plenty of headroom for parallelization fluctuations.
+# Timeout per mutant test run. Property-based tests (rapid) iterate 100
+# times by default; coefficient 10 gives a generous window so they don't
+# trip TIMED_OUT before producing a useful KILLED/LIVED verdict.
 test-cpu: 0    # 0 = all available
-timeout-coefficient: 3
+timeout-coefficient: 10

@@ -159,10 +159,24 @@ func main() {
 	rootApp, rootErr := app.NewApp(*source)
 	analyzeDir := appDir
 	if rootErr == nil {
-		if ws := node.DetectWorkspace(rootApp, logger.Nop()); ws != nil {
+		switch {
+		case node.DetectWorkspace(rootApp, logger.Nop()) != nil:
+			ws := node.DetectWorkspace(rootApp, logger.Nop())
 			fmt.Fprintf(os.Stderr,
 				"[theopacks] Node workspace detected at %s (type=%v, hasTurbo=%v, members=%d) — analyzing root for app %q at %q\n",
 				*source, ws.Type, ws.HasTurbo, len(ws.MemberPaths), *appName, *appPath)
+			analyzeDir = *source
+		case isGenericMonorepoRoot(*source, *appPath):
+			// theo-stacks parity: Ruby/PHP/Python/Java/Rust monorepos
+			// ship the language manifest at the ROOT (Gemfile,
+			// composer.json, pyproject.toml, build.gradle, Cargo.toml)
+			// with apps/<name>/ subdirs that DON'T have their own
+			// manifests. Analyze the root so the provider can detect
+			// the language; pass appPath via WorkspaceTarget so the
+			// provider scopes the build to the chosen app.
+			fmt.Fprintf(os.Stderr,
+				"[theopacks] Generic monorepo root detected at %s — analyzing root for app %q at %q\n",
+				*source, *appName, *appPath)
 			analyzeDir = *source
 		}
 	}
@@ -236,6 +250,56 @@ func normalizeAppPath(p string) string {
 		return ""
 	}
 	return p
+}
+
+// isGenericMonorepoRoot returns true when (a) appPath is non-empty
+// and non-".", (b) source root has a language-manifest file that
+// signals a single-language monorepo (Ruby/PHP/Python/Java/Rust),
+// and (c) the apps/<name>/ subdir doesn't carry its own copy of the
+// manifest. theo-stacks shapes its non-Node monorepos this way — the
+// root Gemfile/composer.json/pyproject.toml/etc. holds shared deps and
+// apps/<name>/ is just the app's source tree.
+//
+// This mirrors the Node CHG-002b redirect for languages that ship the
+// equivalent layout via theo-stacks templates.
+func isGenericMonorepoRoot(source, appPath string) bool {
+	if appPath == "" || appPath == "." {
+		return false
+	}
+	rootManifests := []string{
+		"Gemfile",         // Ruby
+		"composer.json",   // PHP
+		"pyproject.toml",  // Python (monorepo-python uses root pyproject)
+		"Cargo.toml",      // Rust (workspace root)
+		"build.gradle",    // Java Gradle
+		"build.gradle.kts",
+		"settings.gradle",
+		"settings.gradle.kts",
+		"pom.xml",         // Java Maven (multi-module root)
+	}
+	rootHasManifest := false
+	for _, m := range rootManifests {
+		if fileExists(filepath.Join(source, m)) {
+			rootHasManifest = true
+			break
+		}
+	}
+	if !rootHasManifest {
+		return false
+	}
+	// If the app subdir has its OWN root-equivalent manifest, the
+	// provider can detect from there directly — don't redirect.
+	for _, m := range rootManifests {
+		if fileExists(filepath.Join(source, appPath, m)) {
+			return false
+		}
+	}
+	return true
+}
+
+func fileExists(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && !info.IsDir()
 }
 
 // writeDefaultDockerignore writes a per-language .dockerignore template to

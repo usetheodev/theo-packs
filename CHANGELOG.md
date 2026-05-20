@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Generic monorepo workspace redirect for non-Node languages**: Ruby,
+  PHP, Python, Java, Rust monorepos that follow the `theo-stacks`
+  convention (root-level manifest + `apps/<name>/` subdirs) now have
+  `theopacks-generate` analyze the source root instead of the per-app
+  subdir. Mirrors the Node CHG-002b redirect for the other language
+  families. Detection via the presence of `Gemfile`, `composer.json`,
+  `pyproject.toml`, `Cargo.toml`, `build.gradle*`, `settings.gradle*`,
+  or `pom.xml` at root and absence of the same in the app subdir (#NNN)
+- **`TestE2E_TheoStacksTemplates`** end-to-end gate against every one of
+  the 19 upstream `theo-stacks/templates/` directories. Verifies that
+  each template can be rendered, fed to `theopacks-generate`, and
+  produces a Dockerfile claimed by the expected provider. Closes the
+  drift gap where an upstream template change would silently break
+  scaffolded projects (#NNN)
+- `examples/node-fastify`, `examples/node-nestjs`, `examples/node-worker`
+  mirroring the upstream theo-stacks templates of the same names (#NNN)
+- `docs/theo-stacks-compatibility.md` — canonical matrix mapping every
+  theo-stacks template to its theo-packs provider + in-repo example
+  fixture, with the gating story (#NNN)
+- `mise.toml::coverage` task running `go test -coverprofile`; CI L1 now
+  uploads coverage to Codecov (#NNN)
+- Mutation testing baseline recorded in `docs/benchmarks/mutation-baseline.txt`:
+  `core/providers` 81.6% efficacy, `core/config` 100% efficacy (#NNN)
+
+### Changed
+- `.gremlins.yaml::timeout-coefficient` raised from 3 to 10 so property
+  tests (rapid, 100 iterations per property) complete before the
+  per-mutant timeout (#NNN)
+
 ## [0.5.0] - 2026-05-20
 
 > Security & hardening release. Closes every CRITICAL / HIGH / MEDIUM / LOW

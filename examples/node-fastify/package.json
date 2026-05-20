@@ -1,0 +1,11 @@
+{
+  "name": "node-fastify-example",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0"
+  }
+}

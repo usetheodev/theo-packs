@@ -1,0 +1,7 @@
+{
+  // T1.5 mirror of theo-stacks/templates/node-fastify. HTTP probe on
+  // /health validates both the framework boot and the dockerfile-emitted
+  // start command.
+  "mode": "httpCheck",
+  "httpCheck": { "path": "/health", "port": 3000, "expectedStatus": 200 }
+}

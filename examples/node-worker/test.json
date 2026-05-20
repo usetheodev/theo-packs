@@ -1,0 +1,5 @@
+{
+  // T1.5 mirror of theo-stacks/templates/node-worker. Workers don't
+  // expose HTTP; justBuild + container starts is the right validation.
+  "mode": "justBuild"
+}

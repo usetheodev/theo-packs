@@ -1,0 +1,6 @@
+{
+  // T1.5 mirror of theo-stacks/templates/node-nestjs. The runtime entry
+  // is dist/main.js (post-tsc); no HTTP server is bootstrapped in this
+  // minimal example so we validate via justBuild.
+  "mode": "justBuild"
+}
