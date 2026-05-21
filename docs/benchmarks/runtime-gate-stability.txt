@@ -1,0 +1,28 @@
+Runtime gate stability — TestE2E_TheoStacksTemplates_Runtime
+============================================================
+
+T4.1 of docs/plans/theo-stacks-build-and-run-plan.md.
+
+Captured: 2026-05-21
+Command: bash loop, 3 consecutive runs:
+
+    for i in 1 2 3; do
+      THEO_STACKS_DIR=/tmp/theo-stacks/templates \
+        go test -tags e2e -count=1 \
+        -run TestE2E_TheoStacksTemplates_Runtime ./e2e/ -timeout 60m
+    done
+
+Results:
+  Run 1:  ok  43.775s
+  Run 2:  ok  43.155s
+  Run 3:  ok  42.010s
+
+  PASS: 3 / 3
+  FAIL: 0 / 3
+  Flakiness rate: 0%
+
+All 19 templates passed in every run. Mean per-run time: ~43s
+(cached docker layers reduce subsequent runs ~10x vs first run).
+
+Re-run via:
+  go test -count=N -tags e2e -run TestE2E_TheoStacksTemplates_Runtime ./e2e/

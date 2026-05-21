@@ -92,3 +92,27 @@ jobs:
 
       - name: Run reproducibility tests
         run: go test -tags e2e -timeout 30m -run TestE2E_Reproducible_Build ./e2e/
+
+  theo-stacks-runtime:
+    name: theo-stacks runtime gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Clone theo-stacks (sibling)
+        run: git clone --depth 1 https://github.com/usetheodev/theo-stacks.git /tmp/theo-stacks
+
+      - name: Install hadolint
+        run: |
+          curl -fsSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+
+      - name: Verify Docker is available
+        run: docker info >/dev/null
+
+      - name: Run theo-stacks runtime gate (19/19 build AND run)
+        env:
+          THEO_STACKS_DIR: /tmp/theo-stacks/templates
+        run: go test -tags e2e -count=1 -timeout 60m -run TestE2E_TheoStacksTemplates_Runtime ./e2e/

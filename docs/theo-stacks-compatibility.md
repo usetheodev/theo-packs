@@ -8,29 +8,47 @@ current end-to-end test status.
 
 Upstream: https://github.com/usetheodev/theo-stacks/tree/main/templates
 
-Last sync: 2026-05-20
+Last sync: 2026-05-21
 
-| Template | theo.yaml `framework` | theo-packs provider | Fixture (examples/) | E2E status |
-|---|---|---|---|---|
-| `fullstack-nextjs` | `nextjs` | `node` (next runtime) | `node-next` | ✅ Phase 1 build, structure-test |
-| `go-api` | `custom` | `go` | `go-simple` | ✅ Builds, distroless runtime, healthchecked |
-| `java-spring` | (spring boot) | `java` (Gradle) | `java-spring-gradle` | ✅ fat-JAR build + healthcheck |
-| `monorepo-go` | `custom` (workspace) | `go` (go.work) | `go-workspaces` | ✅ Workspace build |
-| `monorepo-java` | (gradle multi-module) | `java` | `java-gradle-workspace` | ✅ Workspace JAR |
-| `monorepo-php` | (apps/+packages/) | `php` | `php-monorepo` | ✅ apps/api scoped |
-| `monorepo-python` | (apps/+packages/) | `python` | `python-uv-workspace` (shape differs slightly) | ⚠️ `python-uv-workspace` uses uv layout; upstream uses generic `apps/`. Gating via `TestE2E_TheoStacksTemplates`. |
-| `monorepo-ruby` | (apps/+packages/) | `ruby` | `ruby-monorepo` | ✅ apps/api scoped |
-| `monorepo-rust` | (cargo workspace) | `rust` | `rust-workspace` | ✅ Workspace member build |
-| `monorepo-turbo` | `nextjs` + `express` | `node` (turbo) | `node-turborepo` | ✅ `TestE2E_MonorepoTurboContract` end-to-end |
-| `node-express` | `express` | `node` | `node-express` | ✅ Build + structure-test |
-| `node-fastify` | (fastify) | `node` | `node-fastify` (NEW) | 🆕 Created in this cycle |
-| `node-nestjs` | (nestjs) | `node` | `node-nestjs` (NEW) | ✅ Builds end-to-end after [usetheodev/theo-stacks#39](https://github.com/usetheodev/theo-stacks/pull/39) merged (pino default import + esModuleInterop). |
-| `node-nextjs` | `nextjs` | `node` | `node-next` | ✅ |
-| `node-worker` | (worker — no HTTP) | `node` | `node-worker` (NEW) | 🆕 Created in this cycle, `justBuild` mode |
-| `php-slim` | (slim) | `php` | `php-slim` | ✅ Build + structure-test |
-| `python-fastapi` | `fastapi` | `python` | `python-fastapi` | ✅ Build + fastapi import check |
-| `ruby-sinatra` | (sinatra) | `ruby` | `ruby-sinatra` | ✅ Build + bundle info |
-| `rust-axum` | `axum` | `rust` | `rust-axum` | ✅ Distroless static binary |
+| Template | Provider | Build | Runtime |
+|---|---|---|---|
+| `fullstack-nextjs` | `node` (next) | ✅ | ✅ HTTP 200 / |
+| `go-api` | `go` (distroless static) | ✅ | ✅ HTTP 200 /health |
+| `java-spring` | `java` Gradle (Spring Boot) | ✅ | ✅ HTTP 200 /actuator/health |
+| `monorepo-go` | `go` (go.work) | ✅ | ✅ HTTP 200 /health |
+| `monorepo-java` | `java` Gradle multi-module | ✅ | ✅ HTTP 200 /actuator/health |
+| `monorepo-php` | `php` (composer + apps/+packages) | ✅ | ✅ HTTP 200 /health |
+| `monorepo-python` | `python` (uv workspace) | ✅ | ✅ HTTP 200 /health |
+| `monorepo-ruby` | `ruby` (Bundler apps/+packages) | ✅ | ✅ HTTP 200 /health |
+| `monorepo-rust` | `rust` (Cargo workspace) | ✅ | ✅ HTTP 200 /health |
+| `monorepo-turbo` | `node` (turbo + npm workspaces) | ✅ | ✅ HTTP 200 /health |
+| `node-express` | `node` | ✅ | ✅ HTTP 200 /health |
+| `node-fastify` | `node` | ✅ | ✅ HTTP 200 /health |
+| `node-nestjs` | `node` | ✅ | ✅ HTTP 200 /health |
+| `node-nextjs` | `node` (next) | ✅ | ✅ HTTP 200 / |
+| `node-worker` | `node` (no HTTP) | ✅ | ✅ process alive |
+| `php-slim` | `php` (Slim) | ✅ | ✅ HTTP 200 /health |
+| `python-fastapi` | `python` (FastAPI) | ✅ | ✅ HTTP 200 /health |
+| `ruby-sinatra` | `ruby` (Sinatra) | ✅ | ✅ HTTP 200 /health |
+| `rust-axum` | `rust` (Axum, distroless static) | ✅ | ✅ HTTP 200 /health |
+
+**Verified: 19/19 build + run end-to-end on 2026-05-21.**
+
+## Gates
+
+Two layered gates run in CI:
+
+1. **`TestE2E_TheoStacksTemplates`** — provider gate. Renders each
+   template, runs `theopacks-generate`, asserts the generated
+   Dockerfile carries the expected provider header and passes
+   `hadolint`. Fast (~3s); runs in L1/L2.
+
+2. **`TestE2E_TheoStacksTemplates_Runtime`** — runtime gate
+   (`docs/plans/theo-stacks-build-and-run-plan.md`). Adds
+   `docker build` + `docker run` + HTTP healthcheck (server/frontend)
+   or process-alive check (worker). Reads `theo.yaml::apps.<name>.port`
+   and `type` as the source of truth. Slow (~4 min);
+   runs in L3 nightly + can be opt-in per-PR.
 
 ## Gating
 

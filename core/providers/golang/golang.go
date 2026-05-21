@@ -60,9 +60,13 @@ func (p *GoProvider) planSimple(ctx *generate.GenerateContext, version string) e
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCacheMount("/go/pkg/mod", "")
 	buildStep.AddCacheMount("/root/.cache/go-build", "")
+	// `CGO_ENABLED=0` produces a fully static binary that runs on the
+	// distroless static-debian12 runtime (no libc). Without it, Go
+	// links against glibc for DNS resolution (netcgo) and exec fails
+	// with `no such file or directory` inside distroless.
 	// `-ldflags="-s -w"` strips debug symbols (~30% smaller binary).
 	// `-trimpath` removes filesystem paths from the binary for reproducibility.
-	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -ldflags=\"-s -w\" -trimpath -o /app/server %s", target)))
+	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("CGO_ENABLED=0 go build -ldflags=\"-s -w\" -trimpath -o /app/server %s", target)))
 
 	// Go compiles to a static binary, so the runtime image is always debian slim
 	ctx.Deploy.Base = plan.NewImageLayer(generate.GoRuntimeImage)
@@ -125,7 +129,9 @@ func (p *GoProvider) planWorkspace(ctx *generate.GenerateContext, version string
 	buildStep.AddInput(ctx.NewLocalLayer())
 	buildStep.AddCacheMount("/go/pkg/mod", "")
 	buildStep.AddCacheMount("/root/.cache/go-build", "")
-	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("go build -ldflags=\"-s -w\" -trimpath -o /app/server ./%s", target)))
+	// CGO_ENABLED=0 — same reason as planSimple: produce static binary
+	// for distroless runtime.
+	buildStep.AddCommand(plan.NewExecShellCommand(fmt.Sprintf("CGO_ENABLED=0 go build -ldflags=\"-s -w\" -trimpath -o /app/server ./%s", target)))
 
 	ctx.Deploy.Base = plan.NewImageLayer(generate.GoRuntimeImage)
 	ctx.Deploy.StartCmd = "/app/server"
