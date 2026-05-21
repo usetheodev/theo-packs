@@ -78,7 +78,7 @@ jobs:
         run: docker build -f Dockerfile.generate -t theo-packs-runner:ci .
 
       - name: Trivy filesystem scan (advisory)
-        uses: aquasecurity/trivy-action@5bb6fea0db82a8e89fcccf24e1a04ec84a9b8b76 # 0.27.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.27.0
         with:
           scan-type: image
           image-ref: theo-packs-runner:ci
