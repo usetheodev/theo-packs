@@ -1,6 +1,18 @@
 # Compiled binary
 theopacks
 
+# Local backup directories (e.g. pre-cycles-engine .claude snapshot)
+.claude.backup-*/
+.claude/halt-loop-prompts/
+
+# cycles-engine: per-developer install (symlinks point outside the repo).
+# The framework lives at /home/<user>/Projetos/cycles-engine and is wired
+# via local symlinks. Committing the symlinks would break clones on other
+# machines and in CI. project.yaml + rules/ + knowledge-base/ are kept
+# in-repo because they are real files describing project intent.
+.claude/cycles-engine
+.claude/skills/
+
 # Build output
 dist/
 build/

@@ -1,0 +1,111 @@
+# cycles-engine project configuration
+# Adopted for theo-packs on 2026-06-01 via Backup + adoption strategy.
+# Previous .claude/ contents preserved in .claude.backup-2026-06-01/.
+#
+# Schema: https://cycles-engine.dev/schemas/project.v1.json
+
+cycles_engine_version: "^1.0"
+
+project:
+  name: theo-packs
+  description: Zero-configuration application builder — language detection + Dockerfile generation engine for the Theo Kubernetes PaaS.
+  module_prefix: github.com/usetheo/theopacks
+
+stack:
+  language: go
+  # framework: omitted — theo-packs is a CLI/library (cmd/theopacks-generate),
+  # not a long-running service. No single stack overlay fits.
+
+quality:
+  coverage_global: 80
+  coverage_paths:
+    "core/**": 85
+    "core/providers/**": 80
+    "core/dockerfile/**": 85
+    "internal/utils/**": 90
+  file_size_max_loc: 500
+  function_size_max_loc: 50
+
+architecture:
+  # Theo-packs DIP layout:
+  #   cmd/         → composition root + CLI entry
+  #   core/        → application logic (config, dockerfile, plan, providers, resolver)
+  #   internal/    → cross-cutting utilities not part of public API
+  #
+  # Layers express the canonical Go convention: cmd composes, core does the
+  # work, internal supports both. core sub-packages are siblings (no
+  # cross-imports between providers; share via core/plan, core/config).
+  layers:
+    - name: domain
+      # In theo-packs, the "domain" is the abstract build plan model.
+      path: "core/plan/**"
+      may_import: []
+    - name: config
+      path: "core/config/**"
+      may_import: [domain]
+    - name: providers
+      # Language/framework detectors. Siblings; must not cross-import.
+      path: "core/providers/**"
+      may_import: [domain, config]
+    - name: dockerfile
+      path: "core/dockerfile/**"
+      may_import: [domain, config]
+    - name: resolver
+      path: "core/resolver/**"
+      may_import: [domain, config, providers]
+    - name: generate
+      path: "core/generate/**"
+      may_import: [domain, config, providers, dockerfile, resolver]
+    - name: app
+      path: "core/app/**"
+      may_import: [domain, config, providers, dockerfile, resolver, generate]
+    - name: internal-utils
+      path: "internal/**"
+      may_import: [domain, config]
+    - name: cmd
+      path: "cmd/**"
+      may_import: [domain, config, providers, dockerfile, resolver, generate, app, internal-utils]
+
+  # Public surface: core/ is the public API; it MUST NOT import cmd/ (which
+  # is the composition root, application-specific by definition).
+  public_surface:
+    paths: ["core/**"]
+    forbidden_imports: ["cmd/**"]
+
+cycles:
+  implement:
+    tdd: required
+    wiring_triad:
+      caller: required
+      integration_test: required
+      runtime_metric: optional
+    max_iterations: 50
+    time_budget: 8h
+  review:
+    parallelism: 5
+    agents: [architecture, tests, wiring]
+    domains_extra:
+      build-detection:
+        - "provider"
+        - "language detection"
+        - "BuildPlan"
+        - "DetectedConfig"
+      dockerfile-render:
+        - "Dockerfile"
+        - "buildkit"
+        - "layer"
+      monorepo:
+        - "workspace"
+        - "monorepo"
+        - "pnpm-workspace"
+  discover:
+    web_allowlist:
+      - "docs.docker.com"
+      - "go.dev"
+      - "pkg.go.dev"
+      - "buildpacks.io"
+
+# references.upstream: declared when cloning similar projects to
+# .claude/knowledge-base/references/ (e.g., railpack, buildpacks, paketo).
+references:
+  upstream: []
