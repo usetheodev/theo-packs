@@ -55,7 +55,7 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 	fw := detectFramework(ctx.App)
 	startCmd := frameworkStartCommand(ctx.App, fw)
 	if startCmd == "" {
-		startCmd = ctx.Env.GetVariable("THEOPACKS_START_CMD")
+		startCmd = ctx.Env.GetVariable("THEOKIT_PACKS_START_CMD")
 	}
 
 	installStep := ctx.NewCommandStep("install")
@@ -84,9 +84,9 @@ func (p *RubyProvider) planSimple(ctx *generate.GenerateContext, version string)
 	if fw == FrameworkRails && ctx.App.HasFile("app/assets") {
 		// Skip if Node.js is required but not installed in our slim base.
 		// Users with full Rails asset pipelines should set
-		// theopacks.json buildAptPackages: ["nodejs"] or precompile locally.
+		// theokit-packs.json buildAptPackages: ["nodejs"] or precompile locally.
 		buildStep.AddCommand(plan.NewExecShellCommand(
-			"bundle exec rake assets:precompile RAILS_ENV=production || echo 'asset precompile skipped — install nodejs via theopacks.json buildAptPackages if your app needs it'",
+			"bundle exec rake assets:precompile RAILS_ENV=production || echo 'asset precompile skipped — install nodejs via theokit-packs.json buildAptPackages if your app needs it'",
 		))
 	}
 
@@ -113,7 +113,7 @@ func (p *RubyProvider) planWorkspace(ctx *generate.GenerateContext, ws *Workspac
 	name, path, ok := ws.SelectApp(appName)
 	if !ok {
 		if appName == "" {
-			return fmt.Errorf("ruby workspace has multiple apps; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.AppNames(), ", "))
+			return fmt.Errorf("ruby workspace has multiple apps; set THEOKIT_PACKS_APP_NAME to one of: %s", strings.Join(ws.AppNames(), ", "))
 		}
 		return fmt.Errorf("ruby workspace has no app named %q; available: %s", appName, strings.Join(ws.AppNames(), ", "))
 	}
@@ -176,5 +176,5 @@ func configureRubyDeploy(ctx *generate.GenerateContext, version, startCmd string
 func (p *RubyProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *RubyProvider) StartCommandHelp() string {
-	return "Ruby apps need a Gemfile. Rails / Sinatra / Rack are auto-detected; otherwise add a `web:` line to a Procfile or set THEOPACKS_START_CMD. For monorepos, set THEOPACKS_APP_NAME to an apps/<name> directory leaf."
+	return "Ruby apps need a Gemfile. Rails / Sinatra / Rack are auto-detected; otherwise add a `web:` line to a Procfile or set THEOKIT_PACKS_START_CMD. For monorepos, set THEOKIT_PACKS_APP_NAME to an apps/<name> directory leaf."
 }

@@ -5,7 +5,7 @@
 // Package rust implements language detection and Dockerfile build planning
 // for Rust projects. Detection is anchored on Cargo.toml. Single-crate and
 // Cargo workspace layouts are both supported; workspace target selection uses
-// THEOPACKS_APP_NAME (matches a [package] name from one of the members).
+// THEOKIT_PACKS_APP_NAME (matches a [package] name from one of the members).
 //
 // Build strategy: a multi-stage Dockerfile that uses a versioned rust:<v>-bookworm
 // image to compile a release binary and a minimal debian:bookworm-slim runtime
@@ -55,7 +55,7 @@ func (p *RustProvider) Plan(ctx *generate.GenerateContext) error {
 
 func (p *RustProvider) planSimple(ctx *generate.GenerateContext, cargo *CargoToml, version string) error {
 	if cargo.IsLibraryOnly() {
-		return fmt.Errorf("rust crate is library-only (no [[bin]] target and no src/main.rs); add a binary target or use theopacks.json to override the build")
+		return fmt.Errorf("rust crate is library-only (no [[bin]] target and no src/main.rs); add a binary target or use theokit-packs.json to override the build")
 	}
 
 	bin := cargo.PrimaryBinary()
@@ -112,7 +112,7 @@ func (p *RustProvider) planWorkspace(ctx *generate.GenerateContext, cargo *Cargo
 	name, _, ok := ws.SelectMember(appName)
 	if !ok {
 		if appName == "" {
-			return fmt.Errorf("cargo workspace has multiple members; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.MemberNames(), ", "))
+			return fmt.Errorf("cargo workspace has multiple members; set THEOKIT_PACKS_APP_NAME to one of: %s", strings.Join(ws.MemberNames(), ", "))
 		}
 		return fmt.Errorf("cargo workspace has no member named %q; available members: %s", appName, strings.Join(ws.MemberNames(), ", "))
 	}
@@ -183,5 +183,5 @@ func shellEscape(name string) string {
 func (p *RustProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *RustProvider) StartCommandHelp() string {
-	return "Add a [[bin]] target to Cargo.toml or include src/main.rs. For workspaces, set THEOPACKS_APP_NAME to the package you want to deploy."
+	return "Add a [[bin]] target to Cargo.toml or include src/main.rs. For workspaces, set THEOKIT_PACKS_APP_NAME to the package you want to deploy."
 }

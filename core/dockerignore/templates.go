@@ -28,7 +28,7 @@ Thumbs.db
 .vscode/
 
 # theo-packs internals
-theopacks.json
+theokit-packs.json
 .dockerignore
 `
 

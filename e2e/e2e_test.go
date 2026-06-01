@@ -182,7 +182,7 @@ func TestE2E_PythonFlask_BuildsImage(t *testing.T) {
 
 	dir := filepath.Join(examplesDir(t), "python-flask")
 	df := generateDockerfile(t, dir, map[string]string{
-		"THEOPACKS_START_CMD": "python -c 'print(1)'",
+		"THEOKIT_PACKS_START_CMD": "python -c 'print(1)'",
 	})
 	tag := "theopacks-e2e-python-flask:test"
 	defer removeImage(tag)
@@ -228,7 +228,7 @@ func TestE2E_ShellScript_BuildsImage(t *testing.T) {
 
 	dir := filepath.Join(examplesDir(t), "shell-script")
 	df := generateDockerfile(t, dir, map[string]string{
-		"THEOPACKS_START_CMD": "bash start.sh",
+		"THEOKIT_PACKS_START_CMD": "bash start.sh",
 	})
 	tag := "theopacks-e2e-shell:test"
 	defer removeImage(tag)
@@ -270,7 +270,7 @@ func TestE2E_FullstackMixed_AllServicesBuild(t *testing.T) {
 		},
 		{
 			subdir: "services/worker",
-			env:    map[string]string{"THEOPACKS_START_CMD": "python -c 'print(1)'"},
+			env:    map[string]string{"THEOKIT_PACKS_START_CMD": "python -c 'print(1)'"},
 			verify: func(t *testing.T, tag string) {
 				output, err := exec.Command("docker", "run", "--rm", tag, "python", "-c", "print('ok')").CombinedOutput()
 				require.NoError(t, err, "python not working: %s", string(output))
@@ -332,7 +332,7 @@ func TestE2E_RustAxum_BuildsImage(t *testing.T) {
 
 func TestE2E_RustWorkspace_BuildsImage(t *testing.T) {
 	tag := "theopacks-e2e-rust-workspace:test"
-	runE2EBuild(t, "rust-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	runE2EBuild(t, "rust-workspace", tag, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 	requireBinaryAt(t, tag, "/app/server")
 }
 
@@ -346,7 +346,7 @@ func TestE2E_JavaSpringGradle_BuildsImage(t *testing.T) {
 
 func TestE2E_JavaGradleWorkspace_BuildsImage(t *testing.T) {
 	tag := "theopacks-e2e-java-gradle-workspace:test"
-	runE2EBuild(t, "java-gradle-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	runE2EBuild(t, "java-gradle-workspace", tag, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 
 	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "/app/app.jar").CombinedOutput()
 	require.NoError(t, err, "workspace fat JAR missing: %s", string(output))
@@ -384,7 +384,7 @@ func TestE2E_RubySinatra_BuildsImage(t *testing.T) {
 
 func TestE2E_RubyMonorepo_BuildsImage(t *testing.T) {
 	tag := "theopacks-e2e-ruby-monorepo:test"
-	runE2EBuild(t, "ruby-monorepo", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	runE2EBuild(t, "ruby-monorepo", tag, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 
 	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/config.ru").CombinedOutput()
 	require.NoError(t, err, "monorepo source missing: %s", string(output))
@@ -401,7 +401,7 @@ func TestE2E_PhpSlim_BuildsImage(t *testing.T) {
 
 func TestE2E_PhpMonorepo_BuildsImage(t *testing.T) {
 	tag := "theopacks-e2e-php-monorepo:test"
-	runE2EBuild(t, "php-monorepo", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	runE2EBuild(t, "php-monorepo", tag, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 
 	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/public/index.php").CombinedOutput()
 	require.NoError(t, err, "monorepo entry missing: %s", string(output))
@@ -418,7 +418,7 @@ func TestE2E_DenoHono_BuildsImage(t *testing.T) {
 
 func TestE2E_DenoWorkspace_BuildsImage(t *testing.T) {
 	tag := "theopacks-e2e-deno-workspace:test"
-	runE2EBuild(t, "deno-workspace", tag, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	runE2EBuild(t, "deno-workspace", tag, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 
 	output, err := exec.Command("docker", "run", "--rm", tag, "ls", "apps/api/main.ts").CombinedOutput()
 	require.NoError(t, err, "workspace member entry missing: %s", string(output))

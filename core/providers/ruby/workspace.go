@@ -45,7 +45,7 @@ func DetectWorkspace(a *app.App) *WorkspaceInfo {
 	return info
 }
 
-// SelectApp resolves which app to deploy. With THEOPACKS_APP_NAME set, returns
+// SelectApp resolves which app to deploy. With THEOKIT_PACKS_APP_NAME set, returns
 // the matching app. With exactly one app present, returns it. Otherwise nil/false.
 func (w *WorkspaceInfo) SelectApp(appName string) (name, path string, ok bool) {
 	if appName != "" {

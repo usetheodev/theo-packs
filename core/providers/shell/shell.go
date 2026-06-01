@@ -38,5 +38,5 @@ func (p *ShellProvider) Plan(ctx *generate.GenerateContext) error {
 func (p *ShellProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *ShellProvider) StartCommandHelp() string {
-	return "Specify a start command with THEOPACKS_START_CMD environment variable."
+	return "Specify a start command with THEOKIT_PACKS_START_CMD environment variable."
 }

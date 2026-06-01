@@ -58,7 +58,7 @@ func (p *DenoProvider) planSimple(ctx *generate.GenerateContext, cfg *DenoConfig
 	fw := detectFramework(cfg)
 	startCmd := frameworkStartCommand(ctx.App, cfg, fw)
 	if startCmd == "" {
-		startCmd = ctx.Env.GetVariable("THEOPACKS_START_CMD")
+		startCmd = ctx.Env.GetVariable("THEOKIT_PACKS_START_CMD")
 	}
 
 	installStep := ctx.NewCommandStep("install")
@@ -105,7 +105,7 @@ func (p *DenoProvider) planWorkspace(ctx *generate.GenerateContext, cfg *DenoCon
 	name, path, ok := ws.SelectMember(appName)
 	if !ok {
 		if appName == "" {
-			return fmt.Errorf("deno workspace has multiple members; set THEOPACKS_APP_NAME to one of: %s", strings.Join(ws.MemberNames(), ", "))
+			return fmt.Errorf("deno workspace has multiple members; set THEOKIT_PACKS_APP_NAME to one of: %s", strings.Join(ws.MemberNames(), ", "))
 		}
 		return fmt.Errorf("deno workspace has no member named %q; available: %s", appName, strings.Join(ws.MemberNames(), ", "))
 	}
@@ -152,7 +152,7 @@ func configureDenoDeploy(ctx *generate.GenerateContext, version, startCmd string
 	// Deno's distroless runtime is small but doesn't ship a shell; the deno
 	// CLI is the entrypoint. theo-packs generates a CMD via /bin/bash today,
 	// so we use the bin- variant for runtime to keep that contract working.
-	// (Distroless can be a future opt-in via theopacks.json.)
+	// (Distroless can be a future opt-in via theokit-packs.json.)
 	ctx.Deploy.Base = plan.NewImageLayer(generate.DenoImageForVersion(version))
 	ctx.Deploy.StartCmd = startCmd
 	ctx.Deploy.AddInputs([]plan.Layer{
@@ -163,5 +163,5 @@ func configureDenoDeploy(ctx *generate.GenerateContext, version, startCmd string
 func (p *DenoProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *DenoProvider) StartCommandHelp() string {
-	return "Deno apps need deno.json or deno.jsonc. Add a `tasks.start` field, or have a main.ts/main.js entry, or set THEOPACKS_START_CMD. For Deno 2 workspaces, set THEOPACKS_APP_NAME to a member's leaf name."
+	return "Deno apps need deno.json or deno.jsonc. Add a `tasks.start` field, or have a main.ts/main.js entry, or set THEOKIT_PACKS_START_CMD. For Deno 2 workspaces, set THEOKIT_PACKS_APP_NAME to a member's leaf name."
 }

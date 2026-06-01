@@ -167,7 +167,7 @@ func writeDeploy(b *strings.Builder, deploy *plan.Deploy) {
 //     alpine variants.
 //
 // Operators who need a different UID/username override
-// theopacks.json deploy.base.
+// theokit-packs.json deploy.base.
 func resolveDeployUser(base plan.Layer) (user, setup string) {
 	image := base.Image
 	if image == "" {
@@ -224,7 +224,7 @@ func writeHealthcheck(b *strings.Builder, path, port string) {
 // eclipse-temurin, ruby/php-cli, denoland/deno, dotnet/aspnet) run as root
 // today; adding a `USER appuser` directive would require a `RUN useradd`
 // pre-step that breaks distroless and complicates the renderer for marginal
-// security gain. Operators who need it can override via theopacks.json
+// security gain. Operators who need it can override via theokit-packs.json
 // deploy.base or by post-processing the generated Dockerfile. Tracking as
 // follow-up.
 
@@ -487,7 +487,7 @@ func resolveSecrets(stepSecrets, planSecrets []string, cmdBody string) []string 
 
 // autoDetectSecrets returns the subset of planSecrets whose `$NAME` or
 // `${NAME}` token appears in cmdBody. Token boundaries are checked so
-// `$THEOPACKS_VARS_FOO` does NOT match a secret named `THEOPACKS_VARS`
+// `$THEOKIT_PACKS_VARS_FOO` does NOT match a secret named `THEOKIT_PACKS_VARS`
 // — only `$NAME` followed by a non-identifier character (or end of string)
 // counts.
 func autoDetectSecrets(cmdBody string, planSecrets []string) []string {

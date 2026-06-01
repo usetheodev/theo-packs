@@ -89,7 +89,7 @@ func TestRustProvider_StartCommandHelp(t *testing.T) {
 	help := (&RustProvider{}).StartCommandHelp()
 	require.NotEmpty(t, help)
 	require.Contains(t, help, "[[bin]]")
-	require.Contains(t, help, "THEOPACKS_APP_NAME")
+	require.Contains(t, help, "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestRustProvider_PlanSimple(t *testing.T) {
@@ -209,7 +209,7 @@ version = "0.1.0"
 
 	err := (&RustProvider{}).Plan(ctx)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "THEOPACKS_APP_NAME")
+	require.Contains(t, err.Error(), "THEOKIT_PACKS_APP_NAME")
 	require.Contains(t, err.Error(), "api")
 	require.Contains(t, err.Error(), "worker")
 }
@@ -230,7 +230,7 @@ version = "0.1.0"
 `,
 		"apps/worker/src/main.rs": minimalMainRs,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 
 	err := (&RustProvider{}).Plan(ctx)
 	require.NoError(t, err)
@@ -248,7 +248,7 @@ version = "0.1.0"
 `,
 		"apps/api/src/main.rs": minimalMainRs,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "nope"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "nope"})
 
 	err := (&RustProvider{}).Plan(ctx)
 	require.Error(t, err)
@@ -272,7 +272,7 @@ version = "0.1.0"
 `,
 		"apps/web/src/main.rs": minimalMainRs,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "web"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "web"})
 
 	err := (&RustProvider{}).Plan(ctx)
 	require.NoError(t, err)

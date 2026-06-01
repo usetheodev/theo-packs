@@ -18,22 +18,22 @@ type rustToolchainToml struct {
 }
 
 // detectRustVersion picks the Rust toolchain version, in priority order:
-//  1. Config packages (theopacks.json or THEOPACKS_PACKAGES) — highest.
-//  2. THEOPACKS_RUST_VERSION env var.
+//  1. Config packages (theokit-packs.json or THEOKIT_PACKS_PACKAGES) — highest.
+//  2. THEOKIT_PACKS_RUST_VERSION env var.
 //  3. rust-toolchain.toml (toolchain.channel).
 //  4. rust-toolchain (single-line channel, legacy format).
 //  5. Cargo.toml package.rust-version (minimum Rust the crate supports).
 //  6. DefaultRustVersion (rolling stable).
 //
 // The returned source string is used for build logs (e.g., "rust-toolchain.toml",
-// "Cargo.toml", "THEOPACKS_RUST_VERSION", "default").
+// "Cargo.toml", "THEOKIT_PACKS_RUST_VERSION", "default").
 func detectRustVersion(ctx *generate.GenerateContext, cargo *CargoToml) (version string, source string) {
 	// 1. Config packages (highest priority).
 	if pkg := ctx.Resolver.Get("rust"); pkg != nil && pkg.Source != "theopacks default" {
 		return pkg.Version, pkg.Source
 	}
 
-	// 2. THEOPACKS_RUST_VERSION env var.
+	// 2. THEOKIT_PACKS_RUST_VERSION env var.
 	if envVersion, varName := ctx.Env.GetConfigVariable("RUST_VERSION"); envVersion != "" {
 		return envVersion, varName
 	}

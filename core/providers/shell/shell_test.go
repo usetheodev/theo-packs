@@ -40,7 +40,7 @@ func TestShellStartCommandHelp(t *testing.T) {
 	provider := &ShellProvider{}
 	help := provider.StartCommandHelp()
 	require.NotEmpty(t, help)
-	require.Contains(t, help, "THEOPACKS_START_CMD")
+	require.Contains(t, help, "THEOKIT_PACKS_START_CMD")
 }
 
 func TestShellDetect(t *testing.T) {

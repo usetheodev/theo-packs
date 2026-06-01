@@ -54,7 +54,7 @@ func (e *Environment) SetVariable(name, value string) {
 }
 
 func (e *Environment) ConfigVariable(name string) string {
-	return fmt.Sprintf("THEOPACKS_%s", name)
+	return fmt.Sprintf("THEOKIT_PACKS_%s", name)
 }
 
 func (e *Environment) GetConfigVariable(name string) (string, string) {

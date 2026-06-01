@@ -12,8 +12,8 @@ import (
 )
 
 // detectJavaVersion picks the Java major version, in priority order:
-//  1. Config packages (theopacks.json / THEOPACKS_PACKAGES) — highest.
-//  2. THEOPACKS_JAVA_VERSION env var.
+//  1. Config packages (theokit-packs.json / THEOKIT_PACKS_PACKAGES) — highest.
+//  2. THEOKIT_PACKS_JAVA_VERSION env var.
 //  3. .java-version file (jenv-style, single line).
 //  4. gradle.properties (javaVersion= or org.gradle.java.home hint).
 //  5. build.gradle / build.gradle.kts toolchain languageVersion.

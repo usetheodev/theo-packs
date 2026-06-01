@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	defaultConfigFileName = "theopacks.json"
+	defaultConfigFileName = "theokit-packs.json"
 )
 
 type GenerateBuildPlanOptions struct {

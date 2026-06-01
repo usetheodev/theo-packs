@@ -11,8 +11,8 @@ import (
 )
 
 // detectRubyVersion picks the Ruby major.minor version, in priority order:
-//  1. Config packages (theopacks.json / THEOPACKS_PACKAGES).
-//  2. THEOPACKS_RUBY_VERSION env var.
+//  1. Config packages (theokit-packs.json / THEOKIT_PACKS_PACKAGES).
+//  2. THEOKIT_PACKS_RUBY_VERSION env var.
 //  3. .ruby-version file (rbenv / chruby standard).
 //  4. Gemfile `ruby "X.Y"` directive.
 //  5. DefaultRubyVersion (3.3).

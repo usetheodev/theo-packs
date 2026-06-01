@@ -112,7 +112,7 @@ func TestDenoProvider_DetectsBeforeNode(t *testing.T) {
 func TestDenoProvider_StartCommandHelp(t *testing.T) {
 	help := (&DenoProvider{}).StartCommandHelp()
 	require.Contains(t, help, "deno.json")
-	require.Contains(t, help, "THEOPACKS_APP_NAME")
+	require.Contains(t, help, "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestReadDenoConfig_Json(t *testing.T) {
@@ -232,10 +232,10 @@ func TestDetectDenoVersion_Default(t *testing.T) {
 
 func TestDetectDenoVersion_EnvVar(t *testing.T) {
 	a := createTempApp(t, map[string]string{"deno.json": "{}"})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_DENO_VERSION": "1"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_DENO_VERSION": "1"})
 	v, src := detectDenoVersion(ctx)
 	require.Equal(t, "1", v)
-	require.Equal(t, "THEOPACKS_DENO_VERSION", src)
+	require.Equal(t, "THEOKIT_PACKS_DENO_VERSION", src)
 }
 
 func TestPlanSimple_Fresh(t *testing.T) {
@@ -318,7 +318,7 @@ func TestPlanWorkspace_SelectsMember(t *testing.T) {
 		"apps/worker/deno.json": `{"name": "@theo/worker"}`,
 		"apps/worker/main.ts":   "",
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 	err := (&DenoProvider{}).Plan(ctx)
 	require.NoError(t, err)
 	require.Contains(t, ctx.Deploy.StartCmd, "apps/api")
@@ -333,7 +333,7 @@ func TestPlanWorkspace_AmbiguousNoEnv(t *testing.T) {
 	ctx := createTestContext(t, a, nil)
 	err := (&DenoProvider{}).Plan(ctx)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "THEOPACKS_APP_NAME")
+	require.Contains(t, err.Error(), "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestPlanWorkspace_BadAppName(t *testing.T) {
@@ -341,7 +341,7 @@ func TestPlanWorkspace_BadAppName(t *testing.T) {
 		"deno.json":          `{"workspace": ["apps/api"]}`,
 		"apps/api/deno.json": `{"name": "api"}`,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "ghost"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "ghost"})
 	err := (&DenoProvider{}).Plan(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no member named")

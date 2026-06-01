@@ -23,10 +23,10 @@ func TestDetectJavaVersion_EnvVar(t *testing.T) {
 	a := createTempApp(t, map[string]string{
 		"build.gradle.kts": "plugins{}\n",
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_JAVA_VERSION": "17"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_JAVA_VERSION": "17"})
 	v, src := detectJavaVersion(ctx)
 	require.Equal(t, "17", v)
-	require.Equal(t, "THEOPACKS_JAVA_VERSION", src)
+	require.Equal(t, "THEOKIT_PACKS_JAVA_VERSION", src)
 }
 
 func TestDetectJavaVersion_DotJavaVersion(t *testing.T) {

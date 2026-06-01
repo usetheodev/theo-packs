@@ -102,7 +102,7 @@ func TestPhpProvider_Detect(t *testing.T) {
 func TestPhpProvider_StartCommandHelp(t *testing.T) {
 	help := (&PhpProvider{}).StartCommandHelp()
 	require.Contains(t, help, "composer.json")
-	require.Contains(t, help, "THEOPACKS_APP_NAME")
+	require.Contains(t, help, "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestParseComposer_Slim(t *testing.T) {
@@ -207,10 +207,10 @@ func TestDetectPhpVersion_Default(t *testing.T) {
 
 func TestDetectPhpVersion_EnvVar(t *testing.T) {
 	a := createTempApp(t, map[string]string{"composer.json": slimComposer})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_PHP_VERSION": "8.2"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_PHP_VERSION": "8.2"})
 	v, src := detectPhpVersion(ctx, &ComposerJson{})
 	require.Equal(t, "8.2", v)
-	require.Equal(t, "THEOPACKS_PHP_VERSION", src)
+	require.Equal(t, "THEOKIT_PACKS_PHP_VERSION", src)
 }
 
 func TestDetectPhpVersion_DotPhpVersion(t *testing.T) {
@@ -278,7 +278,7 @@ func TestPlanWorkspace_Selects(t *testing.T) {
 		"apps/api/public/index.php": "<?php",
 		"apps/worker/worker.php":    "<?php",
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 	err := (&PhpProvider{}).Plan(ctx)
 	require.NoError(t, err)
 	require.Contains(t, ctx.Deploy.StartCmd, "apps/api/public")
@@ -293,7 +293,7 @@ func TestPlanWorkspace_AmbiguousNoEnv(t *testing.T) {
 	ctx := createTestContext(t, a, nil)
 	err := (&PhpProvider{}).Plan(ctx)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "THEOPACKS_APP_NAME")
+	require.Contains(t, err.Error(), "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestPlanWorkspace_BadAppName(t *testing.T) {
@@ -301,7 +301,7 @@ func TestPlanWorkspace_BadAppName(t *testing.T) {
 		"composer.json":  `{}`,
 		"apps/api/i.php": "",
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "ghost"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "ghost"})
 	err := (&PhpProvider{}).Plan(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no app named")

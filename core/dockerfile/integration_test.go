@@ -74,23 +74,23 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"node-express", nil},
 		{"node-nuxt", nil},
 		// Python
-		{"python-flask", map[string]string{"THEOPACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
-		{"python-fastapi", map[string]string{"THEOPACKS_START_CMD": "uvicorn main:app --host 0.0.0.0 --port 8000"}},
-		{"python-django", map[string]string{"THEOPACKS_START_CMD": "gunicorn myproject.wsgi:application --bind 0.0.0.0:8000"}},
-		{"python-pipfile", map[string]string{"THEOPACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
-		{"python-poetry", map[string]string{"THEOPACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
-		{"python-setuppy", map[string]string{"THEOPACKS_START_CMD": "myapp"}},
-		{"python-uv-workspace", map[string]string{"THEOPACKS_START_CMD": "python main.py"}},
-		{"python-streamlit", map[string]string{"THEOPACKS_START_CMD": "streamlit run app.py --server.port 8501 --server.address 0.0.0.0"}},
-		{"python-gradio", map[string]string{"THEOPACKS_START_CMD": "python app.py"}},
+		{"python-flask", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
+		{"python-fastapi", map[string]string{"THEOKIT_PACKS_START_CMD": "uvicorn main:app --host 0.0.0.0 --port 8000"}},
+		{"python-django", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn myproject.wsgi:application --bind 0.0.0.0:8000"}},
+		{"python-pipfile", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
+		{"python-poetry", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn -w 4 app:app --bind 0.0.0.0:8000"}},
+		{"python-setuppy", map[string]string{"THEOKIT_PACKS_START_CMD": "myapp"}},
+		{"python-uv-workspace", map[string]string{"THEOKIT_PACKS_START_CMD": "python main.py"}},
+		{"python-streamlit", map[string]string{"THEOKIT_PACKS_START_CMD": "streamlit run app.py --server.port 8501 --server.address 0.0.0.0"}},
+		{"python-gradio", map[string]string{"THEOKIT_PACKS_START_CMD": "python app.py"}},
 		// Rust
 		{"rust-axum", nil},
 		{"rust-cli", nil},
-		{"rust-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		{"rust-workspace", map[string]string{"THEOKIT_PACKS_APP_NAME": "api"}},
 		// Java
 		{"java-spring-gradle", nil},
 		{"java-spring-maven", nil},
-		{"java-gradle-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		{"java-gradle-workspace", map[string]string{"THEOKIT_PACKS_APP_NAME": "api"}},
 		// .NET
 		{"dotnet-aspnet", nil},
 		{"dotnet-console", nil},
@@ -98,17 +98,17 @@ func TestIntegration_AllExamples(t *testing.T) {
 		// Ruby
 		{"ruby-sinatra", nil},
 		{"ruby-rails", nil},
-		{"ruby-monorepo", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		{"ruby-monorepo", map[string]string{"THEOKIT_PACKS_APP_NAME": "api"}},
 		// PHP
 		{"php-slim", nil},
 		{"php-laravel", nil},
-		{"php-monorepo", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		{"php-monorepo", map[string]string{"THEOKIT_PACKS_APP_NAME": "api"}},
 		// Deno
 		{"deno-fresh", nil},
 		{"deno-hono", nil},
-		{"deno-workspace", map[string]string{"THEOPACKS_APP_NAME": "api"}},
+		{"deno-workspace", map[string]string{"THEOKIT_PACKS_APP_NAME": "api"}},
 		// Shell
-		{"shell-script", map[string]string{"THEOPACKS_START_CMD": "bash start.sh"}},
+		{"shell-script", map[string]string{"THEOKIT_PACKS_START_CMD": "bash start.sh"}},
 		// Static
 		{"staticfile", nil},
 	}
@@ -131,7 +131,7 @@ func TestIntegration_FullstackMixed(t *testing.T) {
 	}{
 		{"api", nil},
 		{"web", nil},
-		{"worker", map[string]string{"THEOPACKS_START_CMD": "python worker.py"}},
+		{"worker", map[string]string{"THEOKIT_PACKS_START_CMD": "python worker.py"}},
 	}
 
 	for _, tc := range subdirs {

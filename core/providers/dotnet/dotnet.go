@@ -96,7 +96,7 @@ func (p *DotnetProvider) planSolution(ctx *generate.GenerateContext, slnPath str
 // pickProject resolves the build target when the project root has just one
 // or more loose project files (no .sln). Rules:
 //   - Exactly one project → use it.
-//   - Multiple projects → require THEOPACKS_APP_NAME matching a project file
+//   - Multiple projects → require THEOKIT_PACKS_APP_NAME matching a project file
 //     stem (e.g., "MyApi" picks "src/MyApi/MyApi.csproj").
 func pickProject(ctx *generate.GenerateContext, projects []string) (string, error) {
 	if len(projects) == 1 {
@@ -106,7 +106,7 @@ func pickProject(ctx *generate.GenerateContext, projects []string) (string, erro
 	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
 	if appName == "" {
 		names := projectNames(projects)
-		return "", fmt.Errorf("multiple .NET projects found; set THEOPACKS_APP_NAME to one of: %s", strings.Join(names, ", "))
+		return "", fmt.Errorf("multiple .NET projects found; set THEOKIT_PACKS_APP_NAME to one of: %s", strings.Join(names, ", "))
 	}
 
 	for _, p := range projects {
@@ -115,11 +115,11 @@ func pickProject(ctx *generate.GenerateContext, projects []string) (string, erro
 			return p, nil
 		}
 	}
-	return "", fmt.Errorf("THEOPACKS_APP_NAME=%q does not match any .NET project; available: %s", appName, strings.Join(projectNames(projects), ", "))
+	return "", fmt.Errorf("THEOKIT_PACKS_APP_NAME=%q does not match any .NET project; available: %s", appName, strings.Join(projectNames(projects), ", "))
 }
 
 // pickSolutionEntry resolves the build target from a .sln. Rules:
-//   - THEOPACKS_APP_NAME matches an entry name → use it.
+//   - THEOKIT_PACKS_APP_NAME matches an entry name → use it.
 //   - Exactly one ASP.NET project in the solution → auto-select it.
 //   - Otherwise: error listing entries.
 func pickSolutionEntry(ctx *generate.GenerateContext, entries []SolutionEntry) (*SolutionEntry, error) {
@@ -135,7 +135,7 @@ func pickSolutionEntry(ctx *generate.GenerateContext, entries []SolutionEntry) (
 		for _, e := range entries {
 			names = append(names, e.Name)
 		}
-		return nil, fmt.Errorf("THEOPACKS_APP_NAME=%q does not match any solution project; available: %s", appName, strings.Join(names, ", "))
+		return nil, fmt.Errorf("THEOKIT_PACKS_APP_NAME=%q does not match any solution project; available: %s", appName, strings.Join(names, ", "))
 	}
 
 	// Auto-select: prefer the single ASP.NET project if there's exactly one.
@@ -161,7 +161,7 @@ func pickSolutionEntry(ctx *generate.GenerateContext, entries []SolutionEntry) (
 	for _, e := range entries {
 		names = append(names, e.Name)
 	}
-	return nil, fmt.Errorf("solution has multiple projects; set THEOPACKS_APP_NAME to one of: %s", strings.Join(names, ", "))
+	return nil, fmt.Errorf("solution has multiple projects; set THEOKIT_PACKS_APP_NAME to one of: %s", strings.Join(names, ", "))
 }
 
 func projectNames(projects []string) []string {
@@ -213,7 +213,7 @@ func (p *DotnetProvider) emitPlan(ctx *generate.GenerateContext, proj *Project, 
 	// -p:DebugType=None -p:DebugSymbols=false strips PDB files (~25% smaller publish).
 	// -p:PublishTrimmed and AOT are NOT enabled by default because they break
 	// reflection-heavy code (EF Core, AutoMapper). Users can opt in via
-	// theopacks.json buildArgs once we support that.
+	// theokit-packs.json buildArgs once we support that.
 	buildStep.AddCommand(plan.NewExecShellCommand(
 		fmt.Sprintf("dotnet publish %s -c Release -o /app/publish --no-restore -p:DebugType=None -p:DebugSymbols=false", shellSafe(projPath)),
 	))
@@ -251,5 +251,5 @@ func shellSafe(s string) string {
 func (p *DotnetProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *DotnetProvider) StartCommandHelp() string {
-	return ".NET projects must produce an executable assembly (Sdk=\"Microsoft.NET.Sdk.Web\" or <OutputType>Exe</OutputType>). For solutions or multi-project trees, set THEOPACKS_APP_NAME to the project name (file stem)."
+	return ".NET projects must produce an executable assembly (Sdk=\"Microsoft.NET.Sdk.Web\" or <OutputType>Exe</OutputType>). For solutions or multi-project trees, set THEOKIT_PACKS_APP_NAME to the project name (file stem)."
 }

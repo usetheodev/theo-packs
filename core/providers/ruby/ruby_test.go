@@ -83,7 +83,7 @@ func TestRubyProvider_Detect(t *testing.T) {
 func TestRubyProvider_StartCommandHelp(t *testing.T) {
 	help := (&RubyProvider{}).StartCommandHelp()
 	require.Contains(t, help, "Gemfile")
-	require.Contains(t, help, "THEOPACKS_APP_NAME")
+	require.Contains(t, help, "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestGemNames(t *testing.T) {
@@ -118,10 +118,10 @@ func TestDetectRubyVersion_Default(t *testing.T) {
 
 func TestDetectRubyVersion_EnvVar(t *testing.T) {
 	a := createTempApp(t, map[string]string{"Gemfile": `source "https://rubygems.org"`})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_RUBY_VERSION": "3.2"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_RUBY_VERSION": "3.2"})
 	v, src := detectRubyVersion(ctx)
 	require.Equal(t, "3.2", v)
-	require.Equal(t, "THEOPACKS_RUBY_VERSION", src)
+	require.Equal(t, "THEOKIT_PACKS_RUBY_VERSION", src)
 }
 
 func TestDetectRubyVersion_DotRubyVersion(t *testing.T) {
@@ -299,7 +299,7 @@ func TestPlanWorkspace_SelectsApp(t *testing.T) {
 		"apps/api/config.ru": `run lambda {}`,
 		"apps/worker/app.rb": `# worker`,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 	err := (&RubyProvider{}).Plan(ctx)
 	require.NoError(t, err)
 	require.Contains(t, ctx.Deploy.StartCmd, "apps/api")
@@ -312,7 +312,7 @@ func TestPlanWorkspace_Worker(t *testing.T) {
 		"apps/api/app.rb":    `# api`,
 		"apps/worker/app.rb": `# worker`,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "worker"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "worker"})
 	err := (&RubyProvider{}).Plan(ctx)
 	require.NoError(t, err)
 	require.Contains(t, ctx.Deploy.StartCmd, "apps/worker")
@@ -324,7 +324,7 @@ func TestPlanWorkspace_BadAppName(t *testing.T) {
 		"Gemfile":         `gem "puma"`,
 		"apps/api/app.rb": `# api`,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "ghost"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "ghost"})
 	err := (&RubyProvider{}).Plan(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no app named")

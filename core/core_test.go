@@ -245,7 +245,7 @@ func TestGenerateBuildPlanForDenoApp(t *testing.T) {
 // TestGenerateBuildPlan_ProviderConfigOverride locks the config-driven
 // provider override path (core.go:267 — "if config.Provider != nil"). A
 // project that would normally route to the Deno provider (deno.json + npm-
-// compat package.json) can be forced to Node via theopacks.json. This is
+// compat package.json) can be forced to Node via theokit-packs.json. This is
 // the explicit escape hatch for users whose detection conflicts with their
 // intent.
 func TestGenerateBuildPlan_ProviderConfigOverride(t *testing.T) {
@@ -263,8 +263,8 @@ func TestGenerateBuildPlan_ProviderConfigOverride(t *testing.T) {
 	err = os.WriteFile(filepath.Join(tempDir, "index.js"), []byte(`console.log("ok")`), 0644)
 	require.NoError(t, err)
 
-	// theopacks.json forces Node.
-	err = os.WriteFile(filepath.Join(tempDir, "theopacks.json"),
+	// theokit-packs.json forces Node.
+	err = os.WriteFile(filepath.Join(tempDir, "theokit-packs.json"),
 		[]byte(`{"provider":"node"}`), 0644)
 	require.NoError(t, err)
 
@@ -276,7 +276,7 @@ func TestGenerateBuildPlan_ProviderConfigOverride(t *testing.T) {
 
 	require.True(t, r.Success, "build plan should succeed with config override, logs: %v", r.Logs)
 	require.Equal(t, "npm start", r.Plan.Deploy.StartCmd,
-		"start command must come from Node provider when theopacks.json forces it")
+		"start command must come from Node provider when theokit-packs.json forces it")
 }
 
 func TestGenerateBuildPlanForPythonApp(t *testing.T) {
@@ -313,7 +313,7 @@ func TestGenerateConfigFromFile_NotFound(t *testing.T) {
 	env := app.NewEnvironment(nil)
 	l := logger.NewLogger()
 
-	options := &GenerateBuildPlanOptions{ConfigFilePath: "does-not-exist.theopacks.json"}
+	options := &GenerateBuildPlanOptions{ConfigFilePath: "does-not-exist.theokit-packs.json"}
 	cfg, genErr := GenerateConfigFromFile(userApp, env, options, l)
 
 	require.Error(t, genErr, "expected an error when explicit config file does not exist")
@@ -361,12 +361,12 @@ func TestGenerateConfigFromEnvironment(t *testing.T) {
 		{
 			name: "kitchen sink",
 			envVars: map[string]string{
-				"THEOPACKS_INSTALL_CMD":         "npm install",
-				"THEOPACKS_BUILD_CMD":           "npm run build",
-				"THEOPACKS_START_CMD":           "npm start",
-				"THEOPACKS_PACKAGES":            "node@18 python@3.9",
-				"THEOPACKS_BUILD_APT_PACKAGES":  "build-essential libssl-dev",
-				"THEOPACKS_DEPLOY_APT_PACKAGES": "libssl-dev",
+				"THEOKIT_PACKS_INSTALL_CMD":         "npm install",
+				"THEOKIT_PACKS_BUILD_CMD":           "npm run build",
+				"THEOKIT_PACKS_START_CMD":           "npm start",
+				"THEOKIT_PACKS_PACKAGES":            "node@18 python@3.9",
+				"THEOKIT_PACKS_BUILD_APT_PACKAGES":  "build-essential libssl-dev",
+				"THEOKIT_PACKS_DEPLOY_APT_PACKAGES": "libssl-dev",
 			},
 			expected: `{
 				"steps": {
@@ -399,14 +399,14 @@ func TestGenerateConfigFromEnvironment(t *testing.T) {
 					"startCommand": "npm start",
 					"aptPackages": ["libssl-dev"]
 				},
-				"secrets": ["THEOPACKS_BUILD_APT_PACKAGES", "THEOPACKS_BUILD_CMD", "THEOPACKS_DEPLOY_APT_PACKAGES",
-					"THEOPACKS_INSTALL_CMD", "THEOPACKS_PACKAGES", "THEOPACKS_START_CMD"]
+				"secrets": ["THEOKIT_PACKS_BUILD_APT_PACKAGES", "THEOKIT_PACKS_BUILD_CMD", "THEOKIT_PACKS_DEPLOY_APT_PACKAGES",
+					"THEOKIT_PACKS_INSTALL_CMD", "THEOKIT_PACKS_PACKAGES", "THEOKIT_PACKS_START_CMD"]
 			}`,
 		},
 		{
 			name: "unversioned packages",
 			envVars: map[string]string{
-				"THEOPACKS_PACKAGES": "jq pipx:httpie@3.2.4",
+				"THEOKIT_PACKS_PACKAGES": "jq pipx:httpie@3.2.4",
 			},
 			expected: `{
 				"steps": {},
@@ -416,7 +416,7 @@ func TestGenerateConfigFromEnvironment(t *testing.T) {
 				},
 				"caches": {},
 				"deploy": {},
-				"secrets": ["THEOPACKS_PACKAGES"]
+				"secrets": ["THEOKIT_PACKS_PACKAGES"]
 			}`,
 		},
 	}

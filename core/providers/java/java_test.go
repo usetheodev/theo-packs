@@ -130,7 +130,7 @@ func TestJavaProvider_Detect(t *testing.T) {
 func TestJavaProvider_StartCommandHelp(t *testing.T) {
 	help := (&JavaProvider{}).StartCommandHelp()
 	require.Contains(t, help, "JAR")
-	require.Contains(t, help, "THEOPACKS_APP_NAME")
+	require.Contains(t, help, "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestGradleHasSpringBoot_Kts(t *testing.T) {
@@ -264,7 +264,7 @@ func TestPlanGradleWorkspace_SelectsApp(t *testing.T) {
 		"apps/api/build.gradle.kts":    `plugins { id("org.springframework.boot") }`,
 		"apps/worker/build.gradle.kts": `plugins { id("org.springframework.boot") }`,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 	err := (&JavaProvider{}).Plan(ctx)
 	require.NoError(t, err)
 }
@@ -279,7 +279,7 @@ func TestPlanGradleWorkspace_AmbiguousNoEnv(t *testing.T) {
 	ctx := createTestContext(t, a, nil)
 	err := (&JavaProvider{}).Plan(ctx)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "THEOPACKS_APP_NAME")
+	require.Contains(t, err.Error(), "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestPlanGradleWorkspace_BadAppName(t *testing.T) {
@@ -288,7 +288,7 @@ func TestPlanGradleWorkspace_BadAppName(t *testing.T) {
 		"settings.gradle.kts":       `include(":apps:api")`,
 		"apps/api/build.gradle.kts": "plugins{}",
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "ghost"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "ghost"})
 	err := (&JavaProvider{}).Plan(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no subproject named")
@@ -330,7 +330,7 @@ func TestPlanMavenWorkspace(t *testing.T) {
 		"apps/api/pom.xml":    springPomXml,
 		"apps/worker/pom.xml": plainPomXml,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 	err := (&JavaProvider{}).Plan(ctx)
 	require.NoError(t, err)
 }
@@ -340,7 +340,7 @@ func TestPlanMavenWorkspace_BadAppName(t *testing.T) {
 		"pom.xml":          `<project><modules><module>apps/api</module></modules></project>`,
 		"apps/api/pom.xml": springPomXml,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "ghost"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "ghost"})
 	err := (&JavaProvider{}).Plan(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no module named")
@@ -391,7 +391,7 @@ func TestPlanGradleWorkspace_InstallWarmsDeps(t *testing.T) {
 		"settings.gradle.kts":       `include(":apps:api")`,
 		"apps/api/build.gradle.kts": "plugins{}",
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 	require.NoError(t, (&JavaProvider{}).Plan(ctx))
 
 	cmds := installStepCommands(t, ctx)
@@ -419,7 +419,7 @@ func TestPlanMavenWorkspace_InstallWarmsDeps(t *testing.T) {
 <modules><module>apps/api</module></modules></project>`,
 		"apps/api/pom.xml": springPomXml,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "api"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "api"})
 	require.NoError(t, (&JavaProvider{}).Plan(ctx))
 
 	cmds := installStepCommands(t, ctx)

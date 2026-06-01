@@ -23,7 +23,7 @@ func TestGetConfigVariableList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			envVars := map[string]string{}
 			if tt.value != "" {
-				envVars["THEOPACKS_PACKAGES"] = tt.value
+				envVars["THEOKIT_PACKS_PACKAGES"] = tt.value
 			}
 			env := NewEnvironment(&envVars)
 
@@ -35,13 +35,13 @@ func TestGetConfigVariableList(t *testing.T) {
 
 func TestGetConfigVariable(t *testing.T) {
 	envVars := map[string]string{
-		"THEOPACKS_START_CMD": "  node server.js  ",
+		"THEOKIT_PACKS_START_CMD": "  node server.js  ",
 	}
 	env := NewEnvironment(&envVars)
 
 	val, varName := env.GetConfigVariable("START_CMD")
 	require.Equal(t, "node server.js", val, "should trim whitespace")
-	require.Equal(t, "THEOPACKS_START_CMD", varName)
+	require.Equal(t, "THEOKIT_PACKS_START_CMD", varName)
 
 	val, varName = env.GetConfigVariable("NONEXISTENT")
 	require.Empty(t, val)
@@ -86,7 +86,7 @@ func TestIsConfigVariableTruthy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			envVars := map[string]string{}
 			if tt.value != "" {
-				envVars["THEOPACKS_FLAG"] = tt.value
+				envVars["THEOKIT_PACKS_FLAG"] = tt.value
 			}
 			env := NewEnvironment(&envVars)
 			require.Equal(t, tt.expected, env.IsConfigVariableTruthy("FLAG"))
@@ -98,17 +98,17 @@ func TestFromEnvs(t *testing.T) {
 	env, err := FromEnvs([]string{
 		"VAR1=value1",
 		"VAR2=value2",
-		"THEOPACKS_APT_PACKAGES=apt1,apt2",
+		"THEOKIT_PACKS_APT_PACKAGES=apt1,apt2",
 		"COMMA=this has, a comma",
-		"THEOPACKS_TRUTHY_CASE=True ",
-		"THEOPACKS_TRUTHY_INT_CASE= 1 ",
+		"THEOKIT_PACKS_TRUTHY_CASE=True ",
+		"THEOKIT_PACKS_TRUTHY_INT_CASE= 1 ",
 		"HELLO+WORLD=boop",
 	})
 
 	require.NoError(t, err)
 	require.Equal(t, env.GetVariable("VAR1"), "value1")
 	require.Equal(t, env.GetVariable("VAR2"), "value2")
-	require.Equal(t, env.GetVariable("THEOPACKS_APT_PACKAGES"), "apt1,apt2")
+	require.Equal(t, env.GetVariable("THEOKIT_PACKS_APT_PACKAGES"), "apt1,apt2")
 	require.Equal(t, env.GetVariable("COMMA"), "this has, a comma")
 	require.Equal(t, env.IsConfigVariableTruthy("TRUTHY_CASE"), true)
 	require.Equal(t, env.IsConfigVariableTruthy("TRUTHY_INT_CASE"), true)

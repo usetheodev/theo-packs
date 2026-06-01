@@ -241,7 +241,7 @@ func TestRealExample_GoWorkspaces_SubdirSharedFails(t *testing.T) {
 
 func TestRealExample_PythonFlask(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-flask", map[string]string{
-		"THEOPACKS_START_CMD": "gunicorn app:app --bind 0.0.0.0:8000",
+		"THEOKIT_PACKS_START_CMD": "gunicorn app:app --bind 0.0.0.0:8000",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -251,7 +251,7 @@ func TestRealExample_PythonFlask(t *testing.T) {
 
 func TestRealExample_PythonFastAPI(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-fastapi", map[string]string{
-		"THEOPACKS_START_CMD": "uvicorn main:app --host 0.0.0.0 --port 8000",
+		"THEOKIT_PACKS_START_CMD": "uvicorn main:app --host 0.0.0.0 --port 8000",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -261,7 +261,7 @@ func TestRealExample_PythonFastAPI(t *testing.T) {
 
 func TestRealExample_PythonDjango(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-django", map[string]string{
-		"THEOPACKS_START_CMD": "gunicorn myproject.wsgi:application --bind 0.0.0.0:$PORT",
+		"THEOKIT_PACKS_START_CMD": "gunicorn myproject.wsgi:application --bind 0.0.0.0:$PORT",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -271,7 +271,7 @@ func TestRealExample_PythonDjango(t *testing.T) {
 
 func TestRealExample_PythonPoetry(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-poetry", map[string]string{
-		"THEOPACKS_START_CMD": "flask run --host=0.0.0.0",
+		"THEOKIT_PACKS_START_CMD": "flask run --host=0.0.0.0",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -281,7 +281,7 @@ func TestRealExample_PythonPoetry(t *testing.T) {
 
 func TestRealExample_PythonPipfile(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-pipfile", map[string]string{
-		"THEOPACKS_START_CMD": "python app.py",
+		"THEOKIT_PACKS_START_CMD": "python app.py",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -291,7 +291,7 @@ func TestRealExample_PythonPipfile(t *testing.T) {
 
 func TestRealExample_PythonUvWorkspace(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-uv-workspace", map[string]string{
-		"THEOPACKS_START_CMD": "python main.py",
+		"THEOKIT_PACKS_START_CMD": "python main.py",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -351,7 +351,7 @@ func TestRealExample_FullstackMixed_NodeWeb(t *testing.T) {
 func TestRealExample_FullstackMixed_PythonWorker(t *testing.T) {
 	dir := filepath.Join(examplePath(t, "fullstack-mixed"), "services", "worker")
 	result := planFromDirWithEnv(t, dir, map[string]string{
-		"THEOPACKS_START_CMD": "celery -A worker worker --loglevel=info",
+		"THEOKIT_PACKS_START_CMD": "celery -A worker worker --loglevel=info",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -372,7 +372,7 @@ func TestRealExample_JSONRoundTrip(t *testing.T) {
 	}{
 		{"node-npm", "node", nil, nil},
 		{"go-simple", "go", nil, nil},
-		{"python-flask", "python", map[string]string{"THEOPACKS_START_CMD": "gunicorn app:app"}, nil},
+		{"python-flask", "python", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn app:app"}, nil},
 		{"shell-script", "shell", nil, &GenerateBuildPlanOptions{StartCommand: "bash start.sh"}},
 		{"staticfile", "staticfile", nil, &GenerateBuildPlanOptions{StartCommand: "python -m http.server"}},
 	}
@@ -414,9 +414,9 @@ func TestRealExample_AllProviders_PlanStructure(t *testing.T) {
 		{"node-turborepo", "node", nil, nil},
 		{"go-simple", "go", nil, nil},
 		{"go-cmd-dirs", "go", nil, nil},
-		{"python-flask", "python", map[string]string{"THEOPACKS_START_CMD": "gunicorn app:app"}, nil},
-		{"python-django", "python", map[string]string{"THEOPACKS_START_CMD": "gunicorn myproject.wsgi:application"}, nil},
-		{"python-uv-workspace", "python", map[string]string{"THEOPACKS_START_CMD": "python main.py"}, nil},
+		{"python-flask", "python", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn app:app"}, nil},
+		{"python-django", "python", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn myproject.wsgi:application"}, nil},
+		{"python-uv-workspace", "python", map[string]string{"THEOKIT_PACKS_START_CMD": "python main.py"}, nil},
 		{"shell-script", "shell", nil, &GenerateBuildPlanOptions{StartCommand: "bash start.sh"}},
 		{"staticfile", "staticfile", nil, &GenerateBuildPlanOptions{StartCommand: "python -m http.server"}},
 	}
@@ -442,7 +442,7 @@ func TestRealExample_AllProviders_PlanStructure(t *testing.T) {
 
 func TestRealExample_NodeNpm_CustomStartViaEnv(t *testing.T) {
 	result := planFromExampleWithEnv(t, "node-npm", map[string]string{
-		"THEOPACKS_START_CMD": "node dist/server.js",
+		"THEOKIT_PACKS_START_CMD": "node dist/server.js",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -451,9 +451,9 @@ func TestRealExample_NodeNpm_CustomStartViaEnv(t *testing.T) {
 
 func TestRealExample_NodeNpmWorkspaces_CustomBuildAndStartViaEnv(t *testing.T) {
 	result := planFromExampleWithEnv(t, "node-npm-workspaces", map[string]string{
-		"THEOPACKS_INSTALL_CMD": "npm ci",
-		"THEOPACKS_BUILD_CMD":   "npm run build",
-		"THEOPACKS_START_CMD":   "node packages/api/dist/index.js",
+		"THEOKIT_PACKS_INSTALL_CMD": "npm ci",
+		"THEOKIT_PACKS_BUILD_CMD":   "npm run build",
+		"THEOKIT_PACKS_START_CMD":   "node packages/api/dist/index.js",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -561,7 +561,7 @@ func TestRealExample_GoSimple_PlanSteps(t *testing.T) {
 
 func TestRealExample_PythonFlask_PlanSteps(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-flask", map[string]string{
-		"THEOPACKS_START_CMD": "gunicorn app:app",
+		"THEOKIT_PACKS_START_CMD": "gunicorn app:app",
 	}, nil)
 	assertValidPlan(t, result)
 
@@ -573,7 +573,7 @@ func TestRealExample_PythonFlask_PlanSteps(t *testing.T) {
 
 func TestRealExample_PythonPipfile_PlanSteps(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-pipfile", map[string]string{
-		"THEOPACKS_START_CMD": "python app.py",
+		"THEOKIT_PACKS_START_CMD": "python app.py",
 	}, nil)
 	assertValidPlan(t, result)
 
@@ -585,7 +585,7 @@ func TestRealExample_PythonPipfile_PlanSteps(t *testing.T) {
 
 func TestRealExample_PythonPoetry_PlanSteps(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-poetry", map[string]string{
-		"THEOPACKS_START_CMD": "flask run",
+		"THEOKIT_PACKS_START_CMD": "flask run",
 	}, nil)
 	assertValidPlan(t, result)
 
@@ -597,7 +597,7 @@ func TestRealExample_PythonPoetry_PlanSteps(t *testing.T) {
 
 func TestRealExample_PythonDjango_PlanSteps(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-django", map[string]string{
-		"THEOPACKS_START_CMD": "gunicorn myproject.wsgi:application",
+		"THEOKIT_PACKS_START_CMD": "gunicorn myproject.wsgi:application",
 	}, nil)
 	assertValidPlan(t, result)
 
@@ -661,11 +661,11 @@ func TestRealExample_DeployLayerChainIntegrity(t *testing.T) {
 		{"node-turborepo", nil, nil},
 		{"go-simple", nil, nil},
 		{"go-cmd-dirs", nil, nil},
-		{"python-flask", map[string]string{"THEOPACKS_START_CMD": "gunicorn app:app"}, nil},
-		{"python-django", map[string]string{"THEOPACKS_START_CMD": "gunicorn wsgi:app"}, nil},
-		{"python-uv-workspace", map[string]string{"THEOPACKS_START_CMD": "python main.py"}, nil},
-		{"python-pipfile", map[string]string{"THEOPACKS_START_CMD": "python app.py"}, nil},
-		{"python-poetry", map[string]string{"THEOPACKS_START_CMD": "flask run"}, nil},
+		{"python-flask", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn app:app"}, nil},
+		{"python-django", map[string]string{"THEOKIT_PACKS_START_CMD": "gunicorn wsgi:app"}, nil},
+		{"python-uv-workspace", map[string]string{"THEOKIT_PACKS_START_CMD": "python main.py"}, nil},
+		{"python-pipfile", map[string]string{"THEOKIT_PACKS_START_CMD": "python app.py"}, nil},
+		{"python-poetry", map[string]string{"THEOKIT_PACKS_START_CMD": "flask run"}, nil},
 		{"shell-script", nil, &GenerateBuildPlanOptions{StartCommand: "bash start.sh"}},
 		{"staticfile", nil, &GenerateBuildPlanOptions{StartCommand: "python -m http.server"}},
 	}
@@ -739,7 +739,7 @@ func TestRealExample_FullstackMixed_ServiceIsolation(t *testing.T) {
 	t.Run("worker_does_not_detect_node_or_go", func(t *testing.T) {
 		dir := filepath.Join(examplePath(t, "fullstack-mixed"), "services", "worker")
 		result := planFromDirWithEnv(t, dir, map[string]string{
-			"THEOPACKS_START_CMD": "celery worker",
+			"THEOKIT_PACKS_START_CMD": "celery worker",
 		}, nil)
 
 		assertValidPlan(t, result)
@@ -805,7 +805,7 @@ func TestRealExample_PythonUvWorkspace_EachMember(t *testing.T) {
 
 	t.Run("root", func(t *testing.T) {
 		result := planFromDirWithEnv(t, base, map[string]string{
-			"THEOPACKS_START_CMD": "python main.py",
+			"THEOKIT_PACKS_START_CMD": "python main.py",
 		}, nil)
 		assertValidPlan(t, result)
 		require.Equal(t, "python", result.DetectedProviders[0])
@@ -814,7 +814,7 @@ func TestRealExample_PythonUvWorkspace_EachMember(t *testing.T) {
 	t.Run("workspace-package", func(t *testing.T) {
 		dir := filepath.Join(base, "workspace-package")
 		result := planFromDirWithEnv(t, dir, map[string]string{
-			"THEOPACKS_START_CMD": "python -m workspace_package",
+			"THEOKIT_PACKS_START_CMD": "python -m workspace_package",
 		}, nil)
 		assertValidPlan(t, result)
 		require.Equal(t, "python", result.DetectedProviders[0])
@@ -857,7 +857,7 @@ func TestRealExample_NodeTurborepo_EachApp(t *testing.T) {
 func TestRealExample_NodeNpm_EnvOverridesProvider(t *testing.T) {
 	// Provider sets "npm start", env should override
 	result := planFromExampleWithEnv(t, "node-npm", map[string]string{
-		"THEOPACKS_START_CMD": "node custom-entry.js",
+		"THEOKIT_PACKS_START_CMD": "node custom-entry.js",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -866,7 +866,7 @@ func TestRealExample_NodeNpm_EnvOverridesProvider(t *testing.T) {
 
 func TestRealExample_NodeNpm_OptionsOverrideEnv(t *testing.T) {
 	result := planFromExampleWithEnv(t, "node-npm", map[string]string{
-		"THEOPACKS_START_CMD": "from-env",
+		"THEOKIT_PACKS_START_CMD": "from-env",
 	}, &GenerateBuildPlanOptions{
 		StartCommand: "from-options",
 	})
@@ -892,11 +892,11 @@ func TestRealExample_GoSimple_OptionsOverrideProvider(t *testing.T) {
 
 func TestRealExample_NodeTurborepo_FullEnvConfig(t *testing.T) {
 	result := planFromExampleWithEnv(t, "node-turborepo", map[string]string{
-		"THEOPACKS_INSTALL_CMD":         "npm ci",
-		"THEOPACKS_BUILD_CMD":           "turbo build --filter=web",
-		"THEOPACKS_START_CMD":           "cd apps/web && next start",
-		"THEOPACKS_BUILD_APT_PACKAGES":  "build-essential",
-		"THEOPACKS_DEPLOY_APT_PACKAGES": "libssl-dev",
+		"THEOKIT_PACKS_INSTALL_CMD":         "npm ci",
+		"THEOKIT_PACKS_BUILD_CMD":           "turbo build --filter=web",
+		"THEOKIT_PACKS_START_CMD":           "cd apps/web && next start",
+		"THEOKIT_PACKS_BUILD_APT_PACKAGES":  "build-essential",
+		"THEOKIT_PACKS_DEPLOY_APT_PACKAGES": "libssl-dev",
 	}, nil)
 
 	require.True(t, result.Success, "logs: %v", result.Logs)
@@ -907,8 +907,8 @@ func TestRealExample_NodeTurborepo_FullEnvConfig(t *testing.T) {
 
 func TestRealExample_PythonFlask_AptPackagesViaEnv(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-flask", map[string]string{
-		"THEOPACKS_START_CMD":           "gunicorn app:app",
-		"THEOPACKS_DEPLOY_APT_PACKAGES": "libpq-dev libssl-dev",
+		"THEOKIT_PACKS_START_CMD":           "gunicorn app:app",
+		"THEOKIT_PACKS_DEPLOY_APT_PACKAGES": "libpq-dev libssl-dev",
 	}, nil)
 
 	require.True(t, result.Success, "logs: %v", result.Logs)
@@ -918,7 +918,7 @@ func TestRealExample_PythonFlask_AptPackagesViaEnv(t *testing.T) {
 }
 
 // =============================================================================
-// theopacks.json config file with real examples
+// theokit-packs.json config file with real examples
 // =============================================================================
 
 func TestRealExample_NodeWithConfig(t *testing.T) {
@@ -927,12 +927,12 @@ func TestRealExample_NodeWithConfig(t *testing.T) {
 	require.True(t, result.Success, "logs: %v", result.Logs)
 	require.NotNil(t, result.Plan)
 	require.Equal(t, "node server.js", result.Plan.Deploy.StartCmd,
-		"theopacks.json startCommand should override provider default")
+		"theokit-packs.json startCommand should override provider default")
 }
 
 func TestRealExample_NodeWithConfig_EnvOverridesConfigFile(t *testing.T) {
 	result := planFromExampleWithEnv(t, "node-npm-with-config", map[string]string{
-		"THEOPACKS_START_CMD": "from-env",
+		"THEOKIT_PACKS_START_CMD": "from-env",
 	}, nil)
 
 	require.True(t, result.Success, "logs: %v", result.Logs)
@@ -942,7 +942,7 @@ func TestRealExample_NodeWithConfig_EnvOverridesConfigFile(t *testing.T) {
 
 func TestRealExample_NodeWithConfig_OptionsOverrideAll(t *testing.T) {
 	result := planFromExampleWithEnv(t, "node-npm-with-config", map[string]string{
-		"THEOPACKS_START_CMD": "from-env",
+		"THEOKIT_PACKS_START_CMD": "from-env",
 	}, &GenerateBuildPlanOptions{
 		StartCommand: "from-options",
 	})
@@ -993,7 +993,7 @@ func TestRealExample_NodeWithDockerignore_PlanSteps(t *testing.T) {
 
 func TestRealExample_PythonSetupPy(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-setuppy", map[string]string{
-		"THEOPACKS_START_CMD": "gunicorn myapp.app:app --bind 0.0.0.0:8000",
+		"THEOKIT_PACKS_START_CMD": "gunicorn myapp.app:app --bind 0.0.0.0:8000",
 	}, nil)
 
 	assertValidPlan(t, result)
@@ -1003,7 +1003,7 @@ func TestRealExample_PythonSetupPy(t *testing.T) {
 
 func TestRealExample_PythonSetupPy_PlanSteps(t *testing.T) {
 	result := planFromExampleWithEnv(t, "python-setuppy", map[string]string{
-		"THEOPACKS_START_CMD": "myapp",
+		"THEOKIT_PACKS_START_CMD": "myapp",
 	}, nil)
 
 	assertValidPlan(t, result)

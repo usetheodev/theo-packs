@@ -52,7 +52,7 @@ func (p *JavaProvider) Plan(ctx *generate.GenerateContext) error {
 
 	if hasGradle {
 		if hasMaven {
-			ctx.Logger.LogWarn("Detected both Gradle and Maven manifests; building with Gradle (override via theopacks.json provider field)")
+			ctx.Logger.LogWarn("Detected both Gradle and Maven manifests; building with Gradle (override via theokit-packs.json provider field)")
 		}
 		if subprojects := gradleSubprojects(ctx.App); len(subprojects) > 0 {
 			return planGradleWorkspace(ctx, version, subprojects)
@@ -75,5 +75,5 @@ func (p *JavaProvider) Plan(ctx *generate.GenerateContext) error {
 func (p *JavaProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *JavaProvider) StartCommandHelp() string {
-	return "Java apps must produce a runnable JAR (Spring Boot bootJar or a self-executing artifact). For multi-module/subproject builds, set THEOPACKS_APP_NAME to the module/subproject directory leaf name."
+	return "Java apps must produce a runnable JAR (Spring Boot bootJar or a self-executing artifact). For multi-module/subproject builds, set THEOKIT_PACKS_APP_NAME to the module/subproject directory leaf name."
 }

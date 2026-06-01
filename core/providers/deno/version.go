@@ -9,8 +9,8 @@ import (
 )
 
 // detectDenoVersion picks the Deno major version, in priority order:
-//  1. Config packages (theopacks.json / THEOPACKS_PACKAGES).
-//  2. THEOPACKS_DENO_VERSION env var.
+//  1. Config packages (theokit-packs.json / THEOKIT_PACKS_PACKAGES).
+//  2. THEOKIT_PACKS_DENO_VERSION env var.
 //  3. DefaultDenoVersion ("2" — current major).
 //
 // Deno doesn't have a canonical version-pinning file. .nvmrc / .tool-versions

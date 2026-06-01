@@ -134,9 +134,9 @@ func TestDetectGoVersion(t *testing.T) {
 		{
 			name:       "env var overrides go.mod",
 			files:      map[string]string{"go.mod": "module test\ngo 1.22"},
-			envVars:    map[string]string{"THEOPACKS_GO_VERSION": "1.21"},
+			envVars:    map[string]string{"THEOKIT_PACKS_GO_VERSION": "1.21"},
 			wantVer:    "1.21",
-			wantSource: "THEOPACKS_GO_VERSION",
+			wantSource: "THEOKIT_PACKS_GO_VERSION",
 		},
 		{
 			name:       "malformed go.mod falls back to default",
@@ -223,7 +223,7 @@ func TestFindBuildTarget_EnvVar(t *testing.T) {
 		"api/go.mod":  "module example.com/api",
 		"api/main.go": "package main",
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_GO_MODULE": "shared"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_GO_MODULE": "shared"})
 	target := findBuildTarget(ctx, []string{"api", "shared"})
 	require.Equal(t, "shared", target)
 }
@@ -289,7 +289,7 @@ func TestGoWork_TakesPriorityOverGoMod(t *testing.T) {
 }
 
 func TestFindBuildTarget_EnvVarNonExistentModule(t *testing.T) {
-	// THEOPACKS_GO_MODULE set to a module that doesn't exist in the workspace
+	// THEOKIT_PACKS_GO_MODULE set to a module that doesn't exist in the workspace
 	// findBuildTarget returns whatever the env var says without validation,
 	// but planWorkspace will use it and the build will reference a non-existent path
 	a := createTempApp(t, map[string]string{
@@ -297,7 +297,7 @@ func TestFindBuildTarget_EnvVarNonExistentModule(t *testing.T) {
 		"api/go.mod":  "module example.com/api",
 		"api/main.go": "package main",
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_GO_MODULE": "nonexistent"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_GO_MODULE": "nonexistent"})
 	target := findBuildTarget(ctx, []string{"api"})
 	// The env var is returned as-is even if it doesn't match any module
 	require.Equal(t, "nonexistent", target)

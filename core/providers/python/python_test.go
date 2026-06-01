@@ -724,9 +724,9 @@ func TestDetectPythonVersion(t *testing.T) {
 				"requirements.txt": "flask",
 				".python-version":  "3.11",
 			},
-			envVars:    map[string]string{"THEOPACKS_PYTHON_VERSION": "3.9"},
+			envVars:    map[string]string{"THEOKIT_PACKS_PYTHON_VERSION": "3.9"},
 			wantVer:    "3.9",
-			wantSource: "THEOPACKS_PYTHON_VERSION",
+			wantSource: "THEOKIT_PACKS_PYTHON_VERSION",
 		},
 	}
 
@@ -775,7 +775,7 @@ func TestPythonStartCommandHelp(t *testing.T) {
 	provider := &PythonProvider{}
 	help := provider.StartCommandHelp()
 	require.NotEmpty(t, help)
-	require.Contains(t, help, "THEOPACKS_START_CMD")
+	require.Contains(t, help, "THEOKIT_PACKS_START_CMD")
 }
 
 func TestPythonDetect(t *testing.T) {

@@ -121,11 +121,11 @@ func TestDetectDotnetVersion_GlobalJson(t *testing.T) {
 
 func TestDetectDotnetVersion_EnvVar(t *testing.T) {
 	a := createTempApp(t, map[string]string{"app.csproj": consoleCsproj})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_DOTNET_VERSION": "9.0"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_DOTNET_VERSION": "9.0"})
 	proj, _ := parseProject(a, "app.csproj")
 	v, src := detectDotnetVersion(ctx, proj)
 	require.Equal(t, "9.0", v)
-	require.Equal(t, "THEOPACKS_DOTNET_VERSION", src)
+	require.Equal(t, "THEOKIT_PACKS_DOTNET_VERSION", src)
 }
 
 func TestDetectDotnetVersion_FallbackDefault(t *testing.T) {
@@ -206,7 +206,7 @@ func TestPlanSingleProject_MultipleNoEnvErrors(t *testing.T) {
 	ctx := createTestContext(t, a, nil)
 	err := (&DotnetProvider{}).Plan(ctx)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "THEOPACKS_APP_NAME")
+	require.Contains(t, err.Error(), "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestPlanSingleProject_AppNameSelects(t *testing.T) {
@@ -214,7 +214,7 @@ func TestPlanSingleProject_AppNameSelects(t *testing.T) {
 		"src/A/A.csproj": consoleCsproj,
 		"src/B/B.csproj": consoleCsproj,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "B"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "B"})
 	err := (&DotnetProvider{}).Plan(ctx)
 	require.NoError(t, err)
 }
@@ -245,7 +245,7 @@ EndProject
 		"Api/Api.csproj":       aspnetCsproj,
 		"Worker/Worker.csproj": consoleCsproj,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "Worker"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "Worker"})
 	err := (&DotnetProvider{}).Plan(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "dotnet /app/Worker.dll", ctx.Deploy.StartCmd)
@@ -258,7 +258,7 @@ EndProject
 `,
 		"Api/Api.csproj": aspnetCsproj,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_APP_NAME": "Ghost"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_APP_NAME": "Ghost"})
 	err := (&DotnetProvider{}).Plan(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Ghost")
@@ -277,7 +277,7 @@ EndProject
 	ctx := createTestContext(t, a, nil)
 	err := (&DotnetProvider{}).Plan(ctx)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "THEOPACKS_APP_NAME")
+	require.Contains(t, err.Error(), "THEOKIT_PACKS_APP_NAME")
 }
 
 func TestShellSafe(t *testing.T) {

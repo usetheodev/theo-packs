@@ -31,7 +31,7 @@ func pythonDeployIncludes(pythonVersion string) []string {
 //   - User virtualenvs (.venv/venv): runtime uses /usr/local/lib/...,
 //     never a build-time venv
 //   - .env: security-positive default — committed credentials should not
-//     ship to runtime images. Runtime config goes through THEOPACKS_* env
+//     ship to runtime images. Runtime config goes through THEOKIT_PACKS_* env
 //     vars or a secrets backend.
 //   - .git: never relevant to runtime; can be hundreds of MB.
 //   - tests/test: production code shouldn't import from a tests dir; if
@@ -379,9 +379,9 @@ func hasPackage(ctx *generate.GenerateContext, pkg string) bool {
 }
 
 // detectPythonVersion determines the Python version to use for build/runtime images.
-// Priority: config packages > THEOPACKS_PYTHON_VERSION env var > .python-version > runtime.txt > default.
+// Priority: config packages > THEOKIT_PACKS_PYTHON_VERSION env var > .python-version > runtime.txt > default.
 func detectPythonVersion(ctx *generate.GenerateContext) (version string, source string) {
-	// Config packages have highest priority (set via theopacks.json or THEOPACKS_PACKAGES)
+	// Config packages have highest priority (set via theokit-packs.json or THEOKIT_PACKS_PACKAGES)
 	if pkg := ctx.Resolver.Get("python"); pkg != nil && pkg.Source != "theopacks default" {
 		return generate.NormalizeToMajorMinor(pkg.Version), pkg.Source
 	}
@@ -419,5 +419,5 @@ func detectPythonVersion(ctx *generate.GenerateContext) (version string, source 
 func (p *PythonProvider) CleansePlan(buildPlan *plan.BuildPlan) {}
 
 func (p *PythonProvider) StartCommandHelp() string {
-	return "Specify a start command:\n  - Add a Procfile with: web: uvicorn main:app --host 0.0.0.0 --port 8000\n  - Or set THEOPACKS_START_CMD=python app.py"
+	return "Specify a start command:\n  - Add a Procfile with: web: uvicorn main:app --host 0.0.0.0 --port 8000\n  - Or set THEOKIT_PACKS_START_CMD=python app.py"
 }

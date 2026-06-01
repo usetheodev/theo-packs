@@ -190,9 +190,9 @@ func TestDetectNodeVersion(t *testing.T) {
 			files: map[string]string{
 				"package.json": `{"name":"test","engines":{"node":">=18"}}`,
 			},
-			envVars:    map[string]string{"THEOPACKS_NODE_VERSION": "22"},
+			envVars:    map[string]string{"THEOKIT_PACKS_NODE_VERSION": "22"},
 			wantVer:    "22",
-			wantSource: "THEOPACKS_NODE_VERSION",
+			wantSource: "THEOKIT_PACKS_NODE_VERSION",
 		},
 	}
 

@@ -11,8 +11,8 @@ import (
 )
 
 // detectPhpVersion picks the PHP major.minor version, in priority order:
-//  1. Config packages (theopacks.json / THEOPACKS_PACKAGES).
-//  2. THEOPACKS_PHP_VERSION env var.
+//  1. Config packages (theokit-packs.json / THEOKIT_PACKS_PACKAGES).
+//  2. THEOKIT_PACKS_PHP_VERSION env var.
 //  3. .php-version file.
 //  4. composer.json `require.php` (e.g., "^8.2", ">=8.1").
 //  5. DefaultPhpVersion (8.3 — current stable).

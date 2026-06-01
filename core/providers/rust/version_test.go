@@ -28,13 +28,13 @@ func TestDetectRustVersion_EnvVar(t *testing.T) {
 		"Cargo.toml":  minimalCargoToml,
 		"src/main.rs": minimalMainRs,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_RUST_VERSION": "1.75"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_RUST_VERSION": "1.75"})
 	cargo, err := parseCargoToml(a, "Cargo.toml")
 	require.NoError(t, err)
 
 	version, source := detectRustVersion(ctx, cargo)
 	require.Equal(t, "1.75", version)
-	require.Equal(t, "THEOPACKS_RUST_VERSION", source)
+	require.Equal(t, "THEOKIT_PACKS_RUST_VERSION", source)
 }
 
 func TestDetectRustVersion_RustToolchainToml(t *testing.T) {
@@ -114,13 +114,13 @@ func TestDetectRustVersion_PriorityEnvOverridesToolchain(t *testing.T) {
 channel = "1.74.0"
 `,
 	})
-	ctx := createTestContext(t, a, map[string]string{"THEOPACKS_RUST_VERSION": "1.80"})
+	ctx := createTestContext(t, a, map[string]string{"THEOKIT_PACKS_RUST_VERSION": "1.80"})
 	cargo, err := parseCargoToml(a, "Cargo.toml")
 	require.NoError(t, err)
 
 	version, source := detectRustVersion(ctx, cargo)
 	require.Equal(t, "1.80", version)
-	require.Equal(t, "THEOPACKS_RUST_VERSION", source)
+	require.Equal(t, "THEOKIT_PACKS_RUST_VERSION", source)
 }
 
 func TestNormalizeChannel(t *testing.T) {

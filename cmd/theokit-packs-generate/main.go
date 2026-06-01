@@ -49,7 +49,7 @@ func main() {
 	// app-name has no default. When unset, providers that need a workspace
 	// target (Cargo workspaces, Ruby/PHP apps/+packages, Gradle subprojects,
 	// .NET solutions, Deno workspaces) will surface their usual "set
-	// THEOPACKS_APP_NAME to one of: ..." error. The previous default of
+	// THEOKIT_PACKS_APP_NAME to one of: ..." error. The previous default of
 	// "app" caused those providers to look for a literal app named "app".
 	appName := flag.String("app-name", "", "Name of the app (selects target in monorepos; required for multi-app workspaces)")
 	output := flag.String("output", "", "Output path for the generated Dockerfile (required)")
@@ -93,14 +93,14 @@ func main() {
 	// only fired for Node workspaces (CHG-002b); extended in this change to
 	// fire unconditionally when the flag is non-empty so that Cargo/Ruby/
 	// PHP/.NET/Deno workspaces also receive the target. Empty values are NOT
-	// bridged because providers treat THEOPACKS_APP_NAME="" as "unspecified"
+	// bridged because providers treat THEOKIT_PACKS_APP_NAME="" as "unspecified"
 	// and the usual workspace error path is preferable to a silent miss.
 	envVars := map[string]string{}
 	if *appName != "" {
-		envVars["THEOPACKS_APP_NAME"] = *appName
+		envVars["THEOKIT_PACKS_APP_NAME"] = *appName
 	}
 	if *appPath != "" && *appPath != "." {
-		envVars["THEOPACKS_APP_PATH"] = *appPath
+		envVars["THEOKIT_PACKS_APP_PATH"] = *appPath
 	}
 
 	// CHG-002b: if the source root is a Node workspace monorepo, analyze the

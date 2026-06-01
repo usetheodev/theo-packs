@@ -82,7 +82,7 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	//
 	// CHG-002b 2026-04-28 — workspace-aware build command. When Theo runs
 	// theopacks-generate against a workspace root, it sets
-	// THEOPACKS_APP_NAME so we can scope the build to a single app while
+	// THEOKIT_PACKS_APP_NAME so we can scope the build to a single app while
 	// still building all transitive deps in the workspace.
 	buildStep := ctx.NewCommandStep("build")
 	buildStep.AddInput(plan.NewStepLayer("install"))
@@ -183,9 +183,9 @@ func workspaceBuildCommand(pm PackageManager, ws *WorkspaceInfo, appName string,
 }
 
 // detectNodeVersion determines the Node.js version to use for build/runtime images.
-// Priority: config packages > THEOPACKS_NODE_VERSION env var > package.json engines > .nvmrc > .node-version > default.
+// Priority: config packages > THEOKIT_PACKS_NODE_VERSION env var > package.json engines > .nvmrc > .node-version > default.
 func detectNodeVersion(ctx *generate.GenerateContext, pkg *packageJSON) (version string, source string) {
-	// Config packages have highest priority (set via theopacks.json or THEOPACKS_PACKAGES)
+	// Config packages have highest priority (set via theokit-packs.json or THEOKIT_PACKS_PACKAGES)
 	if p := ctx.Resolver.Get("node"); p != nil && p.Source != "theopacks default" {
 		return generate.NormalizeToMajor(p.Version), p.Source
 	}
