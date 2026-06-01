@@ -1,20 +1,20 @@
 ---
 name: dogfood
-description: Run a maximum-rigor dogfooding audit on theo-packs — tests BuildPlan generation, Dockerfile generation, docker build, and container start for all example projects
+description: Run a maximum-rigor dogfooding audit on theokit-packs — tests BuildPlan generation, Dockerfile generation, docker build, and container start for all example projects
 argument-hint: "[all|node|go|python|monorepo|<example-name>]"
 ---
 
-# Dogfooding Audit for theo-packs
+# Dogfooding Audit for theokit-packs
 
 **Scope:** $ARGUMENTS
 
-Execute a MAXIMUM RIGOR dogfooding session. You are a developer who just found theo-packs and is trying to deploy their project. You have ZERO tolerance for broken builds, misleading output, or missing features.
+Execute a MAXIMUM RIGOR dogfooding session. You are a developer who just found theokit-packs and is trying to deploy their project. You have ZERO tolerance for broken builds, misleading output, or missing features.
 
 ---
 
 ## RULES (INVIOLABLE)
 
-1. **You are NOT a developer of theo-packs. You are a USER.** You cannot fix code. You can only report what's broken.
+1. **You are NOT a developer of theokit-packs. You are a USER.** You cannot fix code. You can only report what's broken.
 2. **Do NOT use Edit, Write, or any tool that modifies files.** Read-only. If you find a bug, document it — don't fix it.
 3. **Every claim must have EVIDENCE.** No "it should work" — run it and prove it.
 4. **If a Dockerfile is generated, you MUST `docker build` it.** A Dockerfile that doesn't build is a P0 bug.
@@ -28,7 +28,7 @@ Execute a MAXIMUM RIGOR dogfooding session. You are a developer who just found t
 ### Phase 1: Enumerate Targets
 
 Based on the scope argument, enumerate all example projects to test:
-- `all` → every directory in `../../examples/` (relative to theo-packs)
+- `all` → every directory in `../../examples/` (relative to theokit-packs)
 - `node` → all `node-*` examples
 - `go` → all `go-*` examples
 - `python` → all `python-*` examples
@@ -39,7 +39,7 @@ For each target, document: name, expected provider, expected framework, expected
 
 ### Phase 2: BuildPlan Generation (per target)
 
-For each example, run the full pipeline via Go test from the theo-packs root:
+For each example, run the full pipeline via Go test from the theokit-packs root:
 
 ```bash
 GOWORK=off go test ./core/dockerfile/ -run "TestIntegration_AllExamples/<example-name>" -v -count=1
@@ -99,7 +99,7 @@ Read the generated Dockerfile from `core/dockerfile/testdata/integration_<name>.
 For each example, attempt a real `docker build`:
 
 ```bash
-cd ../../examples/<name> && docker build -f /absolute/path/to/theo-packs/core/dockerfile/testdata/integration_<name>.dockerfile -t theopacks-dogfood-<name> --no-cache . 2>&1
+cd ../../examples/<name> && docker build -f /absolute/path/to/theokit-packs/core/dockerfile/testdata/integration_<name>.dockerfile -t theokit-packs-dogfood-<name> --no-cache . 2>&1
 ```
 
 **Grade:**
@@ -110,7 +110,7 @@ Record: exit code, build duration, error message if failed.
 
 After build, inspect image:
 ```bash
-docker inspect theopacks-dogfood-<name> --format '{{.Config.Cmd}}'
+docker inspect theokit-packs-dogfood-<name> --format '{{.Config.Cmd}}'
 ```
 
 ### Phase 5: Container Start Verification (per target that built)
@@ -118,7 +118,7 @@ docker inspect theopacks-dogfood-<name> --format '{{.Config.Cmd}}'
 For each successfully built image:
 
 ```bash
-docker run --rm -d --name dogfood-<name> theopacks-dogfood-<name>
+docker run --rm -d --name dogfood-<name> theokit-packs-dogfood-<name>
 sleep 3
 docker logs dogfood-<name> 2>&1 | head -20
 docker stop dogfood-<name> 2>/dev/null
@@ -135,7 +135,7 @@ docker stop dogfood-<name> 2>/dev/null
 ```bash
 docker stop $(docker ps -q --filter "name=dogfood-") 2>/dev/null
 docker rm $(docker ps -aq --filter "name=dogfood-") 2>/dev/null
-docker rmi $(docker images -q --filter "reference=theopacks-dogfood-*") 2>/dev/null
+docker rmi $(docker images -q --filter "reference=theokit-packs-dogfood-*") 2>/dev/null
 ```
 
 ---
@@ -157,7 +157,7 @@ docker rmi $(docker images -q --filter "reference=theopacks-dogfood-*") 2>/dev/n
 After all phases complete, produce this EXACT report format:
 
 ```markdown
-# theo-packs Dogfood Report
+# theokit-packs Dogfood Report
 
 **Scope:** <scope>
 **Date:** <date>
@@ -220,7 +220,7 @@ Conditions (if conditional): <what must be fixed before shipping>
 - Do NOT skip examples that seem similar. Build them ALL. Each framework has quirks.
 - After ALL testing, clean up ALL docker images and containers you created.
 - If the scope is `all`, every single example must be tested. No exceptions. No shortcuts.
-- Run tests from the theo-packs directory (the working directory).
-- Use `GOWORK=off` for all go commands since theo-packs is not in the workspace go.work.
+- Run tests from the theokit-packs directory (the working directory).
+- Use `GOWORK=off` for all go commands since theokit-packs is not in the workspace go.work.
 - Parallelize docker builds where possible using background agents for independent builds.
 - Time the entire audit and report total duration.

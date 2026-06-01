@@ -1,4 +1,4 @@
-# CLAUDE.md — theo-packs
+# CLAUDE.md — theokit-packs
 
 This file provides guidance to Claude Code when working with code in this repository.
 
@@ -6,14 +6,14 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## What This Project Is
 
-theo-packs is a **zero-configuration application builder** that detects your project's language/framework and generates an optimized build plan for containerization. It is the language detection and Dockerfile generation engine for the [Theo](https://usetheo.dev) Kubernetes PaaS.
+theokit-packs is a **zero-configuration application builder** that detects your project's language/framework and generates an optimized build plan for containerization. It is the language detection and Dockerfile generation engine for the [Theo](https://usetheo.dev) Kubernetes PaaS.
 
-The repository is a **single Go module**: `github.com/usetheo/theopacks` (Go 1.25+). It produces:
+The repository is a **single Go module**: `github.com/usetheo/theokitpacks` (Go 1.25+). It produces:
 
 | Component | Path | Purpose |
 |-----------|------|---------|
 | Library | `core/` | Language detection, build plan generation, Dockerfile generation. Minimal deps. |
-| CLI | `cmd/theopacks-generate/` | Single binary that analyzes a source tree and writes a Dockerfile. Designed to run inside an Argo Workflow step in the Theo build cluster. |
+| CLI | `cmd/theokit-packs-generate/` | Single binary that analyzes a source tree and writes a Dockerfile. Designed to run inside an Argo Workflow step in the Theo build cluster. |
 | Internal helpers | `internal/utils/` | Merge/utility functions used across `core/`. |
 | E2E tests | `e2e/` | Build-tagged tests that build real Docker images from `examples/`. |
 | Examples | `examples/` | ~30 reference projects (Go, Node, Python, shell, static) used by unit and E2E tests. |
@@ -26,7 +26,7 @@ There is **no separate `railpack/` module** and no BuildKit/LLB integration in t
 Source code → Provider.Detect() → Provider.Plan() → BuildPlan → dockerfile.Generate() → Dockerfile
 ```
 
-The CLI (`theopacks-generate`) wraps this flow with workspace detection, user-Dockerfile precedence, and Argo-friendly logging.
+The CLI (`theokit-packs-generate`) wraps this flow with workspace detection, user-Dockerfile precedence, and Argo-friendly logging.
 
 ---
 
@@ -52,7 +52,7 @@ go test -tags e2e ./e2e/ -timeout 1500s
 UPDATE_GOLDEN=true go test ./core/dockerfile/...
 
 # Run the CLI manually against an example
-go run ./cmd/theopacks-generate \
+go run ./cmd/theokit-packs-generate \
   --source examples/node-npm \
   --app-path . \
   --app-name demo \
@@ -83,7 +83,7 @@ app.HasMatch("**/*.py")
 os.ReadFile(filepath.Join(source, "package.json"))  // WRONG
 ```
 
-This enables caching, testing, and future remote file system support. The CLI entry (`cmd/theopacks-generate/main.go`) is the only legitimate place to call `os.ReadFile` / `os.WriteFile`, and only against paths *outside* the analyzed app (the user-provided Dockerfile copy and the output path).
+This enables caching, testing, and future remote file system support. The CLI entry (`cmd/theokit-packs-generate/main.go`) is the only legitimate place to call `os.ReadFile` / `os.WriteFile`, and only against paths *outside* the analyzed app (the user-provided Dockerfile copy and the output path).
 
 ### Rule 3: Error wrapping with context
 Always wrap errors with `fmt.Errorf` and `%w`. Include enough context to trace the problem:
@@ -126,7 +126,7 @@ Golden Dockerfiles in `core/dockerfile/testdata/` are regenerated, not hand-edit
 ### Repository Layout
 
 ```
-theo-packs/
+theokit-packs/
 ├── core/                       # Library
 │   ├── core.go                 # GenerateBuildPlan() — entry point
 │   ├── validate.go             # Plan validation (start command, steps, inputs)
@@ -135,7 +135,7 @@ theo-packs/
 │   ├── monorepo_test.go        # Multi-app workspace scenarios
 │   ├── integration_test.go
 │   ├── app/                    # File system abstraction (App, Environment)
-│   ├── config/                 # Config model (theopacks.json) + merging
+│   ├── config/                 # Config model (theokit-packs.json) + merging
 │   ├── dockerfile/             # BuildPlan → Dockerfile string conversion
 │   │   └── testdata/           # Golden Dockerfiles (UPDATE_GOLDEN=true to refresh)
 │   ├── generate/               # GenerateContext: step builders, deploy builder, caches
@@ -151,7 +151,7 @@ theo-packs/
 │   │   ├── staticfile/         # Static HTML files
 │   │   └── shell/              # Shell scripts (fallback)
 │   └── resolver/               # Package version resolution
-├── cmd/theopacks-generate/     # CLI binary
+├── cmd/theokit-packs-generate/     # CLI binary
 │   └── main.go
 ├── internal/utils/             # Internal helpers (merge, etc.)
 ├── e2e/
@@ -159,7 +159,7 @@ theo-packs/
 ├── examples/                   # Reference projects (Go, Node, Python, shell, static)
 ├── mise.toml                   # Tasks: test, check, tidy
 ├── go.mod / go.sum
-└── Dockerfile.generate         # Container image that runs theopacks-generate
+└── Dockerfile.generate         # Container image that runs theokit-packs-generate
 ```
 
 ### Provider Detection Order
@@ -178,7 +178,7 @@ Providers are checked in this order (first match wins) — defined in `core/prov
 10. **Static files** — `index.html`
 11. **Shell** — `*.sh` files
 
-Order matters. The Deno-before-Node invariant is locked by `TestRegistrationOrder` in `core/providers/provider_test.go`. Override via `theopacks.json`:
+Order matters. The Deno-before-Node invariant is locked by `TestRegistrationOrder` in `core/providers/provider_test.go`. Override via `theokit-packs.json`:
 ```json
 { "provider": "node" }
 ```
@@ -207,30 +207,30 @@ BuildPlan
 
 Three config sources merge in order (later overrides earlier):
 
-1. **File** — `theopacks.json` at the analyzed app's root (JSONC format, comments allowed)
-2. **Environment** — `THEOPACKS_*` variables, accessed via `app.Environment`
+1. **File** — `theokit-packs.json` at the analyzed app's root (JSONC format, comments allowed)
+2. **Environment** — `THEOKIT_PACKS_*` variables, accessed via `app.Environment`
 3. **Options** — programmatic `core.GenerateBuildPlanOptions`
 
 Key environment variables:
 
 | Variable | Purpose |
 |----------|---------|
-| `THEOPACKS_START_CMD` | Override start command |
-| `THEOPACKS_BUILD_CMD` | Override build command |
-| `THEOPACKS_INSTALL_CMD` | Override install command |
-| `THEOPACKS_PACKAGES` | Space-separated package versions (`nodejs@20 npm@10`) |
-| `THEOPACKS_BUILD_APT_PACKAGES` | Extra apt packages for build |
-| `THEOPACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime |
-| `THEOPACKS_CONFIG_FILE` | Custom config file path |
-| `THEOPACKS_GO_MODULE` | Go workspace: which module to build |
-| `THEOPACKS_RUST_VERSION` | Rust toolchain version |
-| `THEOPACKS_JAVA_VERSION` | Java major version (drives JDK build image + JRE runtime) |
-| `THEOPACKS_DOTNET_VERSION` | .NET SDK version (major.minor) |
-| `THEOPACKS_RUBY_VERSION` | Ruby version (major.minor) |
-| `THEOPACKS_PHP_VERSION` | PHP version (major.minor) |
-| `THEOPACKS_DENO_VERSION` | Deno major version |
-| `THEOPACKS_APP_NAME` | Workspace-aware build target — Cargo workspace member, Gradle subproject / Maven module leaf, .NET solution project, Ruby/PHP `apps/<name>`, Deno workspace member. Set automatically by the CLI on Node monorepo detection; manual for the others. |
-| `THEOPACKS_APP_PATH` | Workspace-aware build path (Node monorepo only — auto-set by CLI) |
+| `THEOKIT_PACKS_START_CMD` | Override start command |
+| `THEOKIT_PACKS_BUILD_CMD` | Override build command |
+| `THEOKIT_PACKS_INSTALL_CMD` | Override install command |
+| `THEOKIT_PACKS_PACKAGES` | Space-separated package versions (`nodejs@20 npm@10`) |
+| `THEOKIT_PACKS_BUILD_APT_PACKAGES` | Extra apt packages for build |
+| `THEOKIT_PACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime |
+| `THEOKIT_PACKS_CONFIG_FILE` | Custom config file path |
+| `THEOKIT_PACKS_GO_MODULE` | Go workspace: which module to build |
+| `THEOKIT_PACKS_RUST_VERSION` | Rust toolchain version |
+| `THEOKIT_PACKS_JAVA_VERSION` | Java major version (drives JDK build image + JRE runtime) |
+| `THEOKIT_PACKS_DOTNET_VERSION` | .NET SDK version (major.minor) |
+| `THEOKIT_PACKS_RUBY_VERSION` | Ruby version (major.minor) |
+| `THEOKIT_PACKS_PHP_VERSION` | PHP version (major.minor) |
+| `THEOKIT_PACKS_DENO_VERSION` | Deno major version |
+| `THEOKIT_PACKS_APP_NAME` | Workspace-aware build target — Cargo workspace member, Gradle subproject / Maven module leaf, .NET solution project, Ruby/PHP `apps/<name>`, Deno workspace member. Set automatically by the CLI on Node monorepo detection; manual for the others. |
+| `THEOKIT_PACKS_APP_PATH` | Workspace-aware build path (Node monorepo only — auto-set by CLI) |
 
 ### Layer Special Values
 
@@ -240,14 +240,14 @@ When parsing layer references in JSON:
 - `"$stepname"` → reference to a previous build step
 - Any other string → Docker image reference
 
-### CLI: `theopacks-generate`
+### CLI: `theokit-packs-generate`
 
-> **Authoritative reference:** `docs/contracts/theo-packs-cli-contract.md` describes the CLI's contract with its caller (theo product, CI, humans) — flags, env-var bridge, build-context invariant, user-Dockerfile precedence, `.dockerignore` generation, and failure modes. Read it before integrating with theo-packs.
+> **Authoritative reference:** `docs/contracts/theokit-packs-cli-contract.md` describes the CLI's contract with its caller (theo product, CI, humans) — flags, env-var bridge, build-context invariant, user-Dockerfile precedence, `.dockerignore` generation, and failure modes. Read it before integrating with theokit-packs.
 
 Single binary used by Theo's build pipeline (Argo Workflow). Flags:
 
 ```
-theopacks-generate \
+theokit-packs-generate \
   --source /workspace \
   --app-path apps/api \
   --app-name api \
@@ -256,7 +256,7 @@ theopacks-generate \
 
 Behavior:
 1. **User Dockerfile precedence** — if `<source>/<app-path>/Dockerfile` exists, copy it to `--output` and exit.
-2. **Workspace detection (CHG-002b)** — if the source root is a Node workspace monorepo (`turbo.json`, `pnpm-workspace.yaml`, or `package.json#workspaces`), analyze the **workspace root** instead of the per-app subdir, and pass `THEOPACKS_APP_NAME` / `THEOPACKS_APP_PATH` so the Node provider scopes the build (e.g. `turbo run build --filter=<app>...`).
+2. **Workspace detection (CHG-002b)** — if the source root is a Node workspace monorepo (`turbo.json`, `pnpm-workspace.yaml`, or `package.json#workspaces`), analyze the **workspace root** instead of the per-app subdir, and pass `THEOKIT_PACKS_APP_NAME` / `THEOKIT_PACKS_APP_PATH` so the Node provider scopes the build (e.g. `turbo run build --filter=<app>...`).
 3. Otherwise analyze `--app-path` as a standalone app.
 4. Run `core.GenerateBuildPlan` → `dockerfile.Generate` → write to `--output`.
 5. Echo the Dockerfile to stdout for Loki/Promtail capture.
@@ -397,31 +397,31 @@ func (p *MyProvider) Plan(ctx *generate.GenerateContext) error {
 | `core/plan/layer.go` | `Layer` type + special value handling |
 | `core/generate/context.go` | `GenerateContext` — step/deploy builders |
 | `core/app/app.go` | `App` — file system abstraction |
-| `core/app/environment.go` | `Environment` — `THEOPACKS_*` variable access |
+| `core/app/environment.go` | `Environment` — `THEOKIT_PACKS_*` variable access |
 | `core/config/config.go` | Config structure + merging logic |
 | `core/providers/provider.go` | `Provider` interface + registry |
 | `core/providers/node/workspace.go` | Node monorepo detection (turbo/pnpm/npm workspaces) + `PruneCommand` per PM |
 | `core/dockerignore/templates.go` | Per-language `.dockerignore` defaults; `DefaultFor(providerName)` |
-| `cmd/theopacks-generate/main.go` | CLI entry point used by Argo Workflow; writes Dockerfile + (when missing) `.dockerignore` |
-| `docs/contracts/theo-packs-cli-contract.md` | CLI contract: flags, env-var bridge, build-context invariant, user-Dockerfile precedence |
+| `cmd/theokit-packs-generate/main.go` | CLI entry point used by Argo Workflow; writes Dockerfile + (when missing) `.dockerignore` |
+| `docs/contracts/theokit-packs-cli-contract.md` | CLI contract: flags, env-var bridge, build-context invariant, user-Dockerfile precedence |
 | `e2e/e2e_test.go` | E2E suite (build tag `e2e`) |
 | `mise.toml` | Development tasks (root) |
-| `Dockerfile.generate` | Container image that ships `theopacks-generate` |
+| `Dockerfile.generate` | Container image that ships `theokit-packs-generate` |
 
 ---
 
 ## Acknowledgements
 
-theo-packs is **derived from [Railpack](https://github.com/railwayapp/railpack)** by Railway Corporation and the Railpack contributors, released under the Apache License, Version 2.0.
+theokit-packs is **derived from [Railpack](https://github.com/railwayapp/railpack)** by Railway Corporation and the Railpack contributors, released under the Apache License, Version 2.0.
 
 The pieces inherited from Railpack include — but are not limited to — the `Provider` interface, the `BuildPlan` / `Step` / `Layer` / `Command` data model, the language-specific providers (Go, Node.js, Python, static, shell), the `App` file-system abstraction, the configuration-merging strategy, and large parts of the test fixtures used by the example projects.
 
 What this fork did differently:
 
-- Dropped the upstream CLI and direct BuildKit/LLB code path. theo-packs emits a Dockerfile and the Theo build cluster (Argo Workflow + external BuildKit/Kaniko) takes it from there.
-- Collapsed the two-module layout (`core` + `railpack`) into a single module rooted at `github.com/usetheo/theopacks`, plus the `cmd/theopacks-generate` binary used by the build pipeline.
-- Added workspace-aware Dockerfile generation for Node monorepos (turbo / pnpm / npm workspaces) driven by `THEOPACKS_APP_NAME` / `THEOPACKS_APP_PATH`.
-- Renamed the configuration namespace from `RAILPACK_*` / `railpack.json` to `THEOPACKS_*` / `theopacks.json`.
+- Dropped the upstream CLI and direct BuildKit/LLB code path. theokit-packs emits a Dockerfile and the Theo build cluster (Argo Workflow + external BuildKit/Kaniko) takes it from there.
+- Collapsed the two-module layout (`core` + `railpack`) into a single module rooted at `github.com/usetheo/theokitpacks`, plus the `cmd/theokit-packs-generate` binary used by the build pipeline.
+- Added workspace-aware Dockerfile generation for Node monorepos (turbo / pnpm / npm workspaces) driven by `THEOKIT_PACKS_APP_NAME` / `THEOKIT_PACKS_APP_PATH`.
+- Renamed the configuration namespace from `RAILPACK_*` / `railpack.json` to `THEOKIT_PACKS_*` / `theokit-packs.json`.
 - Trimmed the dependency surface to what the Theo build environment needs.
 
 When touching code that mirrors upstream Railpack design, prefer staying close to the upstream conventions — it makes future merges easier and respects the work this project is built on. See `NOTICE` at the repo root for the formal attribution required by the license.

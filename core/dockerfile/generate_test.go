@@ -356,7 +356,7 @@ func TestGenerate_HeaderAfterSyntax(t *testing.T) {
 	require.NoError(t, err)
 
 	syntaxIdx := strings.Index(got, "# syntax=docker/dockerfile:1")
-	headerIdx := strings.Index(got, `# theo-packs: generated for provider "go"`)
+	headerIdx := strings.Index(got, `# theokit-packs: generated for provider "go"`)
 	fromIdx := strings.Index(got, "FROM ")
 
 	require.GreaterOrEqual(t, syntaxIdx, 0)

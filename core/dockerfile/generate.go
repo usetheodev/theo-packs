@@ -20,13 +20,13 @@ const SyntaxDirective = "# syntax=docker/dockerfile:1\n\n"
 // directive and the first FROM. It names the provider that produced the
 // plan and explicitly states the expected docker build context — a
 // frequent source of confusion when a monorepo Dockerfile is invoked
-// with the wrong context (see docs/contracts/theo-packs-cli-contract.md).
+// with the wrong context (see docs/contracts/theokit-packs-cli-contract.md).
 func HeaderComment(providerName string) string {
 	if providerName == "" {
 		providerName = "unknown"
 	}
-	return fmt.Sprintf(`# theo-packs: generated for provider %q.
-# Build context: the directory passed as theopacks-generate --source
+	return fmt.Sprintf(`# theokit-packs: generated for provider %q.
+# Build context: the directory passed as theokit-packs-generate --source
 # (workspace root for monorepos, app dir otherwise). When invoking
 # docker build, set --file <this-file> and the context to that same
 # directory. Misalignment is the most common cause of "not found" errors.

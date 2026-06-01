@@ -16,7 +16,7 @@ import (
 // Deno doesn't have a canonical version-pinning file. .nvmrc / .tool-versions
 // support could be added later if needed; it's rare in the wild.
 func detectDenoVersion(ctx *generate.GenerateContext) (version string, source string) {
-	if pkg := ctx.Resolver.Get("deno"); pkg != nil && pkg.Source != "theopacks default" {
+	if pkg := ctx.Resolver.Get("deno"); pkg != nil && pkg.Source != "theokit-packs default" {
 		return generate.NormalizeToMajor(pkg.Version), pkg.Source
 	}
 

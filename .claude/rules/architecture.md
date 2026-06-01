@@ -3,9 +3,9 @@ paths:
   - "internal/**/*.go"
 ---
 
-# Architecture Rules — theo-packs
+# Architecture Rules — theokit-packs
 
-> Project-specific architecture overlay. The 4+1 cycle rules + universal principles live in `cycles-engine/core/rules/`. This file declares what is unique to theo-packs.
+> Project-specific architecture overlay. The 4+1 cycle rules + universal principles live in `cycles-engine/core/rules/`. This file declares what is unique to theokit-packs.
 
 ## DIP layers
 
@@ -20,7 +20,7 @@ Mirror this in `.claude/project.yaml.architecture.layers` (cycles-engine reads f
 
 ## Composition root
 
-TODO — name the entry point that wires everything together (e.g., `cmd/theo-packs/main..go`, `src/main..go`, `src/server.ts`).
+TODO — name the entry point that wires everything together (e.g., `cmd/theokit-packs/main..go`, `src/main..go`, `src/server.ts`).
 
 ## Naming conventions
 

@@ -221,7 +221,7 @@ func findBuildTarget(ctx *generate.GenerateContext, modules []string) string {
 // Priority: config packages > THEOKIT_PACKS_GO_VERSION env var > go.mod directive > default.
 func detectGoVersion(ctx *generate.GenerateContext) (version string, source string) {
 	// Config packages have highest priority (set via theokit-packs.json or THEOKIT_PACKS_PACKAGES)
-	if pkg := ctx.Resolver.Get("go"); pkg != nil && pkg.Source != "theopacks default" {
+	if pkg := ctx.Resolver.Get("go"); pkg != nil && pkg.Source != "theokit-packs default" {
 		return generate.NormalizeToMajorMinor(pkg.Version), pkg.Source
 	}
 

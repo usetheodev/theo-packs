@@ -140,7 +140,7 @@ func TestGenerateGoMod(t *testing.T) {
 	require.NotEmpty(t, cmdLine, "CMD line should not be empty")
 }
 
-// TestUserProvidedDockerfileIsRejected — theo-packs is the single source
+// TestUserProvidedDockerfileIsRejected — theokit-packs is the single source
 // of truth (D1 in docs/plans/single-source-of-truth-plan.md). A Dockerfile
 // inside the analyzed app dir causes hard fail with exit code 2.
 func TestUserProvidedDockerfileIsRejected(t *testing.T) {
@@ -224,7 +224,7 @@ func TestUserProvidedDockerfileAtWorkspaceRoot_IsNotRejected(t *testing.T) {
 	df, readErr := os.ReadFile(outputFile)
 	require.NoError(t, readErr)
 	require.Contains(t, string(df), "FROM",
-		"theo-packs must have generated a Dockerfile despite the unrelated workspace-root Dockerfile")
+		"theokit-packs must have generated a Dockerfile despite the unrelated workspace-root Dockerfile")
 }
 
 func TestFailsWithActionableMessageForMissingSource(t *testing.T) {

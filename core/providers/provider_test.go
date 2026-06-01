@@ -69,7 +69,7 @@ func TestDenoBeforeNode(t *testing.T) {
 
 func TestRegistrationCount(t *testing.T) {
 	require.Len(t, GetLanguageProviders(), 11,
-		"theo-packs registers 11 providers: 5 original (go, python, node, staticfile, shell) + 6 new (rust, java, dotnet, ruby, php, deno)")
+		"theokit-packs registers 11 providers: 5 original (go, python, node, staticfile, shell) + 6 new (rust, java, dotnet, ruby, php, deno)")
 }
 
 func TestNamesAreUnique(t *testing.T) {

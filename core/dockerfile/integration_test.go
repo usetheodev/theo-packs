@@ -15,7 +15,7 @@ func examplesDir(t *testing.T) string {
 	t.Helper()
 	_, thisFile, _, ok := runtime.Caller(0)
 	require.True(t, ok)
-	// core/dockerfile/integration_test.go -> core -> theo-packs/examples
+	// core/dockerfile/integration_test.go -> core -> theokit-packs/examples
 	dir := filepath.Join(filepath.Dir(thisFile), "..", "..", "examples")
 	abs, err := filepath.Abs(dir)
 	require.NoError(t, err)

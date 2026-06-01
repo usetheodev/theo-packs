@@ -218,13 +218,13 @@ func getNoProviderError(app *app.App) string {
 		fileTree += fmt.Sprintf("%s%s\n", prefix, file)
 	}
 
-	errorMsg := "Theopacks could not determine how to build the app.\n\n"
+	errorMsg := "Theokit-packs could not determine how to build the app.\n\n"
 	errorMsg += "The following languages are supported:\n"
 	for _, provider := range providerNames {
 		errorMsg += fmt.Sprintf("- %s\n", provider)
 	}
 
-	errorMsg += "\nThe app contents that Theopacks analyzed:\n\n"
+	errorMsg += "\nThe app contents that Theokit-packs analyzed:\n\n"
 	errorMsg += fileTree
 
 	return errorMsg

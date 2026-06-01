@@ -17,7 +17,7 @@ import (
 //  4. Gemfile `ruby "X.Y"` directive.
 //  5. DefaultRubyVersion (3.3).
 func detectRubyVersion(ctx *generate.GenerateContext) (version string, source string) {
-	if pkg := ctx.Resolver.Get("ruby"); pkg != nil && pkg.Source != "theopacks default" {
+	if pkg := ctx.Resolver.Get("ruby"); pkg != nil && pkg.Source != "theokit-packs default" {
 		return generate.NormalizeToMajorMinor(pkg.Version), pkg.Source
 	}
 

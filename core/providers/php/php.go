@@ -64,7 +64,7 @@ func (p *PhpProvider) planSimple(ctx *generate.GenerateContext, composer *Compos
 	installStep.AddCacheMount("/var/cache/apt", "")
 	installStep.AddCacheMount("/var/lib/apt/lists", "")
 	installStep.AddCacheMount("/root/.composer/cache", "")
-	// Bring composer in via the official installer. theo-packs renders each
+	// Bring composer in via the official installer. theokit-packs renders each
 	// command through `sh -c`, so we must NOT wrap our own `sh -c '...'`
 	// around it (double-wrapping breaks quoting and apt-get sees no args).
 	installStep.AddCommand(plan.NewExecShellCommand(

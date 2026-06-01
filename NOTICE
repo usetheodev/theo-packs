@@ -1,4 +1,4 @@
-theo-packs
+theokit-packs
 Copyright 2025-2026 The Theo Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,22 +27,25 @@ We are grateful to the Railway team and the Railpack community for
 publishing their work under a permissive license, which made this
 project possible.
 
-Modifications made for theo-packs include (non-exhaustive):
+Modifications made for theokit-packs include (non-exhaustive):
 
   * Removal of the Railpack CLI and direct BuildKit/LLB integration;
-    theo-packs emits a Dockerfile and delegates image construction
+    theokit-packs emits a Dockerfile and delegates image construction
     to the downstream Theo build pipeline (Argo Workflow + external
     BuildKit/Kaniko).
   * Replacement of the multi-module layout (core + railpack) with a
-    single Go module (github.com/usetheo/theopacks) plus a single
-    CLI binary (cmd/theopacks-generate) used by the build cluster.
+    single Go module (github.com/usetheo/theokitpacks) plus a single
+    CLI binary (cmd/theokit-packs-generate) used by the build cluster.
   * Workspace-aware Dockerfile generation for Node monorepos
-    (turbo / pnpm / npm workspaces) driven by THEOPACKS_APP_NAME
-    and THEOPACKS_APP_PATH.
+    (turbo / pnpm / npm workspaces) driven by THEOKIT_PACKS_APP_NAME
+    and THEOKIT_PACKS_APP_PATH.
   * Configuration namespace renamed from RAILPACK_* / railpack.json
-    to THEOPACKS_* / theopacks.json.
+    to THEOKIT_PACKS_* / theokit-packs.json.
   * Reduced dependency surface and an internal-only file system
     abstraction tailored to the Theo build environment.
+  * Re-scoped to be the engine for theokit-generated apps consumed
+    by TheoCloud (2026-06-01). The product was renamed from
+    theo-packs to theokit-packs to reflect this focus.
 
 All modifications are © 2025-2026 The Theo Authors and are released
 under the same Apache License, Version 2.0.

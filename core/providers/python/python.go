@@ -382,7 +382,7 @@ func hasPackage(ctx *generate.GenerateContext, pkg string) bool {
 // Priority: config packages > THEOKIT_PACKS_PYTHON_VERSION env var > .python-version > runtime.txt > default.
 func detectPythonVersion(ctx *generate.GenerateContext) (version string, source string) {
 	// Config packages have highest priority (set via theokit-packs.json or THEOKIT_PACKS_PACKAGES)
-	if pkg := ctx.Resolver.Get("python"); pkg != nil && pkg.Source != "theopacks default" {
+	if pkg := ctx.Resolver.Get("python"); pkg != nil && pkg.Source != "theokit-packs default" {
 		return generate.NormalizeToMajorMinor(pkg.Version), pkg.Source
 	}
 

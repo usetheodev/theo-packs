@@ -4,41 +4,41 @@
   </a>
 </p>
 
-# theo-packs
+# theokit-packs
 
 Zero-configuration application builder that detects your project's language and framework, generates an optimized build plan, and emits a multi-stage `Dockerfile` ready to be built by any standard image builder. Part of the [Theo](https://usetheo.dev) platform.
 
 ## How It Works
 
-theo-packs analyzes your source code, detects the language/framework, and generates a `BuildPlan` — a structured representation of every step needed to build and run your application as a container. The build plan is then rendered to a `Dockerfile`. No hand-written Dockerfile required.
+theokit-packs analyzes your source code, detects the language/framework, and generates a `BuildPlan` — a structured representation of every step needed to build and run your application as a container. The build plan is then rendered to a `Dockerfile`. No hand-written Dockerfile required.
 
 ```
 Source code → Provider detection → BuildPlan → Dockerfile
 ```
 
-The Dockerfile is consumed by the downstream Theo build pipeline (Argo Workflow + BuildKit/Kaniko). theo-packs itself does not build images.
+The Dockerfile is consumed by the downstream Theo build pipeline (Argo Workflow + BuildKit/Kaniko). theokit-packs itself does not build images.
 
 ## Supported Languages
 
 | Language | Detection | Build / Frameworks | Version Sources |
 |----------|-----------|--------------------|-----------------|
-| **Go** | `go.mod`, `go.work` | Go modules, workspaces | `go.mod`, `THEOPACKS_GO_VERSION` |
-| **Rust** | `Cargo.toml` | cargo, Cargo workspaces (`-p <pkg>`), static-binary runtime | `rust-toolchain.toml`, `Cargo.toml` `rust-version`, `THEOPACKS_RUST_VERSION` |
-| **Java** | `build.gradle.kts`, `build.gradle`, `pom.xml` | Gradle (Kotlin DSL + Groovy), Maven, multi-module/subprojects, Spring Boot auto-detect, JRE runtime | `.java-version`, `gradle.properties`, build script toolchain, `pom.xml`, `THEOPACKS_JAVA_VERSION` |
-| **.NET** | `*.csproj`, `*.fsproj`, `*.vbproj`, `*.sln` | dotnet CLI, solutions, ASP.NET vs console runtime routing | `global.json`, `<TargetFramework>`, `THEOPACKS_DOTNET_VERSION` |
-| **Ruby** | `Gemfile` | Bundler, Rails / Sinatra / Rack auto-detect, `apps/+packages/` monorepo | `.ruby-version`, Gemfile `ruby` directive, `THEOPACKS_RUBY_VERSION` |
-| **PHP** | `composer.json` | Composer, Laravel / Slim / Symfony auto-detect, `apps/+packages/` monorepo | `.php-version`, `composer.json` `require.php`, `THEOPACKS_PHP_VERSION` |
-| **Python** | `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py` | pip, poetry, pipenv, uv | `.python-version`, `runtime.txt`, `THEOPACKS_PYTHON_VERSION` |
-| **Deno** | `deno.json`, `deno.jsonc` | Deno 2 runtime, `workspace` arrays, Fresh / Hono auto-detect | `deno.json`, `THEOPACKS_DENO_VERSION` |
-| **Node.js** | `package.json` | npm, yarn, pnpm, bun, npm/pnpm/yarn workspaces, Turbo | `engines.node`, `.nvmrc`, `.node-version`, `THEOPACKS_NODE_VERSION` |
+| **Go** | `go.mod`, `go.work` | Go modules, workspaces | `go.mod`, `THEOKIT_PACKS_GO_VERSION` |
+| **Rust** | `Cargo.toml` | cargo, Cargo workspaces (`-p <pkg>`), static-binary runtime | `rust-toolchain.toml`, `Cargo.toml` `rust-version`, `THEOKIT_PACKS_RUST_VERSION` |
+| **Java** | `build.gradle.kts`, `build.gradle`, `pom.xml` | Gradle (Kotlin DSL + Groovy), Maven, multi-module/subprojects, Spring Boot auto-detect, JRE runtime | `.java-version`, `gradle.properties`, build script toolchain, `pom.xml`, `THEOKIT_PACKS_JAVA_VERSION` |
+| **.NET** | `*.csproj`, `*.fsproj`, `*.vbproj`, `*.sln` | dotnet CLI, solutions, ASP.NET vs console runtime routing | `global.json`, `<TargetFramework>`, `THEOKIT_PACKS_DOTNET_VERSION` |
+| **Ruby** | `Gemfile` | Bundler, Rails / Sinatra / Rack auto-detect, `apps/+packages/` monorepo | `.ruby-version`, Gemfile `ruby` directive, `THEOKIT_PACKS_RUBY_VERSION` |
+| **PHP** | `composer.json` | Composer, Laravel / Slim / Symfony auto-detect, `apps/+packages/` monorepo | `.php-version`, `composer.json` `require.php`, `THEOKIT_PACKS_PHP_VERSION` |
+| **Python** | `requirements.txt`, `pyproject.toml`, `Pipfile`, `setup.py` | pip, poetry, pipenv, uv | `.python-version`, `runtime.txt`, `THEOKIT_PACKS_PYTHON_VERSION` |
+| **Deno** | `deno.json`, `deno.jsonc` | Deno 2 runtime, `workspace` arrays, Fresh / Hono auto-detect | `deno.json`, `THEOKIT_PACKS_DENO_VERSION` |
+| **Node.js** | `package.json` | npm, yarn, pnpm, bun, npm/pnpm/yarn workspaces, Turbo | `engines.node`, `.nvmrc`, `.node-version`, `THEOKIT_PACKS_NODE_VERSION` |
 | **Static files** | `index.html` | -- | -- |
 | **Shell** | `*.sh` | -- | -- |
 
-Detection order is fixed (first match wins): **Go → Rust → Java → .NET → Ruby → PHP → Python → Deno → Node → Static → Shell**. Deno is intentionally placed before Node so projects shipping both `deno.json` and a npm-compat `package.json` route to Deno. Override with `theopacks.json` → `{ "provider": "node" }`.
+Detection order is fixed (first match wins): **Go → Rust → Java → .NET → Ruby → PHP → Python → Deno → Node → Static → Shell**. Deno is intentionally placed before Node so projects shipping both `deno.json` and a npm-compat `package.json` route to Deno. Override with `theokit-packs.json` → `{ "provider": "node" }`.
 
 ### Generated Dockerfile defaults
 
-Every Dockerfile theo-packs emits starts with `# syntax=docker/dockerfile:1` so BuildKit cache mounts are honored regardless of the host's default frontend version. Per-language size optimizations are applied automatically:
+Every Dockerfile theokit-packs emits starts with `# syntax=docker/dockerfile:1` so BuildKit cache mounts are honored regardless of the host's default frontend version. Per-language size optimizations are applied automatically:
 
 - **Node** runtime images drop devDependencies via `<pm> prune` (or `yarn install --production` for yarn classic). Bun is unchanged — its hardlinked store is already lean.
 - **Python** local-source layer excludes `__pycache__/`, `*.pyc`, `.pytest_cache/`, `tests/`, `.venv/`, `.env`, `.git/` and similar tooling artifacts.
@@ -46,21 +46,21 @@ Every Dockerfile theo-packs emits starts with `# syntax=docker/dockerfile:1` so 
 
 When the project source has no `.dockerignore`, the CLI writes a per-language default to `<source>/.dockerignore`. User-supplied files are never overwritten or merged. Delete the file and rerun the CLI to regenerate.
 
-For the full CLI contract — flags, env-var bridge for monorepo target selection, build-context invariant, and what the calling pipeline must guarantee — see [`docs/contracts/theo-packs-cli-contract.md`](docs/contracts/theo-packs-cli-contract.md).
+For the full CLI contract — flags, env-var bridge for monorepo target selection, build-context invariant, and what the calling pipeline must guarantee — see [`docs/contracts/theokit-packs-cli-contract.md`](docs/contracts/theokit-packs-cli-contract.md).
 
 ## Project Structure
 
 ```
-theo-packs/
+theokit-packs/
 ├── core/                       # Library: detection + build plan + Dockerfile rendering
 │   ├── app/                    # File system abstraction for project analysis
-│   ├── config/                 # Configuration model (theopacks.json) and merging
+│   ├── config/                 # Configuration model (theokit-packs.json) and merging
 │   ├── dockerfile/             # BuildPlan → Dockerfile string (with golden tests)
 │   ├── generate/               # GenerateContext (step/deploy builders, caches)
 │   ├── plan/                   # BuildPlan, Step, Layer, Command data structures
 │   ├── providers/              # Language-specific detection and planning
 │   └── resolver/               # Package version resolution
-├── cmd/theopacks-generate/     # CLI binary used by the Theo build cluster
+├── cmd/theokit-packs-generate/     # CLI binary used by the Theo build cluster
 ├── internal/utils/             # Shared internal helpers
 ├── e2e/                        # End-to-end tests (build tag `e2e`, real Docker)
 ├── examples/                   # 50+ reference projects (Go, Node, Python, Rust, Java, .NET, Ruby, PHP, Deno, shell, static)
@@ -68,15 +68,15 @@ theo-packs/
 └── Dockerfile.generate         # Container image that ships the CLI
 ```
 
-The repository is a **single Go module**: `github.com/usetheo/theopacks`.
+The repository is a **single Go module**: `github.com/usetheo/theokitpacks`.
 
 ## Library Usage
 
 ```go
 import (
-    "github.com/usetheo/theopacks/core"
-    "github.com/usetheo/theopacks/core/app"
-    "github.com/usetheo/theopacks/core/dockerfile"
+    "github.com/usetheo/theokitpacks/core"
+    "github.com/usetheo/theokitpacks/core/app"
+    "github.com/usetheo/theokitpacks/core/dockerfile"
 )
 
 a, _ := app.NewApp("/path/to/project")
@@ -94,10 +94,10 @@ df, err := dockerfile.Generate(result.Plan)
 
 ## CLI Usage
 
-The single binary `theopacks-generate` is designed to run inside the Theo build cluster (one Argo Workflow step per app). It writes a Dockerfile to disk; image construction happens in a later step.
+The single binary `theokit-packs-generate` is designed to run inside the Theo build cluster (one Argo Workflow step per app). It writes a Dockerfile to disk; image construction happens in a later step.
 
 ```bash
-go run ./cmd/theopacks-generate \
+go run ./cmd/theokit-packs-generate \
   --source /workspace \
   --app-path apps/api \
   --app-name api \
@@ -107,13 +107,13 @@ go run ./cmd/theopacks-generate \
 Behavior:
 
 1. If `<source>/<app-path>/Dockerfile` exists, it is copied to `--output` (user-provided wins).
-2. If the source root looks like a Node monorepo workspace (`turbo.json`, `pnpm-workspace.yaml`, `package.json#workspaces`), the **workspace root** is analyzed instead of the per-app subdirectory, and `THEOPACKS_APP_NAME` / `THEOPACKS_APP_PATH` are set so the Node provider scopes the build (e.g. `turbo run build --filter=<app>...`).
+2. If the source root looks like a Node monorepo workspace (`turbo.json`, `pnpm-workspace.yaml`, `package.json#workspaces`), the **workspace root** is analyzed instead of the per-app subdirectory, and `THEOKIT_PACKS_APP_NAME` / `THEOKIT_PACKS_APP_PATH` are set so the Node provider scopes the build (e.g. `turbo run build --filter=<app>...`).
 3. Otherwise the app directory is analyzed standalone.
 4. The generated Dockerfile is written to `--output` and echoed to stdout for log capture.
 
 ## Configuration
 
-Projects can be customized via `theopacks.json` at the analyzed app's root (JSONC — comments allowed):
+Projects can be customized via `theokit-packs.json` at the analyzed app's root (JSONC — comments allowed):
 
 ```jsonc
 {
@@ -146,12 +146,12 @@ Projects can be customized via `theopacks.json` at the analyzed app's root (JSON
 
 ### Version Detection
 
-theo-packs picks the language version (and matching Docker base image) from your project files. If nothing is specified, sensible defaults are used (Node 20, Python 3.12, Go 1.23).
+theokit-packs picks the language version (and matching Docker base image) from your project files. If nothing is specified, sensible defaults are used (Node 20, Python 3.12, Go 1.23).
 
 **Priority order (highest wins):**
 
-1. `theopacks.json` `packages` field, or `THEOPACKS_PACKAGES` env var
-2. Language-specific env var (`THEOPACKS_NODE_VERSION`, `THEOPACKS_PYTHON_VERSION`, `THEOPACKS_GO_VERSION`)
+1. `theokit-packs.json` `packages` field, or `THEOKIT_PACKS_PACKAGES` env var
+2. Language-specific env var (`THEOKIT_PACKS_NODE_VERSION`, `THEOKIT_PACKS_PYTHON_VERSION`, `THEOKIT_PACKS_GO_VERSION`)
 3. Project version files (`.nvmrc`, `.python-version`, `go.mod`, `engines.node`, `runtime.txt`)
 4. Default version
 
@@ -163,11 +163,11 @@ echo "18" > .nvmrc                    # → FROM node:18-bookworm
 echo "3.11" > .python-version         # → FROM python:3.11-bookworm
 
 # Via environment variable
-THEOPACKS_NODE_VERSION=22             # → FROM node:22-bookworm
-THEOPACKS_PYTHON_VERSION=3.9          # → FROM python:3.9-bookworm
-THEOPACKS_GO_VERSION=1.21             # → FROM golang:1.21-bookworm
+THEOKIT_PACKS_NODE_VERSION=22             # → FROM node:22-bookworm
+THEOKIT_PACKS_PYTHON_VERSION=3.9          # → FROM python:3.9-bookworm
+THEOKIT_PACKS_GO_VERSION=1.21             # → FROM golang:1.21-bookworm
 
-# Via theopacks.json
+# Via theokit-packs.json
 { "packages": { "node": "22" } }      # → FROM node:22-bookworm
 
 # Go version is auto-detected from go.mod
@@ -178,25 +178,25 @@ THEOPACKS_GO_VERSION=1.21             # → FROM golang:1.21-bookworm
 
 | Variable | Description |
 |----------|-------------|
-| `THEOPACKS_START_CMD` | Override start command |
-| `THEOPACKS_BUILD_CMD` | Override build command |
-| `THEOPACKS_INSTALL_CMD` | Override install command |
-| `THEOPACKS_PACKAGES` | Space-separated package versions (e.g. `node@20 python@3.11`) |
-| `THEOPACKS_NODE_VERSION` | Override Node.js version for base image |
-| `THEOPACKS_PYTHON_VERSION` | Override Python version for base image |
-| `THEOPACKS_GO_VERSION` | Override Go version for base image |
-| `THEOPACKS_RUST_VERSION` | Override Rust version for build image |
-| `THEOPACKS_JAVA_VERSION` | Override Java major version (build + JRE runtime) |
-| `THEOPACKS_DOTNET_VERSION` | Override .NET SDK major.minor version |
-| `THEOPACKS_RUBY_VERSION` | Override Ruby major.minor version |
-| `THEOPACKS_PHP_VERSION` | Override PHP major.minor version |
-| `THEOPACKS_DENO_VERSION` | Override Deno major version |
-| `THEOPACKS_BUILD_APT_PACKAGES` | Extra apt packages for build |
-| `THEOPACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime |
-| `THEOPACKS_CONFIG_FILE` | Custom config file path (relative to app root) |
-| `THEOPACKS_GO_MODULE` | Go workspace: which module to build |
-| `THEOPACKS_APP_NAME` | Workspace-aware build: app/member/subproject name (Rust Cargo workspaces, Java Gradle subprojects / Maven modules, .NET solutions, Ruby/PHP `apps/+packages/`, Deno workspaces) |
-| `THEOPACKS_APP_PATH` | Workspace-aware build: app path inside workspace (set automatically by the CLI on Node monorepo detection; manually for other languages) |
+| `THEOKIT_PACKS_START_CMD` | Override start command |
+| `THEOKIT_PACKS_BUILD_CMD` | Override build command |
+| `THEOKIT_PACKS_INSTALL_CMD` | Override install command |
+| `THEOKIT_PACKS_PACKAGES` | Space-separated package versions (e.g. `node@20 python@3.11`) |
+| `THEOKIT_PACKS_NODE_VERSION` | Override Node.js version for base image |
+| `THEOKIT_PACKS_PYTHON_VERSION` | Override Python version for base image |
+| `THEOKIT_PACKS_GO_VERSION` | Override Go version for base image |
+| `THEOKIT_PACKS_RUST_VERSION` | Override Rust version for build image |
+| `THEOKIT_PACKS_JAVA_VERSION` | Override Java major version (build + JRE runtime) |
+| `THEOKIT_PACKS_DOTNET_VERSION` | Override .NET SDK major.minor version |
+| `THEOKIT_PACKS_RUBY_VERSION` | Override Ruby major.minor version |
+| `THEOKIT_PACKS_PHP_VERSION` | Override PHP major.minor version |
+| `THEOKIT_PACKS_DENO_VERSION` | Override Deno major version |
+| `THEOKIT_PACKS_BUILD_APT_PACKAGES` | Extra apt packages for build |
+| `THEOKIT_PACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime |
+| `THEOKIT_PACKS_CONFIG_FILE` | Custom config file path (relative to app root) |
+| `THEOKIT_PACKS_GO_MODULE` | Go workspace: which module to build |
+| `THEOKIT_PACKS_APP_NAME` | Workspace-aware build: app/member/subproject name (Rust Cargo workspaces, Java Gradle subprojects / Maven modules, .NET solutions, Ruby/PHP `apps/+packages/`, Deno workspaces) |
+| `THEOKIT_PACKS_APP_PATH` | Workspace-aware build: app path inside workspace (set automatically by the CLI on Node monorepo detection; manually for other languages) |
 
 ## Development
 
@@ -241,7 +241,7 @@ UPDATE_GOLDEN=true go test ./core/dockerfile/...
 ### Running the CLI Locally
 
 ```bash
-go run ./cmd/theopacks-generate \
+go run ./cmd/theokit-packs-generate \
   --source examples/node-npm \
   --app-path . \
   --app-name demo \
@@ -271,7 +271,7 @@ go run ./cmd/theopacks-generate \
 
 ## Acknowledgements
 
-theo-packs is derived from **[Railpack](https://github.com/railwayapp/railpack)** by [Railway](https://railway.com) and the Railpack contributors, released under the Apache License, Version 2.0.
+theokit-packs is derived from **[Railpack](https://github.com/railwayapp/railpack)** by [Railway](https://railway.com) and the Railpack contributors, released under the Apache License, Version 2.0.
 
 The provider interface, build-plan model, language-specific providers (Go, Node.js, Python, static, shell), file-system abstraction, configuration merging, and many of the example projects originate from Railpack. We are grateful to the Railway team and the Railpack community for publishing their work under a permissive license — without it, this project would not exist.
 

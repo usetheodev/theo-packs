@@ -221,14 +221,14 @@ var perAppNodeModulesPattern = regexp.MustCompile(`(apps|packages)/[^/\s]+/node_
 
 // TestGoldens_NoPerAppNodeModulesCopy locks the assertion that no Node
 // workspace golden COPYs a per-app `node_modules` directory. F5 in the
-// dogfood report claimed theo-packs emitted such a pattern; manual
+// dogfood report claimed theokit-packs emitted such a pattern; manual
 // reproduction against the real upstream theo-stacks template proved this
 // was false. This test guards against a future regression.
 //
 // The bug in the dogfood report came from a user-provided Dockerfile in
 // `theo-stacks/templates/monorepo-turbo/apps/api/Dockerfile` that
-// theo-packs passes through unchanged per the user-Dockerfile-precedence
-// contract documented in docs/contracts/theo-packs-cli-contract.md.
+// theokit-packs passes through unchanged per the user-Dockerfile-precedence
+// contract documented in docs/contracts/theokit-packs-cli-contract.md.
 func TestGoldens_NoPerAppNodeModulesCopy(t *testing.T) {
 	for _, path := range goldenFiles(t) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
@@ -291,12 +291,12 @@ func TestGoldens_NoPerAppNodeModulesCopy_AcceptsCleanOutput(t *testing.T) {
 // TestGoldens_HasProviderHeader asserts every golden carries the defensive
 // header comment naming the producing provider. The header is critical for
 // debugging "context not found" errors against monorepo Dockerfiles — see
-// docs/contracts/theo-packs-cli-contract.md.
+// docs/contracts/theokit-packs-cli-contract.md.
 func TestGoldens_HasProviderHeader(t *testing.T) {
 	for _, path := range goldenFiles(t) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			content := readGolden(t, path)
-			require.Contains(t, content, "# theo-packs: generated for provider",
+			require.Contains(t, content, "# theokit-packs: generated for provider",
 				"golden %s missing defensive header (T1.1)", filepath.Base(path))
 			require.Contains(t, content, "Build context:",
 				"golden %s missing build-context guidance (T1.1)", filepath.Base(path))

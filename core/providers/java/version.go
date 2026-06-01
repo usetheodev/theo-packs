@@ -22,7 +22,7 @@ import (
 //
 // The returned source string is used for build logs.
 func detectJavaVersion(ctx *generate.GenerateContext) (version string, source string) {
-	if pkg := ctx.Resolver.Get("java"); pkg != nil && pkg.Source != "theopacks default" {
+	if pkg := ctx.Resolver.Get("java"); pkg != nil && pkg.Source != "theokit-packs default" {
 		return generate.NormalizeToMajor(pkg.Version), pkg.Source
 	}
 

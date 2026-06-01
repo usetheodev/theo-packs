@@ -24,7 +24,7 @@ func examplesDir(t *testing.T) string {
 	_, thisFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "failed to determine test file location")
 
-	// core/monorepo_test.go -> theo-packs/core -> theo-packs/examples
+	// core/monorepo_test.go -> theokit-packs/core -> theokit-packs/examples
 	dir := filepath.Join(filepath.Dir(thisFile), "..", "examples")
 	abs, err := filepath.Abs(dir)
 	require.NoError(t, err)
@@ -473,13 +473,13 @@ func TestRealExample_GoSimple_CustomStartViaOptions(t *testing.T) {
 // Version and metadata
 // =============================================================================
 
-func TestRealExample_TheopacksVersion(t *testing.T) {
+func TestRealExample_TheokitPacksVersion(t *testing.T) {
 	result := planFromExample(t, "node-npm", &GenerateBuildPlanOptions{
-		TheopacksVersion: "0.3.0",
+		TheokitPacksVersion: "0.3.0",
 	})
 
 	require.True(t, result.Success)
-	require.Equal(t, "0.3.0", result.TheopacksVersion)
+	require.Equal(t, "0.3.0", result.TheokitPacksVersion)
 }
 
 func TestRealExample_ProviderMetadata(t *testing.T) {

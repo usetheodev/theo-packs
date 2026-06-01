@@ -1,12 +1,12 @@
-Dogfooding audit — test theo-packs as a real user building real projects. Argument: $ARGUMENTS (scope: all, node, go, python, monorepo, or a specific example name like node-next)
+Dogfooding audit — test theokit-packs as a real user building real projects. Argument: $ARGUMENTS (scope: all, node, go, python, monorepo, or a specific example name like node-next)
 
-Execute a MAXIMUM RIGOR dogfooding session. You are a developer who just found theo-packs and is trying to deploy their project. You have ZERO tolerance for broken builds, misleading output, or missing features.
+Execute a MAXIMUM RIGOR dogfooding session. You are a developer who just found theokit-packs and is trying to deploy their project. You have ZERO tolerance for broken builds, misleading output, or missing features.
 
 ---
 
 ## RULES (INVIOLABLE)
 
-1. **You are NOT a developer of theo-packs. You are a USER.** You cannot fix code. You can only report what's broken.
+1. **You are NOT a developer of theokit-packs. You are a USER.** You cannot fix code. You can only report what's broken.
 2. **Do NOT use Edit, Write, or any tool that modifies files.** Read-only. If you find a bug, document it — don't fix it.
 3. **Every claim must have EVIDENCE.** No "it should work" — run it and prove it.
 4. **If a Dockerfile is generated, you MUST `docker build` it.** A Dockerfile that doesn't build is a P0 bug.
@@ -81,7 +81,7 @@ For each example, attempt a real `docker build`:
 
 ```bash
 cd ../examples/<name>
-docker build -f <path-to-golden-dockerfile> -t theopacks-dogfood-<name> --no-cache . 2>&1
+docker build -f <path-to-golden-dockerfile> -t theokit-packs-dogfood-<name> --no-cache . 2>&1
 ```
 
 **Grade:**
@@ -92,7 +92,7 @@ Record: exit code, build duration, error message if failed.
 
 After build, inspect image:
 ```bash
-docker inspect theopacks-dogfood-<name> --format '{{.Config.Cmd}} | Size: {{.Size}}'
+docker inspect theokit-packs-dogfood-<name> --format '{{.Config.Cmd}} | Size: {{.Size}}'
 ```
 
 ### Phase 5: Container Start Verification (per target that built)
@@ -100,7 +100,7 @@ docker inspect theopacks-dogfood-<name> --format '{{.Config.Cmd}} | Size: {{.Siz
 For each successfully built image:
 
 ```bash
-docker run --rm -d --name dogfood-test-<name> -p 0:3000 theopacks-dogfood-<name>
+docker run --rm -d --name dogfood-test-<name> -p 0:3000 theokit-packs-dogfood-<name>
 sleep 3
 docker logs dogfood-test-<name> 2>&1 | head -20
 docker stop dogfood-test-<name> 2>/dev/null
@@ -114,7 +114,7 @@ docker stop dogfood-test-<name> 2>/dev/null
 ### Phase 6: Cleanup
 
 ```bash
-docker rmi $(docker images -q 'theopacks-dogfood-*') 2>/dev/null
+docker rmi $(docker images -q 'theokit-packs-dogfood-*') 2>/dev/null
 ```
 
 ---
@@ -136,7 +136,7 @@ docker rmi $(docker images -q 'theopacks-dogfood-*') 2>/dev/null
 After all phases complete, produce this report:
 
 ```markdown
-# theo-packs Dogfood Report
+# theokit-packs Dogfood Report
 
 **Scope:** <scope>
 **Date:** <date>

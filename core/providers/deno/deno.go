@@ -150,7 +150,7 @@ func (p *DenoProvider) planWorkspace(ctx *generate.GenerateContext, cfg *DenoCon
 
 func configureDenoDeploy(ctx *generate.GenerateContext, version, startCmd string) {
 	// Deno's distroless runtime is small but doesn't ship a shell; the deno
-	// CLI is the entrypoint. theo-packs generates a CMD via /bin/bash today,
+	// CLI is the entrypoint. theokit-packs generates a CMD via /bin/bash today,
 	// so we use the bin- variant for runtime to keep that contract working.
 	// (Distroless can be a future opt-in via theokit-packs.json.)
 	ctx.Deploy.Base = plan.NewImageLayer(generate.DenoImageForVersion(version))

@@ -29,7 +29,7 @@ type rustToolchainToml struct {
 // "Cargo.toml", "THEOKIT_PACKS_RUST_VERSION", "default").
 func detectRustVersion(ctx *generate.GenerateContext, cargo *CargoToml) (version string, source string) {
 	// 1. Config packages (highest priority).
-	if pkg := ctx.Resolver.Get("rust"); pkg != nil && pkg.Source != "theopacks default" {
+	if pkg := ctx.Resolver.Get("rust"); pkg != nil && pkg.Source != "theokit-packs default" {
 		return pkg.Version, pkg.Source
 	}
 

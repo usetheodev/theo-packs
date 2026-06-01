@@ -62,10 +62,10 @@ func main() {
 	// Resolve full app directory
 	appDir := filepath.Join(*source, *appPath)
 
-	// Single source of truth: theo-packs generates the Dockerfile. A user-
+	// Single source of truth: theokit-packs generates the Dockerfile. A user-
 	// supplied Dockerfile in the analyzed app directory is a contract
 	// violation — there would be two sources of truth for the build
-	// artifact, defeating the determinism theo-packs guarantees. Hard fail
+	// artifact, defeating the determinism theokit-packs guarantees. Hard fail
 	// with exit code 2 (input invariant violated, distinguishable from
 	// generic failure code 1).
 	//
@@ -74,15 +74,15 @@ func main() {
 	// outside Theo (e.g., `docker compose up`). We only reject within the
 	// app path being analyzed.
 	//
-	// See docs/contracts/theo-packs-cli-contract.md, "Single source of
+	// See docs/contracts/theokit-packs-cli-contract.md, "Single source of
 	// truth" preamble, for the full rationale.
 	userDockerfile := filepath.Join(appDir, "Dockerfile")
 	if _, err := os.Stat(userDockerfile); err == nil {
 		fmt.Fprintf(os.Stderr,
 			"[theokit-packs] ERROR: user-supplied Dockerfile found at %s.\n\n"+
-				"theo-packs is the single source of truth for Dockerfile generation.\n"+
+				"theokit-packs is the single source of truth for Dockerfile generation.\n"+
 				"Remove the file and rerun. To opt out of generation entirely, do not\n"+
-				"invoke theo-packs — declare your build via a different mechanism in\n"+
+				"invoke theokit-packs — declare your build via a different mechanism in\n"+
 				"your deployment pipeline.\n",
 			userDockerfile)
 		os.Exit(2)

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
-# theo-packs: generated for provider "ruby".
-# Build context: the directory passed as theopacks-generate --source
+# theokit-packs: generated for provider "ruby".
+# Build context: the directory passed as theokit-packs-generate --source
 # (workspace root for monorepos, app dir otherwise). When invoking
 # docker build, set --file <this-file> and the context to that same
 # directory. Misalignment is the most common cause of "not found" errors.

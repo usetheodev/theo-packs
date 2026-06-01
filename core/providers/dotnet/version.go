@@ -22,7 +22,7 @@ type globalJson struct {
 //  4. Project file <TargetFramework> (net8.0 → 8.0).
 //  5. DefaultDotnetVersion (LTS 8.0).
 func detectDotnetVersion(ctx *generate.GenerateContext, primary *Project) (version string, source string) {
-	if pkg := ctx.Resolver.Get("dotnet"); pkg != nil && pkg.Source != "theopacks default" {
+	if pkg := ctx.Resolver.Get("dotnet"); pkg != nil && pkg.Source != "theokit-packs default" {
 		return generate.NormalizeToMajorMinor(pkg.Version), pkg.Source
 	}
 

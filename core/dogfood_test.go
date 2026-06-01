@@ -249,7 +249,7 @@ func TestDogfood_BuildResultJSON_Stability(t *testing.T) {
 
 	env := app.NewEnvironment(nil)
 	result := GenerateBuildPlan(userApp, env, &GenerateBuildPlanOptions{
-		TheopacksVersion: "0.1.0",
+		TheokitPacksVersion: "0.1.0",
 	})
 
 	require.True(t, result.Success)
@@ -263,8 +263,8 @@ func TestDogfood_BuildResultJSON_Stability(t *testing.T) {
 	require.Contains(t, parsed, "plan")
 	require.Contains(t, parsed, "detectedProviders")
 	require.Contains(t, parsed, "success")
-	require.Contains(t, parsed, "theopacksVersion")
-	require.Equal(t, "0.1.0", parsed["theopacksVersion"])
+	require.Contains(t, parsed, "theokitPacksVersion")
+	require.Equal(t, "0.1.0", parsed["theokitPacksVersion"])
 }
 
 func TestDogfood_InvalidConfigFile(t *testing.T) {

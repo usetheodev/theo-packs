@@ -1,10 +1,10 @@
-# theo-packs
+# theokit-packs
 
 > Zero-configuration application builder for containerization. Detects language/framework from source code and generates optimized Dockerfiles. Part of the Theo Kubernetes PaaS (https://usetheo.dev).
 
 ## Project Overview
 
-theo-packs analyzes source code, detects the programming language and framework, and produces a structured BuildPlan that converts into a multi-stage Dockerfile. No user-written Dockerfile needed.
+theokit-packs analyzes source code, detects the programming language and framework, and produces a structured BuildPlan that converts into a multi-stage Dockerfile. No user-written Dockerfile needed.
 
 ```
 Source code → Provider.Detect() → Provider.Plan() → BuildPlan → Dockerfile
@@ -14,21 +14,21 @@ Two Go modules:
 
 | Module | Path | Import | Purpose |
 |--------|------|--------|---------|
-| Core library | `core/` | `github.com/usetheo/theopacks` | Language detection, build plan generation, Dockerfile generation |
+| Core library | `core/` | `github.com/usetheo/theokitpacks` | Language detection, build plan generation, Dockerfile generation |
 | CLI + BuildKit | `railpack/` | `github.com/railwayapp/railpack` | CLI interface, converts BuildPlan to BuildKit LLB, builds container images |
 
 ## Directory Structure
 
 ```
-theo-packs/
+theokit-packs/
 ├── core/                          # Core library (minimal dependencies)
 │   ├── core.go                    # Entry point: GenerateBuildPlan()
 │   ├── validate.go                # Plan validation (start command, circular refs, inputs)
 │   ├── app/
 │   │   ├── app.go                 # File system abstraction (App type)
-│   │   └── environment.go         # THEOPACKS_* environment variable access
+│   │   └── environment.go         # THEOKIT_PACKS_* environment variable access
 │   ├── config/
-│   │   └── config.go              # Config model (theopacks.json) + merging
+│   │   └── config.go              # Config model (theokit-packs.json) + merging
 │   ├── dockerfile/
 │   │   └── generate.go            # BuildPlan → Dockerfile string conversion
 │   ├── generate/
@@ -59,7 +59,7 @@ theo-packs/
 │   ├── examples/                  # 110+ example projects with integration tests
 │   └── mise.toml                  # Development tasks (mise run <task>)
 ├── examples/                      # Example projects for core module testing
-├── cmd/theopacks-generate/        # Standalone CLI for core module
+├── cmd/theokit-packs-generate/        # Standalone CLI for core module
 └── internal/utils/                # Shared utilities
 ```
 
@@ -87,7 +87,7 @@ Provider detection order (first match wins):
 4. Static files — `index.html`
 5. Shell — `*.sh` files
 
-Override via config: `{ "provider": "node" }` in `theopacks.json`.
+Override via config: `{ "provider": "node" }` in `theokit-packs.json`.
 
 ### BuildPlan Data Model
 
@@ -156,7 +156,7 @@ Access via `app.Environment`:
 
 ```go
 env.GetVariable("NODE_ENV")                           // raw value
-env.GetConfigVariable("START_CMD")                     // looks for THEOPACKS_START_CMD, returns (value, varName)
+env.GetConfigVariable("START_CMD")                     // looks for THEOKIT_PACKS_START_CMD, returns (value, varName)
 env.GetConfigVariableList("PACKAGES")                  // splits by whitespace
 env.IsConfigVariableTruthy("SKIP_BUILD")               // "1" or "true"
 ```
@@ -167,8 +167,8 @@ Each provider auto-detects the language version from project files and selects t
 
 ### Priority Order (highest wins)
 
-1. Config packages — `theopacks.json` `packages` field or `THEOPACKS_PACKAGES` env var
-2. Language-specific env var — `THEOPACKS_NODE_VERSION`, `THEOPACKS_PYTHON_VERSION`, `THEOPACKS_GO_VERSION`
+1. Config packages — `theokit-packs.json` `packages` field or `THEOKIT_PACKS_PACKAGES` env var
+2. Language-specific env var — `THEOKIT_PACKS_NODE_VERSION`, `THEOKIT_PACKS_PYTHON_VERSION`, `THEOKIT_PACKS_GO_VERSION`
 3. Project version files — `.nvmrc`, `.python-version`, `go.mod` directive, `engines.node`, `runtime.txt`, `.node-version`
 4. Default version — Node 20, Python 3.12, Go 1.23
 
@@ -176,7 +176,7 @@ Each provider auto-detects the language version from project files and selects t
 
 **Go:**
 - `go.mod` `go X.XX` directive → extracts major.minor
-- `THEOPACKS_GO_VERSION` env var
+- `THEOKIT_PACKS_GO_VERSION` env var
 - Default: `1.23`
 - Image pattern: `golang:<major.minor>-bookworm`
 - Runtime: always `debian:bookworm-slim` (Go compiles to static binary)
@@ -185,14 +185,14 @@ Each provider auto-detects the language version from project files and selects t
 - `package.json` `engines.node` field (supports `>=22`, `^18.3.2`, etc.)
 - `.nvmrc` file
 - `.node-version` file
-- `THEOPACKS_NODE_VERSION` env var
+- `THEOKIT_PACKS_NODE_VERSION` env var
 - Default: `20`
 - Image pattern: `node:<major>-bookworm` / `node:<major>-bookworm-slim`
 
 **Python:**
 - `.python-version` file
 - `runtime.txt` (Heroku format: `python-3.11.6`)
-- `THEOPACKS_PYTHON_VERSION` env var
+- `THEOKIT_PACKS_PYTHON_VERSION` env var
 - Default: `3.12`
 - Image pattern: `python:<major.minor>-bookworm` / `python:<major.minor>-slim-bookworm`
 - Site-packages path is version-specific: `/usr/local/lib/python<major.minor>/site-packages`
@@ -237,7 +237,7 @@ resolved, err := ctx.Resolver.ResolvePackages()
 
 ## Configuration
 
-### theopacks.json
+### theokit-packs.json
 
 JSONC format (comments allowed). Placed at project root.
 
@@ -271,25 +271,25 @@ JSONC format (comments allowed). Placed at project root.
 ### Config Merging Order
 
 Three sources merge (later overrides earlier):
-1. File config — `theopacks.json`
-2. Environment config — `THEOPACKS_*` variables
+1. File config — `theokit-packs.json`
+2. Environment config — `THEOKIT_PACKS_*` variables
 3. Options config — programmatic `GenerateBuildPlanOptions`
 
 ### Environment Variables Reference
 
 | Variable | Description |
 |----------|-------------|
-| `THEOPACKS_START_CMD` | Override start command |
-| `THEOPACKS_BUILD_CMD` | Override build command |
-| `THEOPACKS_INSTALL_CMD` | Override install command |
-| `THEOPACKS_PACKAGES` | Space-separated package versions (`node@20 python@3.11`) |
-| `THEOPACKS_NODE_VERSION` | Override Node.js version for base image |
-| `THEOPACKS_PYTHON_VERSION` | Override Python version for base image |
-| `THEOPACKS_GO_VERSION` | Override Go version for base image |
-| `THEOPACKS_BUILD_APT_PACKAGES` | Extra apt packages for build stage |
-| `THEOPACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime stage |
-| `THEOPACKS_CONFIG_FILE` | Custom config file path |
-| `THEOPACKS_GO_MODULE` | Which module to build in Go workspace |
+| `THEOKIT_PACKS_START_CMD` | Override start command |
+| `THEOKIT_PACKS_BUILD_CMD` | Override build command |
+| `THEOKIT_PACKS_INSTALL_CMD` | Override install command |
+| `THEOKIT_PACKS_PACKAGES` | Space-separated package versions (`node@20 python@3.11`) |
+| `THEOKIT_PACKS_NODE_VERSION` | Override Node.js version for base image |
+| `THEOKIT_PACKS_PYTHON_VERSION` | Override Python version for base image |
+| `THEOKIT_PACKS_GO_VERSION` | Override Go version for base image |
+| `THEOKIT_PACKS_BUILD_APT_PACKAGES` | Extra apt packages for build stage |
+| `THEOKIT_PACKS_DEPLOY_APT_PACKAGES` | Extra apt packages for runtime stage |
+| `THEOKIT_PACKS_CONFIG_FILE` | Custom config file path |
+| `THEOKIT_PACKS_GO_MODULE` | Which module to build in Go workspace |
 
 ## Typical Provider Plan Flow
 
@@ -370,15 +370,15 @@ CMD ["/bin/bash", "-c", "/app/server"]
 
 ```go
 import (
-    "github.com/usetheo/theopacks/core"
-    "github.com/usetheo/theopacks/core/app"
-    "github.com/usetheo/theopacks/core/dockerfile"
+    "github.com/usetheo/theokitpacks/core"
+    "github.com/usetheo/theokitpacks/core/app"
+    "github.com/usetheo/theokitpacks/core/dockerfile"
 )
 
 // 1. Create app from project directory
 a, _ := app.NewApp("/path/to/project")
 env := app.NewEnvironment(&map[string]string{
-    "THEOPACKS_START_CMD": "node server.js",
+    "THEOKIT_PACKS_START_CMD": "node server.js",
 })
 
 // 2. Generate build plan

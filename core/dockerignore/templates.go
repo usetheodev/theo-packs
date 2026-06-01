@@ -9,11 +9,11 @@
 // pipelines.
 //
 // The package is read-only: it returns templates as strings. Writing the file
-// to disk is a CLI concern (cmd/theopacks-generate/main.go).
+// to disk is a CLI concern (cmd/theokit-packs-generate/main.go).
 package dockerignore
 
 // baseCommon is appended to every per-language template. Covers VCS state,
-// editor cruft, OS noise, and the theo-packs-managed files that should never
+// editor cruft, OS noise, and the theokit-packs-managed files that should never
 // land in the build context.
 const baseCommon = `# Common — version control, OS noise, editor cruft.
 .git/
@@ -27,7 +27,7 @@ Thumbs.db
 .idea/
 .vscode/
 
-# theo-packs internals
+# theokit-packs internals
 theokit-packs.json
 .dockerignore
 `

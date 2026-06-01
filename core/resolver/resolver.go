@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	DefaultSource = "theopacks default"
+	DefaultSource = "theokit-packs default"
 )
 
 type Resolver struct {

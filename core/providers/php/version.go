@@ -17,7 +17,7 @@ import (
 //  4. composer.json `require.php` (e.g., "^8.2", ">=8.1").
 //  5. DefaultPhpVersion (8.3 — current stable).
 func detectPhpVersion(ctx *generate.GenerateContext, composer *ComposerJson) (version string, source string) {
-	if pkg := ctx.Resolver.Get("php"); pkg != nil && pkg.Source != "theopacks default" {
+	if pkg := ctx.Resolver.Get("php"); pkg != nil && pkg.Source != "theokit-packs default" {
 		return generate.NormalizeToMajorMinor(pkg.Version), pkg.Source
 	}
 
