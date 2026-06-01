@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theokitpacks/core/app"
 )
 
 // WorkspaceInfo describes an apps/+packages/ PHP monorepo using a single root

@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/core/config"
-	"github.com/usetheo/theopacks/core/logger"
+	"github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/core/config"
+	"github.com/usetheo/theokitpacks/core/logger"
 )
 
 func TestNewGenerateContext(t *testing.T) {

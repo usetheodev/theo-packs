@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theokitpacks/core/app"
 )
 
 // Framework distinguishes the deployable PHP shape and drives the start command.

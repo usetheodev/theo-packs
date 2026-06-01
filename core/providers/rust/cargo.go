@@ -5,7 +5,7 @@
 package rust
 
 import (
-	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theokitpacks/core/app"
 )
 
 // CargoToml is the subset of Cargo.toml fields theo-packs needs. The TOML

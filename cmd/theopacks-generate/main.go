@@ -36,11 +36,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/usetheo/theopacks/core"
-	"github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/core/dockerfile"
-	"github.com/usetheo/theopacks/core/dockerignore"
-	"github.com/usetheo/theopacks/core/providers/node"
+	"github.com/usetheo/theokitpacks/core"
+	"github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/core/dockerfile"
+	"github.com/usetheo/theokitpacks/core/dockerignore"
+	"github.com/usetheo/theokitpacks/core/providers/node"
 )
 
 func main() {

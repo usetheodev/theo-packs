@@ -8,14 +8,14 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/usetheo/theopacks/core/app"
-	c "github.com/usetheo/theopacks/core/config"
-	"github.com/usetheo/theopacks/core/generate"
-	"github.com/usetheo/theopacks/core/logger"
-	"github.com/usetheo/theopacks/core/plan"
-	"github.com/usetheo/theopacks/core/providers"
-	"github.com/usetheo/theopacks/core/resolver"
-	"github.com/usetheo/theopacks/internal/utils"
+	"github.com/usetheo/theokitpacks/core/app"
+	c "github.com/usetheo/theokitpacks/core/config"
+	"github.com/usetheo/theokitpacks/core/generate"
+	"github.com/usetheo/theokitpacks/core/logger"
+	"github.com/usetheo/theokitpacks/core/plan"
+	"github.com/usetheo/theokitpacks/core/providers"
+	"github.com/usetheo/theokitpacks/core/resolver"
+	"github.com/usetheo/theokitpacks/internal/utils"
 )
 
 const (

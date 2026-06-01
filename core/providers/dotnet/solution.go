@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theokitpacks/core/app"
 )
 
 // SolutionEntry describes one project listed inside a .sln solution file.

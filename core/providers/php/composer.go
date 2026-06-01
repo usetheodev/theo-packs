@@ -5,7 +5,7 @@
 package php
 
 import (
-	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theokitpacks/core/app"
 )
 
 // ComposerJson is the subset of composer.json fields theo-packs needs for

@@ -7,12 +7,12 @@ import (
 	"sort"
 	"strings"
 
-	a "github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/core/config"
-	"github.com/usetheo/theopacks/core/logger"
-	"github.com/usetheo/theopacks/core/plan"
-	"github.com/usetheo/theopacks/core/resolver"
-	"github.com/usetheo/theopacks/internal/utils"
+	a "github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/core/config"
+	"github.com/usetheo/theokitpacks/core/logger"
+	"github.com/usetheo/theokitpacks/core/plan"
+	"github.com/usetheo/theokitpacks/core/resolver"
+	"github.com/usetheo/theokitpacks/internal/utils"
 )
 
 type BuildStepOptions struct {

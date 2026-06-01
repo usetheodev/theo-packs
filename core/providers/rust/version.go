@@ -7,7 +7,7 @@ package rust
 import (
 	"strings"
 
-	"github.com/usetheo/theopacks/core/generate"
+	"github.com/usetheo/theokitpacks/core/generate"
 )
 
 // rustToolchainToml is the subset of rust-toolchain.toml we need.

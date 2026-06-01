@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
-	"github.com/usetheo/theopacks/core/app"
-	c "github.com/usetheo/theopacks/core/config"
-	"github.com/usetheo/theopacks/core/logger"
+	"github.com/usetheo/theokitpacks/core/app"
+	c "github.com/usetheo/theokitpacks/core/config"
+	"github.com/usetheo/theokitpacks/core/logger"
 )
 
 func TestGenerateBuildPlanForNodeApp(t *testing.T) {

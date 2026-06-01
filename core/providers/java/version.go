@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/usetheo/theopacks/core/generate"
+	"github.com/usetheo/theokitpacks/core/generate"
 )
 
 // detectJavaVersion picks the Java major version, in priority order:

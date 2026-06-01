@@ -3,8 +3,8 @@ package config
 import (
 	"encoding/json"
 
-	"github.com/usetheo/theopacks/core/plan"
-	"github.com/usetheo/theopacks/internal/utils"
+	"github.com/usetheo/theokitpacks/core/plan"
+	"github.com/usetheo/theokitpacks/internal/utils"
 )
 
 type DeployConfig struct {

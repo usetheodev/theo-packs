@@ -1,7 +1,7 @@
 package generate
 
 import (
-	"github.com/usetheo/theopacks/core/plan"
+	"github.com/usetheo/theokitpacks/core/plan"
 )
 
 const (

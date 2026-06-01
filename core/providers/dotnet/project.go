@@ -8,7 +8,7 @@ import (
 	"encoding/xml"
 	"strings"
 
-	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theokitpacks/core/app"
 )
 
 // Project represents the subset of a .NET project file we care about.

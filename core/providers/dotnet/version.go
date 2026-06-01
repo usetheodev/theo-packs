@@ -5,7 +5,7 @@
 package dotnet
 
 import (
-	"github.com/usetheo/theopacks/core/generate"
+	"github.com/usetheo/theokitpacks/core/generate"
 )
 
 // globalJson is the subset of global.json we need.

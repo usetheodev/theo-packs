@@ -1,19 +1,19 @@
 package providers
 
 import (
-	"github.com/usetheo/theopacks/core/generate"
-	"github.com/usetheo/theopacks/core/plan"
-	"github.com/usetheo/theopacks/core/providers/deno"
-	"github.com/usetheo/theopacks/core/providers/dotnet"
-	"github.com/usetheo/theopacks/core/providers/golang"
-	"github.com/usetheo/theopacks/core/providers/java"
-	"github.com/usetheo/theopacks/core/providers/node"
-	"github.com/usetheo/theopacks/core/providers/php"
-	"github.com/usetheo/theopacks/core/providers/python"
-	"github.com/usetheo/theopacks/core/providers/ruby"
-	"github.com/usetheo/theopacks/core/providers/rust"
-	"github.com/usetheo/theopacks/core/providers/shell"
-	"github.com/usetheo/theopacks/core/providers/staticfile"
+	"github.com/usetheo/theokitpacks/core/generate"
+	"github.com/usetheo/theokitpacks/core/plan"
+	"github.com/usetheo/theokitpacks/core/providers/deno"
+	"github.com/usetheo/theokitpacks/core/providers/dotnet"
+	"github.com/usetheo/theokitpacks/core/providers/golang"
+	"github.com/usetheo/theokitpacks/core/providers/java"
+	"github.com/usetheo/theokitpacks/core/providers/node"
+	"github.com/usetheo/theokitpacks/core/providers/php"
+	"github.com/usetheo/theokitpacks/core/providers/python"
+	"github.com/usetheo/theokitpacks/core/providers/ruby"
+	"github.com/usetheo/theokitpacks/core/providers/rust"
+	"github.com/usetheo/theokitpacks/core/providers/shell"
+	"github.com/usetheo/theokitpacks/core/providers/staticfile"
 )
 
 type Provider interface {

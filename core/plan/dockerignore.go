@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"github.com/moby/patternmatcher/ignorefile"
-	"github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/internal/utils"
+	"github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/internal/utils"
 )
 
 // CheckAndParseDockerignore checks if a .dockerignore file exists and parses it

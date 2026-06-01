@@ -1,4 +1,4 @@
-module github.com/usetheo/theopacks
+module github.com/usetheo/theokitpacks
 
 go 1.25.0
 

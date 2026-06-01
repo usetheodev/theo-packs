@@ -11,7 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/bmatcuk/doublestar/v4"
-	"github.com/usetheo/theopacks/internal/utils"
+	"github.com/usetheo/theokitpacks/internal/utils"
 	"gopkg.in/yaml.v2"
 )
 

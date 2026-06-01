@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/usetheo/theopacks/core"
-	"github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/core/dockerfile"
+	"github.com/usetheo/theokitpacks/core"
+	"github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/core/dockerfile"
 )
 
 // E2E tests build real Docker images from example projects. They require

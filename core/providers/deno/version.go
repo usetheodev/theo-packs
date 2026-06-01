@@ -5,7 +5,7 @@
 package deno
 
 import (
-	"github.com/usetheo/theopacks/core/generate"
+	"github.com/usetheo/theokitpacks/core/generate"
 )
 
 // detectDenoVersion picks the Deno major version, in priority order:

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/usetheo/theopacks/core/plan"
+	"github.com/usetheo/theokitpacks/core/plan"
 )
 
 // SyntaxDirective is the BuildKit dockerfile-frontend pin emitted at the top

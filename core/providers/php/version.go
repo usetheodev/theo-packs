@@ -7,7 +7,7 @@ package php
 import (
 	"strings"
 
-	"github.com/usetheo/theopacks/core/generate"
+	"github.com/usetheo/theokitpacks/core/generate"
 )
 
 // detectPhpVersion picks the PHP major.minor version, in priority order:

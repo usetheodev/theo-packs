@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/core/logger"
-	"github.com/usetheo/theopacks/core/plan"
-	"github.com/usetheo/theopacks/core/providers"
-	"github.com/usetheo/theopacks/internal/utils"
+	"github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/core/logger"
+	"github.com/usetheo/theokitpacks/core/plan"
+	"github.com/usetheo/theokitpacks/core/providers"
+	"github.com/usetheo/theokitpacks/internal/utils"
 )
 
 type ValidatePlanOptions struct {

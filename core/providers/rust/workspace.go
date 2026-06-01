@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/core/logger"
+	"github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/core/logger"
 )
 
 // WorkspaceInfo describes a Cargo workspace after glob expansion.

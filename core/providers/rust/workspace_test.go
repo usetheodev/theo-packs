@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/usetheo/theopacks/core/logger"
+	"github.com/usetheo/theokitpacks/core/logger"
 )
 
 func TestDetectWorkspace_NoCargoToml(t *testing.T) {

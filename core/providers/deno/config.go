@@ -5,7 +5,7 @@
 package deno
 
 import (
-	"github.com/usetheo/theopacks/core/app"
+	"github.com/usetheo/theokitpacks/core/app"
 )
 
 // DenoConfig is the subset of deno.json / deno.jsonc fields theo-packs needs.

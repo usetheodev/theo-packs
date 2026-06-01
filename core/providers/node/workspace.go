@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/core/logger"
+	"github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/core/logger"
 )
 
 type WorkspaceType int

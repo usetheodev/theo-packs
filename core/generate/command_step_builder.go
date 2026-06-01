@@ -3,8 +3,8 @@ package generate
 import (
 	"maps"
 
-	a "github.com/usetheo/theopacks/core/app"
-	"github.com/usetheo/theopacks/core/plan"
+	a "github.com/usetheo/theokitpacks/core/app"
+	"github.com/usetheo/theokitpacks/core/plan"
 )
 
 type CommandStepBuilder struct {
