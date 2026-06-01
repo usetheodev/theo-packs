@@ -63,6 +63,12 @@ func TestIntegration_AllExamples(t *testing.T) {
 		{"node-npm-with-config", nil},
 		{"node-npm-with-dockerignore", nil},
 		{"node-pnpm-workspaces", nil},
+		// B1 regression guard: dir-name "api" vs package.json#name "@scoped/api"
+		// — `pnpm --filter` MUST resolve against the real package name.
+		{"node-pnpm-workspaces-scoped", map[string]string{
+			"THEOKIT_PACKS_APP_NAME": "api",
+			"THEOKIT_PACKS_APP_PATH": "apps/api",
+		}},
 		{"node-yarn-workspaces", nil},
 		{"node-turborepo", nil},
 		{"node-next", nil},

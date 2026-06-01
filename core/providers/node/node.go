@@ -29,6 +29,16 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 	pm := DetectPackageManager(ctx.App)
 	ws := DetectWorkspace(ctx.App, ctx.Logger)
 
+	// FIX B3 (2026-06-01): fail-fast if the workspace declares cross-repo
+	// entries (prefix "../") or absolute paths — those are unreachable from
+	// the Docker build context. Accepting them silently caused `pnpm install`
+	// to fail downstream with a cryptic message.
+	if ws != nil {
+		if err := ValidateWorkspaceEntries(ws.RawPatterns); err != nil {
+			return err
+		}
+	}
+
 	// Workspace detection may override package manager
 	if ws != nil {
 		pm = ws.PackageManager
@@ -91,6 +101,20 @@ func (p *NodeProvider) Plan(ctx *generate.GenerateContext) error {
 
 	appName, _ := ctx.Env.GetConfigVariable("APP_NAME")
 	appPath, _ := ctx.Env.GetConfigVariable("APP_PATH")
+
+	// FIX B1 (2026-06-01): `pnpm --filter <name>` / `turbo --filter=<name>` /
+	// `npm -w <name>` all resolve against package.json#name, NOT the directory
+	// name. theokit-packs callers (TheoCloud) pass --app-name = dir-name (e.g.
+	// "full-stack-agent"), but real-world monorepos commonly scope packages
+	// (e.g. name = "@usetheo/example-full-stack-agent"). Read the package's
+	// real name here and override appName before building the filter command.
+	// Turborepo and Nx both have no dir-name fallback (industry standard).
+	if ws != nil && appName != "" && appPath != "" {
+		if realName := readAppPackageName(ctx.App, appPath); realName != "" && realName != appName {
+			ctx.Logger.LogInfo("Resolved workspace target %q → %q (package.json#name at %s)", appName, realName, appPath)
+			appName = realName
+		}
+	}
 
 	if pkg.hasBuildScript() || (ws != nil && appName != "") {
 		buildCmd := workspaceBuildCommand(pm, ws, appName, pkg.hasBuildScript())
@@ -245,6 +269,21 @@ func readPackageJSON(a *app.App, log *logger.Logger) *packageJSON {
 		return &packageJSON{}
 	}
 	return &pkg
+}
+
+// readAppPackageName reads <appPath>/package.json and returns its `name` field,
+// or "" on any failure (file missing, invalid JSON, name unset). Used by Plan()
+// to resolve the real workspace target name for pnpm/turbo/npm --filter,
+// because callers pass the directory name (per the CLI contract) but the
+// package-manager filter argument must match package.json#name.
+func readAppPackageName(a *app.App, appPath string) string {
+	var pkg struct {
+		Name string `json:"name"`
+	}
+	if err := a.ReadJSON(filepath.Join(appPath, "package.json"), &pkg); err != nil {
+		return ""
+	}
+	return pkg.Name
 }
 
 func (p *packageJSON) hasBuildScript() bool {

@@ -1,0 +1,9 @@
+{
+  "name": "@scoped/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo web build",
+    "start": "node server.js"
+  }
+}

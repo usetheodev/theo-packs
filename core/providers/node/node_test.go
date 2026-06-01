@@ -3,6 +3,7 @@ package node
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -358,4 +359,109 @@ func TestNodeProvider_PruneRunsEvenWithoutBuildScript(t *testing.T) {
 
 	cmds := buildStepCommandStrings(t, ctx)
 	require.Contains(t, cmds, "npm prune --omit=dev")
+}
+
+// --- B1 fix: pnpm/turbo --filter must resolve against package.json#name ---
+
+func TestNodeProvider_B1_ResolvesRealPackageNameFromAppPath(t *testing.T) {
+	// Workspace fixture where the app's directory name ("api") does NOT
+	// match its package.json name ("@scope/api"). The CLI contract is that
+	// --app-name = dir-name; the provider must read the real name from
+	// apps/api/package.json and pass THAT to pnpm --filter.
+	a := createNodeTempApp(t, map[string]string{
+		"package.json":             `{"name":"root","private":true}`,
+		"pnpm-workspace.yaml":      "packages:\n  - apps/*\n",
+		"pnpm-lock.yaml":           "lockfileVersion: '9.0'\n",
+		"apps/api/package.json":    `{"name":"@scope/api","scripts":{"build":"echo build","start":"node ."}}`,
+		"apps/web/package.json":    `{"name":"@scope/web","scripts":{"build":"echo build"}}`,
+	})
+	ctx := createNodeTestContext(t, a, map[string]string{
+		"THEOKIT_PACKS_APP_NAME": "api",
+		"THEOKIT_PACKS_APP_PATH": "apps/api",
+	})
+
+	require.NoError(t, (&NodeProvider{}).Plan(ctx))
+
+	cmds := buildStepCommandStrings(t, ctx)
+	var foundFilter string
+	for _, c := range cmds {
+		if strings.Contains(c, "--filter") {
+			foundFilter = c
+			break
+		}
+	}
+	require.NotEmpty(t, foundFilter, "expected a --filter command in build step")
+	require.Contains(t, foundFilter, "@scope/api", "filter must use real package.json#name, not dir-name")
+	require.NotContains(t, foundFilter, "--filter api...", "filter must NOT use the bare dir-name")
+}
+
+func TestNodeProvider_B1_FallsBackToAppNameWhenPackageJSONMissing(t *testing.T) {
+	// If <appPath>/package.json is unreadable, the provider must NOT fail —
+	// it falls back to the appName literal from the env. (Defensive: handles
+	// races and unusual workspace layouts without aborting the build plan.)
+	a := createNodeTempApp(t, map[string]string{
+		"package.json":          `{"name":"root","private":true}`,
+		"pnpm-workspace.yaml":   "packages:\n  - apps/*\n",
+		"pnpm-lock.yaml":        "lockfileVersion: '9.0'\n",
+		"apps/api/package.json": `{"name":"@scope/api","scripts":{"build":"echo build"}}`,
+	})
+	ctx := createNodeTestContext(t, a, map[string]string{
+		"THEOKIT_PACKS_APP_NAME": "api",
+		"THEOKIT_PACKS_APP_PATH": "apps/nonexistent",
+	})
+
+	require.NoError(t, (&NodeProvider{}).Plan(ctx))
+
+	cmds := buildStepCommandStrings(t, ctx)
+	var foundFilter string
+	for _, c := range cmds {
+		if strings.Contains(c, "--filter") {
+			foundFilter = c
+			break
+		}
+	}
+	require.NotEmpty(t, foundFilter, "expected a --filter command")
+	require.Contains(t, foundFilter, "api", "fallback to appName literal when real name unreadable")
+}
+
+// --- B3 fix: fail-fast on cross-repo workspace entries (../) ---
+
+func TestNodeProvider_B3_RejectsSiblingWorkspaceEntry(t *testing.T) {
+	// pnpm-workspace.yaml lists "../theokit-sdk/packages/sdk" — that path
+	// can never exist inside a Docker build context rooted at --source.
+	// The provider must fail fast with a structured error nameing the
+	// offending entry and the two remediation paths.
+	a := createNodeTempApp(t, map[string]string{
+		"package.json": `{"name":"root","private":true}`,
+		"pnpm-workspace.yaml": "packages:\n" +
+			"  - apps/*\n" +
+			"  - '../theokit-sdk/packages/sdk'\n",
+		"pnpm-lock.yaml":        "lockfileVersion: '9.0'\n",
+		"apps/api/package.json": `{"name":"@scope/api","scripts":{"build":"echo build"}}`,
+	})
+	ctx := createNodeTestContext(t, a, nil)
+	err := (&NodeProvider{}).Plan(ctx)
+	require.Error(t, err, "Plan() must fail when workspace has a ../ entry")
+	require.Contains(t, err.Error(), "../theokit-sdk/packages/sdk", "error must name the offending entry")
+	require.Contains(t, err.Error(), "Publish", "error must offer the publish-as-npm remediation")
+	require.Contains(t, err.Error(), "common parent", "error must offer the multi-repo-as-context remediation")
+}
+
+func TestNodeProvider_B3_AcceptsPureSiblingFreeWorkspace(t *testing.T) {
+	// Workspace with only legitimate entries (apps/*, packages/*) must NOT
+	// trigger the validator.
+	a := createNodeTempApp(t, map[string]string{
+		"package.json":          `{"name":"root","private":true}`,
+		"pnpm-workspace.yaml":   "packages:\n  - apps/*\n  - packages/*\n",
+		"pnpm-lock.yaml":        "lockfileVersion: '9.0'\n",
+		"apps/api/package.json": `{"name":"@scope/api","scripts":{"build":"echo build"}}`,
+	})
+	ctx := createNodeTestContext(t, a, nil)
+	require.NoError(t, (&NodeProvider{}).Plan(ctx))
+}
+
+func TestValidateWorkspaceEntries_AbsolutePath(t *testing.T) {
+	err := ValidateWorkspaceEntries([]string{"apps/*", "/usr/local/lib/x"})
+	require.Error(t, err, "absolute paths must also be rejected")
+	require.Contains(t, err.Error(), "/usr/local/lib/x")
 }

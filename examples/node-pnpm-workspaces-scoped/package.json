@@ -1,0 +1,8 @@
+{
+  "name": "scoped-monorepo-root",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo root build is a no-op"
+  }
+}

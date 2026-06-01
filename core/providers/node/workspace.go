@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/usetheo/theokitpacks/core/app"
 	"github.com/usetheo/theokitpacks/core/logger"
@@ -31,6 +32,7 @@ type WorkspaceInfo struct {
 	Type           WorkspaceType
 	PackageManager PackageManager
 	MemberPaths    []string // relative dirs containing package.json, e.g. ["packages/api", "packages/shared"]
+	RawPatterns    []string // raw entries declared in pnpm-workspace.yaml or package.json#workspaces, BEFORE glob expansion. Used by ValidateWorkspaceEntries to surface cross-repo (../) entries with an oriented error.
 	HasTurbo       bool
 }
 
@@ -47,11 +49,13 @@ func DetectWorkspace(a *app.App, log ...*logger.Logger) *WorkspaceInfo {
 
 	// pnpm-workspace.yaml is the definitive pnpm indicator
 	if a.HasFile("pnpm-workspace.yaml") {
-		members := resolvePnpmWorkspaceMembers(a, l)
+		rawPatterns := readPnpmWorkspacePatterns(a, l)
+		members := resolveWorkspacePatterns(a, rawPatterns, l)
 		return &WorkspaceInfo{
 			Type:           WorkspacePnpm,
 			PackageManager: PackageManagerPnpm,
 			MemberPaths:    members,
+			RawPatterns:    rawPatterns,
 			HasTurbo:       hasTurbo,
 		}
 	}
@@ -73,8 +77,47 @@ func DetectWorkspace(a *app.App, log ...*logger.Logger) *WorkspaceInfo {
 		Type:           wsType,
 		PackageManager: pm,
 		MemberPaths:    members,
+		RawPatterns:    patterns,
 		HasTurbo:       hasTurbo,
 	}
+}
+
+// ValidateWorkspaceEntries inspects the raw workspace entries (before glob
+// expansion) declared by pnpm-workspace.yaml#packages or
+// package.json#workspaces. It returns a structured error when at least one
+// entry references a path outside the source root (prefix "../") or an
+// absolute path — both are unsupported by Docker build because the build
+// context cannot reach above its root.
+//
+// FIX B3 (2026-06-01): theokit pnpm-workspace.yaml lists
+// "../theokit-sdk/packages/sdk" entries by design (cross-repo workspace link,
+// documented in theokit-sdk ADR 0001). theokit-packs cannot resolve those
+// entries inside a Docker build context, but accepting them silently caused
+// `pnpm install --frozen-lockfile` to fail downstream with a cryptic message.
+// Fail-fast here with the two remediation paths spelled out.
+func ValidateWorkspaceEntries(patterns []string) error {
+	var offenders []string
+	for _, p := range patterns {
+		trimmed := strings.TrimSpace(p)
+		if strings.HasPrefix(trimmed, "../") || strings.HasPrefix(trimmed, "/") {
+			offenders = append(offenders, trimmed)
+		}
+	}
+	if len(offenders) == 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"workspace declares cross-repo entries unreachable from the Docker build context: %v\n\n"+
+			"Docker build context is rooted at --source and cannot resolve paths above it.\n"+
+			"To unblock the build, choose one of:\n"+
+			"  1. Publish the referenced workspace package(s) to a registry (npm, etc.)\n"+
+			"     and replace the workspace:* dependency with a versioned range (e.g.\n"+
+			"     ^1.0.0). Remove the cross-repo entry from the workspace config.\n"+
+			"  2. Move both repositories under a common parent and pass that parent\n"+
+			"     as --source so the cross-repo entry resolves inside the context.\n"+
+			"     Adjust --app-path accordingly",
+		offenders,
+	)
 }
 
 // DetectPackageManager determines the package manager from lock files.
@@ -229,7 +272,12 @@ func readWorkspacesField(a *app.App, log *logger.Logger) []string {
 	return pkg.Workspaces
 }
 
-func resolvePnpmWorkspaceMembers(a *app.App, log *logger.Logger) []string {
+// readPnpmWorkspacePatterns returns the raw `packages:` list from
+// pnpm-workspace.yaml, BEFORE glob expansion. Sibling to readWorkspacesField
+// for the package.json#workspaces case. Used by both DetectWorkspace (so the
+// caller can validate via ValidateWorkspaceEntries) and the historical
+// resolveWorkspacePatterns expansion.
+func readPnpmWorkspacePatterns(a *app.App, log *logger.Logger) []string {
 	var config struct {
 		Packages []string `yaml:"packages"`
 	}
@@ -239,7 +287,7 @@ func resolvePnpmWorkspaceMembers(a *app.App, log *logger.Logger) []string {
 		}
 		return nil
 	}
-	return resolveWorkspacePatterns(a, config.Packages, log)
+	return config.Packages
 }
 
 // resolveWorkspacePatterns converts workspace glob patterns (e.g., "packages/*")

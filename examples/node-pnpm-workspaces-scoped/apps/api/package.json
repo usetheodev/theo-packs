@@ -1,0 +1,9 @@
+{
+  "name": "@scoped/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo api build",
+    "start": "node server.js"
+  }
+}
