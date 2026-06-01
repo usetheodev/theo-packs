@@ -1,4 +1,4 @@
-# CI pipeline for theo-packs: lint, vet, and test the core library and binary.
+# CI pipeline for theokit-packs: lint, vet, and test the core library and binary.
 #
 # Runs on every push to main and pull request.
 #

@@ -1,4 +1,4 @@
-# E2E pipeline for theo-packs: builds real Docker images from every example
+# E2E pipeline for theokit-packs: builds real Docker images from every example
 # project to verify the generated Dockerfiles are buildable end-to-end.
 #
 # Triggered MANUALLY (workflow_dispatch) and on PRs that touch provider /

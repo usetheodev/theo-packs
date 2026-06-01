@@ -1,9 +1,9 @@
-# theo-packs-runner — Dockerfile generator for Argo Workflow build pipeline.
+# theokit-packs-runner — Dockerfile generator for Argo Workflow build pipeline.
 # Analyzes source code and produces an optimized Dockerfile.
 # MEET-2026-03-29-017: Replaces hardcoded bash Dockerfile templates.
 #
-# Build: docker build -f Dockerfile.generate -t theo-packs-runner .
-# Run:   theopacks-generate --source /workspace --app-path apps/api --output /workspace/Dockerfile.api
+# Build: docker build -f Dockerfile.generate -t theokit-packs-runner .
+# Run:   theokit-packs-generate --source /workspace --app-path apps/api --output /workspace/Dockerfile.api
 
 FROM golang:1.25-alpine AS build
 
@@ -12,13 +12,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /theopacks-generate ./cmd/theopacks-generate
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /theokit-packs-generate ./cmd/theokit-packs-generate
 
 # Minimal runtime — ~20MB total
 FROM alpine:3.20
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=build /theopacks-generate /usr/local/bin/theopacks-generate
+COPY --from=build /theokit-packs-generate /usr/local/bin/theokit-packs-generate
 
-ENTRYPOINT ["theopacks-generate"]
+ENTRYPOINT ["theokit-packs-generate"]

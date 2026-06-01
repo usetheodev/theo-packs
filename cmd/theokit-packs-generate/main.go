@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2025-2026 The Theo Authors
 
-// theopacks-generate analyzes source code and generates an optimized Dockerfile.
+// theokit-packs-generate analyzes source code and generates an optimized Dockerfile.
 // Runs inside an Argo Workflow step in the build cluster.
 //
 // Usage:
 //
-//	theopacks-generate \
+//	theokit-packs-generate \
 //	  --source /workspace \
 //	  --app-path apps/api \
 //	  --app-name api \
@@ -15,7 +15,7 @@
 // CHG-002b 2026-04-28 — workspace-aware build:
 //
 // If the project root (source) is a Node workspace monorepo (turbo.json,
-// pnpm-workspace.yaml, or package.json#workspaces), theopacks-generate
+// pnpm-workspace.yaml, or package.json#workspaces), theokit-packs-generate
 // analyzes the WORKSPACE ROOT instead of the per-app subdirectory and
 // emits a Dockerfile that:
 //   - Installs deps once at the workspace root (lockfile + manifests)
@@ -79,7 +79,7 @@ func main() {
 	userDockerfile := filepath.Join(appDir, "Dockerfile")
 	if _, err := os.Stat(userDockerfile); err == nil {
 		fmt.Fprintf(os.Stderr,
-			"[theopacks] ERROR: user-supplied Dockerfile found at %s.\n\n"+
+			"[theokit-packs] ERROR: user-supplied Dockerfile found at %s.\n\n"+
 				"theo-packs is the single source of truth for Dockerfile generation.\n"+
 				"Remove the file and rerun. To opt out of generation entirely, do not\n"+
 				"invoke theo-packs — declare your build via a different mechanism in\n"+
@@ -114,7 +114,7 @@ func main() {
 	if rootErr == nil {
 		if ws := node.DetectWorkspace(rootApp); ws != nil {
 			fmt.Fprintf(os.Stderr,
-				"[theopacks] Node workspace detected at %s (type=%v, hasTurbo=%v, members=%d) — analyzing root for app %q at %q\n",
+				"[theokit-packs] Node workspace detected at %s (type=%v, hasTurbo=%v, members=%d) — analyzing root for app %q at %q\n",
 				*source, ws.Type, ws.HasTurbo, len(ws.MemberPaths), *appName, *appPath)
 			analyzeDir = *source
 		}
@@ -123,14 +123,14 @@ func main() {
 	// Initialize the app abstraction from the chosen directory
 	a, err := app.NewApp(analyzeDir)
 	if err != nil {
-		log.Fatalf("[theopacks] Failed to analyze source at %s: %v\n\nMake sure the app path is correct in your theo.yaml.", analyzeDir, err)
+		log.Fatalf("[theokit-packs] Failed to analyze source at %s: %v\n\nMake sure the app path is correct in your theo.yaml.", analyzeDir, err)
 	}
 
 	env := app.NewEnvironment(&envVars)
 	result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
 
 	if !result.Success || result.Plan == nil {
-		fmt.Fprintf(os.Stderr, "[theopacks] Could not detect how to build app '%s' at %s\n", *appName, appDir)
+		fmt.Fprintf(os.Stderr, "[theokit-packs] Could not detect how to build app '%s' at %s\n", *appName, appDir)
 		for _, msg := range result.Logs {
 			fmt.Fprintf(os.Stderr, "  %s: %s\n", msg.Level, msg.Msg)
 		}
@@ -139,9 +139,9 @@ func main() {
 	}
 
 	// Log detected providers
-	fmt.Fprintf(os.Stderr, "[theopacks] Detected: %v\n", result.DetectedProviders)
+	fmt.Fprintf(os.Stderr, "[theokit-packs] Detected: %v\n", result.DetectedProviders)
 	if meta, ok := result.Metadata["startCommand"]; ok {
-		fmt.Fprintf(os.Stderr, "[theopacks] Start command: %s\n", meta)
+		fmt.Fprintf(os.Stderr, "[theokit-packs] Start command: %s\n", meta)
 	}
 
 	// Write a default .dockerignore tailored to the detected provider IF the
@@ -155,7 +155,7 @@ func main() {
 	// Generate Dockerfile from build plan
 	dockerfileContent, err := dockerfile.Generate(result.Plan)
 	if err != nil {
-		log.Fatalf("[theopacks] Failed to generate Dockerfile: %v", err)
+		log.Fatalf("[theokit-packs] Failed to generate Dockerfile: %v", err)
 	}
 
 	// Write to output path
@@ -185,7 +185,7 @@ func writeDefaultDockerignore(dir, providerName string) {
 
 	if _, err := os.Stat(path); err == nil {
 		fmt.Fprintf(os.Stderr,
-			"[theopacks] User-provided .dockerignore found at %s — skipping default generation\n",
+			"[theokit-packs] User-provided .dockerignore found at %s — skipping default generation\n",
 			path)
 		return
 	} else if !os.IsNotExist(err) {
@@ -193,7 +193,7 @@ func writeDefaultDockerignore(dir, providerName string) {
 		// denied, IO error). Don't try to write — we may be on a read-only
 		// mount. Log and continue.
 		fmt.Fprintf(os.Stderr,
-			"[theopacks] Could not stat %s (%v) — skipping default .dockerignore generation\n",
+			"[theokit-packs] Could not stat %s (%v) — skipping default .dockerignore generation\n",
 			path, err)
 		return
 	}
@@ -201,11 +201,11 @@ func writeDefaultDockerignore(dir, providerName string) {
 	content := dockerignore.DefaultFor(providerName)
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		fmt.Fprintf(os.Stderr,
-			"[theopacks] Failed to write default .dockerignore to %s: %v (continuing)\n",
+			"[theokit-packs] Failed to write default .dockerignore to %s: %v (continuing)\n",
 			path, err)
 		return
 	}
 	fmt.Fprintf(os.Stderr,
-		"[theopacks] Wrote default .dockerignore for provider %q to %s\n",
+		"[theokit-packs] Wrote default .dockerignore for provider %q to %s\n",
 		providerName, path)
 }

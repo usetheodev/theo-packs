@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// buildBinary compiles the theopacks-generate binary into a temporary directory
+// buildBinary compiles the theokit-packs-generate binary into a temporary directory
 // and returns its path. Uses GOWORK=off to avoid workspace interference.
 func buildBinary(t *testing.T) string {
 	t.Helper()
 
 	dir := t.TempDir()
-	binPath := filepath.Join(dir, "theopacks-generate")
+	binPath := filepath.Join(dir, "theokit-packs-generate")
 
 	cmd := exec.Command("go", "build", "-o", binPath, ".")
-	cmd.Dir = filepath.Join(projectRoot(t), "cmd", "theopacks-generate")
+	cmd.Dir = filepath.Join(projectRoot(t), "cmd", "theokit-packs-generate")
 	cmd.Env = append(os.Environ(), "GOWORK=off", "CGO_ENABLED=0")
 
 	out, err := cmd.CombinedOutput()
@@ -28,11 +28,11 @@ func buildBinary(t *testing.T) string {
 	return binPath
 }
 
-// projectRoot returns the repo root (two levels up from cmd/theopacks-generate/).
+// projectRoot returns the repo root (two levels up from cmd/theokit-packs-generate/).
 func projectRoot(t *testing.T) string {
 	t.Helper()
 
-	// We're in cmd/theopacks-generate/, go up two levels.
+	// We're in cmd/theokit-packs-generate/, go up two levels.
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 

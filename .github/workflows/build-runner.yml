@@ -1,4 +1,4 @@
-# Build and push theo-packs-runner container image to DigitalOcean Container Registry.
+# Build and push theokit-packs-runner container image to DigitalOcean Container Registry.
 #
 # Trigger:
 #   push to main     → test + build + push with :latest, :sha and :YYYYMMDD tags
@@ -14,7 +14,7 @@
 # Tags are mutable and can be force-pushed, allowing attackers to replace trusted
 # code with malicious code. SHAs are immutable and protect against supply chain attacks.
 
-name: "Build: theo-packs-runner"
+name: "Build: theokit-packs-runner"
 
 on:
   push:
@@ -33,7 +33,7 @@ permissions:
 
 env:
   REGISTRY: registry.digitalocean.com/theo-system
-  IMAGE_NAME: theo-packs-runner
+  IMAGE_NAME: theokit-packs-runner
 
 jobs:
   test:
@@ -118,7 +118,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "### theo-packs-runner" >> "$GITHUB_STEP_SUMMARY"
+          echo "### theokit-packs-runner" >> "$GITHUB_STEP_SUMMARY"
           echo "- Image: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- SHA: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Date: \`${{ steps.date.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
